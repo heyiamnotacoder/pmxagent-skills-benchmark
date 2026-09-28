@@ -1,0 +1,80 @@
+{
+ "created": "2026-09-28T16:37:24+05:30",
+ "git_commit": "ae998e17f7109ce71b08448658023b5fdbb37cec",
+ "git_dirty": false,
+ "claude_code_versions": [
+  "2.1.283"
+ ],
+ "models_seen_per_arm": {
+  "A0": [
+   "claude-sonnet-4-6"
+  ],
+  "A1": [
+   "claude-sonnet-4-6"
+  ],
+  "A2": [
+   "claude-sonnet-4-6"
+  ],
+  "A3": [
+   "claude-sonnet-4-6"
+  ],
+  "A4": [
+   "claude-haiku-4-5-20251001"
+  ]
+ },
+ "skills_frozen_sha256": "a1656f60548dc192c732ebd4e5447003fcc534e982f76d468983f5db0d164c1b",
+ "pmxagent_images": [
+  "pmxagent-rapi: ghcr.io/peterbloomingdale/pmxagent-rapi@sha256:98c8d076a7d71aad8105351bcf56659546e35092e774022000329bf83765ae56 (1.0.0, linux/amd64 under Rosetta)",
+  "pmxagent-mcp:  ghcr.io/peterbloomingdale/pmxagent-mcp@sha256:44795024bc39c233dc2c971b720ea0b9efa1b7d6d47c7f14bc925c260ffe0384 (1.0.0)"
+ ],
+ "run_counts": {
+  "A0|T1_nca|failed_ratelimit": 6,
+  "A0|T1_nca|failed_ratelimit_midrun": 1,
+  "A0|T1_nca|ok": 10,
+  "A0|T2_case|failed_ratelimit": 10,
+  "A0|T3a_messy|failed_ratelimit": 5,
+  "A0|T3b_blq|failed_ratelimit": 5,
+  "A0|T3c_units|failed_ratelimit": 5,
+  "A0|T3d_oral|failed_ratelimit": 5,
+  "A0|T3e_large|failed_ratelimit": 5,
+  "A1|T1_nca|failed_ratelimit": 1,
+  "A1|T1_nca|failed_ratelimit_midrun": 1,
+  "A1|T1_nca|ok": 3,
+  "A1|T3a_messy|failed_ratelimit": 5,
+  "A1|T3b_blq|failed_ratelimit": 5,
+  "A1|T3c_units|failed_ratelimit": 5,
+  "A1|T3e_large|failed_ratelimit": 5,
+  "A2|T1_nca|failed_ratelimit": 6,
+  "A2|T1_nca|failed_ratelimit_midrun": 1,
+  "A2|T1_nca|ok": 10,
+  "A2|T2_case|failed_ratelimit": 10,
+  "A2|T3a_messy|failed_ratelimit": 5,
+  "A2|T3b_blq|failed_ratelimit": 5,
+  "A2|T3c_units|failed_ratelimit": 5,
+  "A2|T3d_oral|failed_ratelimit": 5,
+  "A2|T3e_large|failed_ratelimit": 5,
+  "A3|T1_nca|failed_ratelimit": 1,
+  "A3|T1_nca|failed_ratelimit_midrun": 1,
+  "A3|T1_nca|ok": 10,
+  "A3|T2_case|failed_ratelimit": 10,
+  "A3|T3a_messy|failed_ratelimit": 5,
+  "A3|T3b_blq|failed_ratelimit": 5,
+  "A3|T3c_units|failed_ratelimit": 5,
+  "A3|T3d_oral|failed_ratelimit": 5,
+  "A3|T3e_large|failed_ratelimit": 5,
+  "A4|T1_nca|failed_ratelimit_midrun": 1,
+  "A4|T1_nca|ok": 10,
+  "A4|T2_case|failed_ratelimit": 10,
+  "A4|T3a_messy|failed_ratelimit": 5,
+  "A4|T3b_blq|failed_ratelimit": 5,
+  "A4|T3c_units|failed_ratelimit": 5,
+  "A4|T3d_oral|failed_ratelimit": 5,
+  "A4|T3e_large|failed_ratelimit": 5
+ },
+ "n_files_in_manifest": 1325,
+ "archive": {
+  "file": "pmxbench_evidence_20260928-163724.tar.gz",
+  "sha256": "5519a27acc265efb2e7397d8ed50f43070a0455f584ee9187e6ba3963eff259a",
+  "bytes": 19197468
+ }
+}
