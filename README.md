@@ -29,7 +29,7 @@ Full report: `results/T1_report.md`. Protocol deviations: `logs/deviations.md`.
 
 ## Evidence
 Raw agent transcripts, output files and logs for every run (including failed runs) are archived on Zenodo:
-**https://doi.org/10.5281/zenodo.23019418** (DOI reserved; the record goes live at submission). `results/evidence/MANIFEST.sha256` lists the SHA-256 of every archived file, and
+**https://doi.org/10.5281/zenodo.23019418**. `results/evidence/MANIFEST.sha256` lists the SHA-256 of every archived file, and
 `results/evidence/provenance.json` holds the archive's own hash, model IDs, Claude Code version and container digests.
 
 ## Data and licences
