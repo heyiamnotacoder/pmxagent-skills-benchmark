@@ -34,7 +34,7 @@ Raw agent transcripts, output files and logs for every run (including failed run
 
 ## Data and licences
 - The benchmark data (`tasks/T1_nca/inputs/nca_benchmark.csv`) comes from the Supporting Information of the paper
-  above (© the authors; CC BY-NC 4.0). Reuse it non-commercially, with attribution to the original article.
+  above (© the authors; Creative Commons Attribution-NonCommercial licence). Reuse it non-commercially, with attribution to the original article.
   The PKanalix reference values are not redistributed here; get them from the paper's supplement.
 - PMxAgent (AGPL-3.0) is not included. Arm A1 pulls its public container images.
 - Everything else in this repository: MIT licence (`LICENSE`).
