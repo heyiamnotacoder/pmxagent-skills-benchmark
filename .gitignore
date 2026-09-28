@@ -11,3 +11,6 @@ logs/*.log
 .Rhistory
 __pycache__/
 *.zip
+# local only
+.claude/
+letter/
