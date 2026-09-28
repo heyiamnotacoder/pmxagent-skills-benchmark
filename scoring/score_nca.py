@@ -34,6 +34,7 @@ ALIASES = {
     "aucifo": "AUCINF_obs", "clo": "CL", "clfo": "CL", "vzo": "Vz", "vzfo": "Vz",
     "cl_f_obs": "CL", "vz_f_obs": "Vz", "lamzr2a": "R2ADJ", "adj_r2": "R2ADJ", "adjr2": "R2ADJ",
     "n_lambda_z": "NPTS", "n_terminal": "NPTS",
+    "cl/f_obs": "CL", "vz/f_obs": "Vz", "cl/f": "CL", "vz/f": "Vz", "adj_r_squared": "R2ADJ",
 }
 ALL_SUBJ = ["Cmax", "Tmax", "AUClast"]
 LZ_DEP = ["AUCINF_obs", "HL", "CL", "Vz"]

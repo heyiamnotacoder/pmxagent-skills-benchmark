@@ -6,6 +6,8 @@ Isolation
     (task inputs + that arm's skills). Nothing from this project repo is reachable from it.
   - each rep = `git worktree add --detach` of ws/<task>; outputs are copied back to
     results/raw/ here and never committed to the arm repo, so later reps cannot see earlier ones.
+  - finished reps are moved (git worktree move) to ~/pmxbench_archive/<arm>/ (dirs mode 0300: not listable), and
+    A1's /data/<runid> host folder with them, so a running agent has no sibling run folders to browse.
   - claude flags: --setting-sources project (no user settings/plugins/hooks), --strict-mcp-config,
     git/web tools disallowed. `preflight` checks what actually leaks into context.
 
@@ -20,6 +22,7 @@ import argparse, csv, fcntl, datetime, hashlib, json, os, re, shutil, subprocess
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUNS = os.path.expanduser("~/pmxbench_runs")
 PMX = os.path.join(RUNS, "_pmxagent")
+ARCHIVE = os.path.expanduser("~/pmxbench_archive")
 SKILLS = os.path.join(ROOT, "skills")
 TASKS = os.path.join(ROOT, "tasks")
 RAW = os.path.join(ROOT, "results", "raw")
@@ -120,6 +123,24 @@ def sha_dir(d):
     return out
 
 
+def archive(arm, runid):
+    """Move a finished rep (worktree, A1 data + mcp config) out of the live runs area; nothing is deleted."""
+    dest = os.path.join(ARCHIVE, arm)
+    os.makedirs(dest, exist_ok=True)
+    os.chmod(ARCHIVE, 0o300); os.chmod(dest, 0o300)   # enter/write but not list
+    wt = os.path.join(RUNS, arm, "runs", runid)
+    if os.path.isdir(wt):
+        sh(["git", "-C", os.path.join(RUNS, arm, "base"), "worktree", "move", wt, os.path.join(dest, runid)])
+    for src, name in ((os.path.join(PMX, "data", runid), runid + ".pmxagent_data"),
+                      (wt + ".mcp.json", runid + ".mcp.json")):
+        if os.path.exists(src):
+            shutil.move(src, os.path.join(dest, name))
+
+
+def valid(r):
+    return r["status"] == "ok" and r["is_error"] != "True"
+
+
 def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True):
     base = os.path.join(RUNS, arm, "base")
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -131,7 +152,10 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True):
     full_prompt = prompt + (SUFFIX if suffix else "")
     if arm == "A1" and suffix:
         host = os.path.join(PMX, "data", runid)
-        shutil.copytree(os.path.join(wt, "inputs"), host)
+        if os.path.isdir(os.path.join(wt, "inputs")):
+            shutil.copytree(os.path.join(wt, "inputs"), host)
+        else:   # task without input files (git does not track the empty dir)
+            os.makedirs(host)
         full_prompt += SUFFIX_A1.format(runid=runid, host=host)
     raw = os.path.join(RAW, arm, task if suffix else "_preflight", runid)
     os.makedirs(raw)
@@ -187,7 +211,10 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True):
         if new:
             w.writeheader()
         w.writerow(row)
-    print(json.dumps(row))
+    if suffix:
+        archive(arm, runid)
+    row["_limited"] = res.get("api_error_status") == 429   # not in ledger
+    print(json.dumps(row), flush=True)
     return row
 
 
@@ -197,6 +224,8 @@ def main():
     ap.add_argument("arm", choices=list(ARMS))
     ap.add_argument("rest", nargs="*")
     ap.add_argument("--timeout-min", type=int, default=90)
+    ap.add_argument("--until", action="store_true",
+                    help="treat <reps> as the target number of valid reps; run only the shortfall")
     a = ap.parse_args()
     if a.cmd == "setup":
         return setup(a.arm)
@@ -215,8 +244,22 @@ def main():
         return run_once(a.arm, "T1_nca", 0, model, prompt, 5, suffix=False)
     task, reps, model = a.rest[0], int(a.rest[1]), a.rest[2]
     prompt = open(os.path.join(TASKS, task, "prompt.md")).read().strip()
-    for rep in range(1, reps + 1):
-        run_once(a.arm, task, rep, model, prompt, a.timeout_min)
+    if not a.until:
+        for rep in range(1, reps + 1):
+            run_once(a.arm, task, rep, model, prompt, a.timeout_min)
+        return
+    rows = [r for r in csv.DictReader(open(LEDGER)) if r["arm"] == a.arm and r["task"] == task and r["rep"] != "0"]
+    have, rep, limited = sum(valid(r) for r in rows), max([int(r["rep"]) for r in rows] or [0]), 0
+    print(f"{a.arm} {task}: {have} valid reps, target {reps}", flush=True)
+    while have < reps:
+        rep += 1
+        row = run_once(a.arm, task, rep, model, prompt, a.timeout_min)
+        if valid({k: str(v) for k, v in row.items()}):
+            have, limited = have + 1, 0
+        elif row["_limited"] or not row["cost_usd"]:   # usage limit (429) or instant API failure
+            limited += 1
+            if row["_limited"] or limited >= 2:
+                sys.exit(f"{a.arm} {task}: usage limit / API failure - stopping at {have}/{reps} valid reps")
 
 
 if __name__ == "__main__":

@@ -222,6 +222,8 @@ def main():
             continue
         if runid not in ledger:   # still running
             continue
+        if ledger[runid]["status"] != "ok" or ledger[runid]["is_error"] == "True":   # usage-limit / crashed runs
+            continue
         if task in NCA_TASKS:
             r = score_nca_run(run_dir, task)
         elif task == "T2_case":
