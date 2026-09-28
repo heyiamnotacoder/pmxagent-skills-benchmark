@@ -1,0 +1,13 @@
+# third-party / reference material (read-only, not ours to redistribute)
+psp470325-sup-0001-appendixs1/
+pmxagent-main/
+*.pdf
+# task references stay local-only (derived from PKanalix reference)
+tasks/*/reference/
+# bulky run artefacts; per-run summaries are committed under results/
+results/raw/
+logs/*.log
+.DS_Store
+.Rhistory
+__pycache__/
+*.zip

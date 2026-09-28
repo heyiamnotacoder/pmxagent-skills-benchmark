@@ -1,0 +1,6 @@
+PMxAgent           overall=98.27  Cmax=100.0 Tmax=100.0 AUClast=99.0 AUCINF_obs=98.9 HL=95.9 CL=98.9 Vz=95.4  npts_match=95.4  published=98.3
+Claude_Opus_48     overall=98.22  Cmax=100.0 Tmax=100.0 AUClast=99.0 AUCINF_obs=98.7 HL=95.8 CL=98.7 Vz=95.3  npts_match=95.3  published=98.2
+GPT55_pro          overall=95.58  Cmax=100.0 Tmax=100.0 AUClast=92.4 AUCINF_obs=94.7 HL=95.9 CL=94.7 Vz=91.4  npts_match=95.4  published=95.6
+Claude_Sonnet_46   overall=94.52  Cmax=100.0 Tmax=100.0 AUClast=98.4 AUCINF_obs=97.1 HL=84.7 CL=97.1 Vz=84.3  npts_match=78.4  published=94.5
+GPT55_thinking     overall=91.57  Cmax=100.0 Tmax=100.0 AUClast=92.4 AUCINF_obs=92.8 HL=83.3 CL=92.8 Vz=79.6  npts_match=77.1  published=91.6
+max |diff| = 0.00 -> PASS (tol 0.1)

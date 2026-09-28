@@ -1,0 +1,23 @@
+# Pinned environment (2026-09-28)
+host: macOS 27.0 arm64, 10 cpu, 16 GB
+claude-code: 2.1.283 (Claude Code)
+python: Python 3.14.7
+R: R version 4.6.1 (2026-06-24) 
+PKNCA 0.12.1 
+mrgsolve 2.0.1 
+rxode2 5.1.7 
+nlmixr2lib 0.3.2.9000 
+optparse 1.8.2 
+testthat 3.3.2 
+readxl 1.5.0.1 
+writexl 2.0.1 
+ggplot2 4.0.3 
+data.table 1.18.6.1 
+nlmixr2lib commit: d8a40f2649e1f1493163915ed206dbec654aaf67 (same as PMxAgent rapi image), 614 models
+docker: Docker version 29.8.1, build 4a63305d74 via colima 0.10.3 (vz + rosetta, 6 cpu, 8 GB)
+pmxagent-rapi: ghcr.io/peterbloomingdale/pmxagent-rapi@sha256:98c8d076a7d71aad8105351bcf56659546e35092e774022000329bf83765ae56 (1.0.0, linux/amd64 under Rosetta)
+pmxagent-mcp:  ghcr.io/peterbloomingdale/pmxagent-mcp@sha256:44795024bc39c233dc2c971b720ea0b9efa1b7d6d47c7f14bc925c260ffe0384 (1.0.0)
+
+## Notes
+- rxode2 model compile: CRAN R expects /opt/gfortran libs (absent). skills/pmx-library/scripts/Makevars.rxode2 (FLIBS=) is set via R_MAKEVARS_USER by the script only; no global change.
+- PMxAgent containers run amd64 under Rosetta on arm64: wall-time for A1 is penalised vs native R in A0/A2/A3. Token cost is unaffected.

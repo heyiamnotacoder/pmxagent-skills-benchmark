@@ -1,0 +1,2 @@
+# rxode2 models are C only; CRAN R links gfortran libs by default, which are absent without /opt/gfortran.
+FLIBS=
