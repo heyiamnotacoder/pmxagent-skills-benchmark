@@ -30,6 +30,10 @@ ALIASES = {
     "auclst": "AUClast", "aucifobs": "AUCINF_obs", "lamzhl": "HL",
     "clobs": "CL", "clfobs": "CL", "vzobs": "Vz", "vzfobs": "Vz",
     "r2adj": "R2ADJ", "lamznpt": "NPTS",
+    # other spellings seen in agent outputs (naming is not scored; values are)
+    "aucifo": "AUCINF_obs", "clo": "CL", "clfo": "CL", "vzo": "Vz", "vzfo": "Vz",
+    "cl_f_obs": "CL", "vz_f_obs": "Vz", "lamzr2a": "R2ADJ", "adj_r2": "R2ADJ", "adjr2": "R2ADJ",
+    "n_lambda_z": "NPTS", "n_terminal": "NPTS",
 }
 ALL_SUBJ = ["Cmax", "Tmax", "AUClast"]
 LZ_DEP = ["AUCINF_obs", "HL", "CL", "Vz"]
