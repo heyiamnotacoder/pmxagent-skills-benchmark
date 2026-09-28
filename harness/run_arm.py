@@ -248,14 +248,20 @@ def main():
         for rep in range(1, reps + 1):
             run_once(a.arm, task, rep, model, prompt, a.timeout_min)
         return
-    rows = [r for r in csv.DictReader(open(LEDGER)) if r["arm"] == a.arm and r["task"] == task and r["rep"] != "0"]
-    have, rep, limited = sum(valid(r) for r in rows), max([int(r["rep"]) for r in rows] or [0]), 0
-    print(f"{a.arm} {task}: {have} valid reps, target {reps}", flush=True)
+    def state():   # re-read each time: another session may be topping up the same arm
+        rows = [r for r in csv.DictReader(open(LEDGER)) if r["arm"] == a.arm and r["task"] == task and r["rep"] != "0"]
+        live = [d for d in os.listdir(os.path.join(RUNS, a.arm, "runs")) if d.startswith(f"{a.arm}_{task}_r")
+                and not d.endswith(".mcp.json")] if os.path.isdir(os.path.join(RUNS, a.arm, "runs")) else []
+        reps_used = [int(r["rep"]) for r in rows] + [int(d.split("_r")[-1][:2]) for d in live]
+        return sum(valid(r) for r in rows) + len(live), max(reps_used or [0])
+    limited = 0
+    have, rep = state()
+    print(f"{a.arm} {task}: {have} valid or in-progress reps, target {reps}", flush=True)
     while have < reps:
-        rep += 1
-        row = run_once(a.arm, task, rep, model, prompt, a.timeout_min)
+        row = run_once(a.arm, task, rep + 1, model, prompt, a.timeout_min)
+        have, rep = state()
         if valid({k: str(v) for k, v in row.items()}):
-            have, limited = have + 1, 0
+            limited = 0
         elif row["_limited"] or not row["cost_usd"]:   # usage limit (429) or instant API failure
             limited += 1
             if row["_limited"] or limited >= 2:
