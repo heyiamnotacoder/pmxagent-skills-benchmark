@@ -15,7 +15,7 @@ Usage
   run_arm.py preflight <arm> <model>            one cheap probe run: lists skills/MCP/instructions seen
 Arms: A0 plain | A1 PMxAgent MCP | A2 knowledge-only skills | A3 skills+scripts | A4 = A3 (small model)
 """
-import argparse, csv, datetime, hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
+import argparse, csv, fcntl, datetime, hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUNS = os.path.expanduser("~/pmxbench_runs")
@@ -148,7 +148,7 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True):
             status = "timeout"
     wall = time.time() - t0
     shutil.copytree(os.path.join(wt, "output"), os.path.join(raw, "output"), dirs_exist_ok=True)
-    if arm == "A1":
+    if arm == "A1" and suffix:
         shutil.copytree(os.path.join(PMX, "data", runid), os.path.join(raw, "pmxagent_data"), dirs_exist_ok=True)
     hashes = sha_dir(os.path.join(raw, "output"))
     json.dump(hashes, open(os.path.join(raw, "output_sha256.json"), "w"), indent=1)
@@ -172,10 +172,17 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True):
            "duration_s": round(wall, 1), "api_duration_s": (res.get("duration_api_ms") or 0) / 1000,
            "input_tokens": u.get("input_tokens"), "output_tokens": u.get("output_tokens"),
            "cache_read_tokens": u.get("cache_read_input_tokens"), "cache_write_tokens": u.get("cache_creation_input_tokens"),
+           "cache_write_1h_tokens": (u.get("cache_creation") or {}).get("ephemeral_1h_input_tokens"),
+           "cache_write_5m_tokens": (u.get("cache_creation") or {}).get("ephemeral_5m_input_tokens"),
+           "thinking_tokens": (u.get("output_tokens_details") or {}).get("thinking_tokens"),
+           "model_usage_json": json.dumps({m: {k: v.get(k) for k in ("inputTokens", "outputTokens", "cacheReadInputTokens",
+                                               "cacheCreationInputTokens", "costUSD")}
+                                           for m, v in (res.get("modelUsage") or {}).items()}, separators=(",", ":")),
            "tool_calls": tools, "tool_errors": tool_err, "n_output_files": len(hashes), "ws_commit": head[:12],
            "claude_version": sh(["claude", "--version"]).strip().split()[0]}
     new = not os.path.exists(LEDGER)
     with open(LEDGER, "a", newline="") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)   # arms run in parallel
         w = csv.DictWriter(f, fieldnames=list(row))
         if new:
             w.writeheader()
