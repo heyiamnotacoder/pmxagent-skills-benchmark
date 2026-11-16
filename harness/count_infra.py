@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Infrastructure footprint of the two stacks -> results/infra.csv (paper/PLAN.md R5).
+"""Infrastructure footprint of the two stacks -> results/infra.csv (paper/SPEC.md, slice S9).
 
 Counts only (lines, files, services); no file content is interpreted beyond docker-compose service names.
   Skills:   skills/<name>/{SKILL.md, scripts/, tests/}

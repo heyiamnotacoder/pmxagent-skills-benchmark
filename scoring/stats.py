@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pre-specified arm comparisons (paper/PLAN.md, "Pre-specified analysis") -> results/stats.md + results/stats.csv.
+"""Pre-specified arm comparisons (paper/SPEC.md, "Pre-specified analysis") -> results/stats.md + results/stats.csv.
 
 For each task with a run-level accuracy (`overall` in results/scores.csv) and each pre-specified pair (X - Y):
   - difference in mean accuracy, 95% percentile bootstrap CI (resample runs within each arm; B = 10,000; fixed seed)

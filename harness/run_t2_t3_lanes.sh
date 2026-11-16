@@ -4,9 +4,9 @@
 # --until tops each arm x task up to the target number of valid reps and stops a lane on a usage-limit (429)
 # response, so re-running this script after the limit resets resumes where it stopped.
 #
-# T3b runs only after the BLQ protocol check (scoring/check_blq_reference.py, paper/PLAN.md R1):
+# T3b runs only after the BLQ protocol check (scoring/check_blq_reference.py, paper/SPEC.md, slice S2):
 #   T3B_OK=1 bash harness/run_t2_t3_lanes.sh
-# Optional R0 (A1 T1 top-up to 10 runs): A1_T1=10 bash harness/run_t2_t3_lanes.sh
+# A1 T1 is topped up to 10 runs first (decided 2026-11-16, paper/SPEC.md slice S3); A1_T1=0 skips that.
 set -u
 cd "$(dirname "$0")/.."
 S=claude-sonnet-4-6; H=claude-haiku-4-5-20251001
@@ -24,7 +24,7 @@ lane() {   # lane <model> <arm>...
 }
 
 for arm in A0 A1 A2 A3 A4; do python3 harness/run_arm.py setup "$arm" || exit 1; done
-( [ -n "${A1_T1:-}" ] && python3 harness/run_arm.py run A1 T1_nca "$A1_T1" $S --until
+( [ "${A1_T1:-10}" != 0 ] && python3 harness/run_arm.py run A1 T1_nca "${A1_T1:-10}" $S --until
   lane $S A1 ) >> logs/t2t3_lane_A1.log 2>&1 &
 ( lane $S A0 A2 A3 && lane $H A4 ) >> logs/t2t3_lane_others.log 2>&1 &
 wait

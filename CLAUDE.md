@@ -11,7 +11,7 @@ Goal: test how much of PMxAgent's architecture (Docker + R Plumber + FastMCP) is
 - `tasks/` — task prompts + inputs (`build_tasks.py`); `tasks/*/reference/` is scorer-only and git-ignored.
 - `harness/` — `run_arm.py` (setup/run/preflight; per-arm git repo + one worktree per rep in `~/pmxbench_runs/`), `pmxagent.sh` (A1 Docker stack).
 - `results/`, `logs/`, `env/` — outputs, logs, pinned versions.
-- `paper/` — bioRxiv preprint: `PLAN.md` (preprint plan + pre-specified analysis), `main.tex`, `references.bib`; tables/numbers from `paper/tables.py`, figures from `scoring/figures.py`. Never type a result number by hand.
+- `paper/` — arXiv preprint: `SPEC.md` (spec, decisions log, pre-specified analysis; work tracked as GitHub sub-issues), `main.tex`, `references.bib`; tables/numbers from `paper/tables.py`, figures from `scoring/figures.py`. Never type a result number by hand.
 
 ## Rules
 - Same pinned model for every arm in a comparison.
