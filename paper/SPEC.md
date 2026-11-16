@@ -1,6 +1,6 @@
 # Spec: arXiv preprint — MCP platform vs Agent Skills for pharmacometrics agents
 
-Status: open. Tracking issue and sub-issues on GitHub (one issue per slice, see "Slices" below). This file is the
+Status: open. Tracking issue: #2; one sub-issue per slice (#3–#16, see "Slices" below). This file is the
 source of truth for scope and decisions; the issues are the work. The benchmark protocol itself is `../PLAN.md`.
 
 Working title: *Do agentic pharmacometrics tools need server infrastructure? A controlled benchmark of an MCP
@@ -107,22 +107,22 @@ in `logs/deviations.md` with the reason.
 Tracked as GitHub sub-issues of the spec issue. HITL = needs a human (the Mac with R, Docker, the supplement and the
 Claude subscription, or an account action); AFK = an agent can do it in this repository alone.
 
-| # | Slice | Type | Blocked by |
-|---|---|---|---|
-| S1 | Harness: refuse runs on a different Claude Code version | AFK | — |
-| S2 | BLQ reference check for T3b | HITL | — |
-| S3 | A1 T1 top-up to 10 runs, end to end | HITL | S1 |
-| S4 | T3d oral 1-CM, end to end | HITL | S1 |
-| S5 | T2 case study, end to end | HITL | S1 |
-| S6 | T3a / T3c / T3e NCA stress tasks, end to end | HITL | S1 |
-| S7 | T3b BLQ task, end to end | HITL | S1, S2 |
-| S8 | Reproducibility: distinct parameter-value sets + terminal-point match | HITL | S3 |
-| S9 | Infrastructure footprint table | HITL | — |
-| S10 | Fig 1: architecture of the two stacks | AFK | — |
-| S11 | Verify software and web references | AFK | — |
-| S12 | Isolation audit, evidence bundle, Zenodo new version | HITL | S3–S7 |
-| S13 | Finalise manuscript and co-author sign-off | HITL | S3–S12 |
-| S14 | arXiv submission package and posting | HITL | S12, S13 |
+| # | Issue | Slice | Type | Blocked by |
+|---|---|---|---|---|
+| S1 | #3 | Harness: refuse runs on a different Claude Code version | AFK | — |
+| S2 | #4 | BLQ reference check for T3b | HITL | — |
+| S3 | #5 | A1 T1 top-up to 10 runs, end to end | HITL | S1 (#3) |
+| S4 | #6 | T3d oral 1-CM, end to end | HITL | S1 (#3) |
+| S5 | #7 | T2 case study, end to end | HITL | S1 (#3) |
+| S6 | #8 | T3a / T3c / T3e NCA stress tasks, end to end | HITL | S1 (#3) |
+| S7 | #9 | T3b BLQ task, end to end | HITL | S1, S2 (#3, #4) |
+| S8 | #10 | Reproducibility: distinct parameter-value sets + terminal-point match | HITL | S3 (#5) |
+| S9 | #11 | Infrastructure footprint table | HITL | — |
+| S10 | #12 | Fig 1: architecture of the two stacks | AFK | — |
+| S11 | #13 | Verify software and web references | AFK | — |
+| S12 | #14 | Isolation audit, evidence bundle, Zenodo new version | HITL | S3–S7 (#5–#9) |
+| S13 | #15 | Finalise manuscript and co-author sign-off | HITL | S3–S12 (#5–#14) |
+| S14 | #16 | arXiv submission package and posting | HITL | S12, S13 (#14, #15) |
 
 ## Known limitations to state in the paper
 Single benchmark source (paper's 182-drug set, PKanalix as reference, not ground truth) · subscription runs, cost is
