@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""Pre-specified arm comparisons (paper/PLAN.md, "Pre-specified analysis") -> results/stats.md + results/stats.csv.
+
+For each task with a run-level accuracy (`overall` in results/scores.csv) and each pre-specified pair (X - Y):
+  - difference in mean accuracy, 95% percentile bootstrap CI (resample runs within each arm; B = 10,000; fixed seed)
+  - two-sided permutation p-value (exact when the number of splits is <= 200,000, else 100,000 random splits)
+  - equivalence vs the +/-1.0 percentage-point margin: "equivalent" only if the whole 95% CI lies inside the margin
+Per arm: n, mean, SD, min, max, and the number of distinct parameter-value sets (needs results/raw/; else "n/a").
+Valid runs only (scores.csv already holds only those). Stdlib only.  Usage: stats.py [--b 10000] [--seed 20261116]
+"""
+import argparse, csv, glob, hashlib, itertools, math, os, random, statistics as st, sys
+from collections import defaultdict
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+RES = os.path.join(ROOT, "results")
+PAIRS = [("A2", "A1"), ("A3", "A1"), ("A3", "A2"), ("A4", "A3"), ("A0", "A3")]
+MARGIN = 1.0
+EXACT_MAX = 200_000
+
+
+def mean(xs):
+    return sum(xs) / len(xs)
+
+
+def boot_ci(x, y, b, rng):
+    d = []
+    for _ in range(b):
+        d.append(mean([rng.choice(x) for _ in x]) - mean([rng.choice(y) for _ in y]))
+    d.sort()
+    return d[int(0.025 * b)], d[int(math.ceil(0.975 * b)) - 1]
+
+
+def perm_p(x, y, rng, n_mc=100_000):
+    obs = abs(mean(x) - mean(y))
+    pool, nx = x + y, len(x)
+    tot = sum(pool)
+    eps = 1e-9
+
+    def stat(sx):
+        return abs(sx / nx - (tot - sx) / (len(pool) - nx))
+
+    if math.comb(len(pool), nx) <= EXACT_MAX:
+        hits = n = 0
+        for idx in itertools.combinations(range(len(pool)), nx):
+            n += 1
+            hits += stat(sum(pool[i] for i in idx)) >= obs - eps
+        return hits / n, "exact"
+    hits = 0
+    for _ in range(n_mc):
+        hits += stat(sum(rng.sample(pool, nx))) >= obs - eps
+    return (hits + 1) / (n_mc + 1), "MC"
+
+
+def value_set_hash(run_dir, scored_file):
+    """Hash of the scored individual table: (subject, parameter, value at 6 significant digits), sorted."""
+    import score_all
+    p = os.path.join(run_dir, scored_file)
+    if not scored_file or not os.path.exists(p):
+        return None
+    d = score_all.load_any(p)
+    items = sorted((s, k, "nan" if math.isnan(v) else f"{v:.6g}") for (s, k), v in d.items())
+    return hashlib.sha256(repr(items).encode()).hexdigest()
+
+
+def pfmt(p):
+    return "<0.0001" if p < 1e-4 else f"{p:.4f}"
+
+
+def fmt(x, nd=2):
+    return "" if x is None else f"{x:.{nd}f}"
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--b", type=int, default=10_000)
+    ap.add_argument("--seed", type=int, default=20261116)
+    a = ap.parse_args()
+    rows = list(csv.DictReader(open(os.path.join(RES, "scores.csv"))))
+    acc = defaultdict(lambda: defaultdict(list))
+    vsets = defaultdict(lambda: defaultdict(set))
+    have_raw = defaultdict(lambda: defaultdict(bool))
+    for r in rows:
+        try:
+            v = float(r["overall"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        acc[r["task"]][r["arm"]].append(v)
+        run_dir = os.path.join(RES, "raw", r["arm"], r["task"], r["runid"])
+        if os.path.isdir(run_dir) and r.get("scored_file"):
+            h = value_set_hash(run_dir, r["scored_file"])
+            if h:
+                vsets[r["task"]][r["arm"]].add(h)
+                have_raw[r["task"]][r["arm"]] = True
+
+    out_arm, out_pair = [], []
+    for task in sorted(acc):
+        for arm in sorted(acc[task]):
+            x = acc[task][arm]
+            out_arm.append({"task": task, "arm": arm, "n": len(x), "mean": mean(x),
+                            "sd": st.stdev(x) if len(x) > 1 else 0.0, "min": min(x), "max": max(x),
+                            "distinct_value_sets": len(vsets[task][arm]) if have_raw[task][arm] else "n/a"})
+        for xa, ya in PAIRS:
+            if xa not in acc[task] or ya not in acc[task]:
+                continue
+            x, y = acc[task][xa], acc[task][ya]
+            rng = random.Random(f"{a.seed}-{task}-{xa}-{ya}")
+            lo, hi = boot_ci(x, y, a.b, rng)
+            p, how = perm_p(x, y, rng)
+            out_pair.append({"task": task, "comparison": f"{xa} - {ya}", "n_x": len(x), "n_y": len(y),
+                             "diff": mean(x) - mean(y), "ci_lo": lo, "ci_hi": hi, "p_perm": p, "p_method": how,
+                             "equivalent_1pp": -MARGIN < lo and hi < MARGIN})
+
+    with open(os.path.join(RES, "stats.csv"), "w", newline="") as f:
+        cols = list(out_pair[0]) if out_pair else ["task"]
+        w = csv.DictWriter(f, fieldnames=cols); w.writeheader(); w.writerows(out_pair)
+    with open(os.path.join(RES, "stats_arms.csv"), "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=list(out_arm[0])); w.writeheader(); w.writerows(out_arm)
+
+    md = ["# Pre-specified comparisons", "",
+          f"Overall accuracy (paper metric, percentage points). Difference = mean(X) - mean(Y); 95% percentile "
+          f"bootstrap CI over runs (B = {a.b:,}, seed {a.seed}); two-sided permutation p. Equivalent = whole CI inside "
+          f"+/-{MARGIN} pp. With n = 3 in an arm the bootstrap has only 10 distinct resamples for it, so its CI is coarse. Generated by `scoring/stats.py`; do not edit by hand.", ""]
+    for task in sorted(acc):
+        md += [f"## {task}", "", "| Arm | n | Mean | SD | Min | Max | Distinct value sets |", "|---|---|---|---|---|---|---|"]
+        md += [f"| {r['arm']} | {r['n']} | {fmt(r['mean'])} | {fmt(r['sd'])} | {fmt(r['min'])} | {fmt(r['max'])} | "
+               f"{r['distinct_value_sets']} |" for r in out_arm if r["task"] == task]
+        md += ["", "| Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |", "|---|---|---|---|---|---|"]
+        md += [f"| {r['comparison']} | {r['n_x']} vs {r['n_y']} | {r['diff']:+.2f} | {r['ci_lo']:+.2f} to "
+               f"{r['ci_hi']:+.2f} | {pfmt(r['p_perm'])} ({r['p_method']}) | {'yes' if r['equivalent_1pp'] else 'no'} |"
+               for r in out_pair if r["task"] == task]
+        md.append("")
+    open(os.path.join(RES, "stats.md"), "w").write("\n".join(md))
+    print("\n".join(md))
+
+
+if __name__ == "__main__":
+    main()

@@ -11,6 +11,7 @@ Goal: test how much of PMxAgent's architecture (Docker + R Plumber + FastMCP) is
 - `tasks/` — task prompts + inputs (`build_tasks.py`); `tasks/*/reference/` is scorer-only and git-ignored.
 - `harness/` — `run_arm.py` (setup/run/preflight; per-arm git repo + one worktree per rep in `~/pmxbench_runs/`), `pmxagent.sh` (A1 Docker stack).
 - `results/`, `logs/`, `env/` — outputs, logs, pinned versions.
+- `paper/` — bioRxiv preprint: `PLAN.md` (preprint plan + pre-specified analysis), `main.tex`, `references.bib`; tables/numbers from `paper/tables.py`, figures from `scoring/figures.py`. Never type a result number by hand.
 
 ## Rules
 - Same pinned model for every arm in a comparison.
@@ -23,4 +24,5 @@ Goal: test how much of PMxAgent's architecture (Docker + R Plumber + FastMCP) is
 - Calibrate scorer: `python3 scoring/score_nca.py --calibrate`
 - Score a run: `python3 scoring/score_nca.py <individual.csv>`
 - Build arm repos: `python3 harness/run_arm.py setup <arm>` · probe isolation: `python3 harness/run_arm.py preflight <arm> claude-sonnet-4-6`
+- Paper pipeline: `python3 scoring/stats.py && python3 scoring/figures.py && python3 paper/tables.py && (cd paper && latexmk -pdf main.tex)`
 - Run an arm: `bash harness/run_arm.sh <A0|A1|A2|A3|A4> <task> <reps> claude-sonnet-4-6` (A1 needs `bash harness/pmxagent.sh up`)
