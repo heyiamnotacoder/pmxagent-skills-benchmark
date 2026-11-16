@@ -101,3 +101,8 @@ how they reach a rep:
   by path suffix) (`scoring/tests`).
 - Isolation audit: project-path pattern now also matches `projects/pmxagent`; A1's own `/data/<runid>` host folder
   is no longer counted as another run's area.
+- Run-root guard (added 2026-11-16 ~22:05, while A0 T2 reps were running; a check only, no change to what a rep
+  sees): `/Users/Shared` is world-writable, so another local user could plant `CLAUDE.md`/`.claude/` in an ancestor
+  of the workspaces. `run_arm.py` now refuses to run unless the run root is owned by the user with mode 0700 and no
+  ancestor holds `CLAUDE.md`, `CLAUDE.local.md` or `.claude/`; reps run with umask 077. Verified at the time: no such
+  files in any ancestor, so earlier reps were unaffected.

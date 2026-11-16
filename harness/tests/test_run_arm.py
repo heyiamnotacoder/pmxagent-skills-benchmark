@@ -34,5 +34,19 @@ class RunEnv(unittest.TestCase):
         self.assertIn("PATH", env)
 
 
+class CheckRunRoot(unittest.TestCase):
+    def test_refuses_instruction_file_in_ancestor_and_non_private_root(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = os.path.join(d, "shared", "runs")
+            self.assertEqual(run_arm.check_run_root(root), os.path.realpath(root))
+            open(os.path.join(d, "shared", "CLAUDE.md"), "w").write("injected")
+            with self.assertRaises(SystemExit):
+                run_arm.check_run_root(root)
+            os.remove(os.path.join(d, "shared", "CLAUDE.md"))
+            os.chmod(root, 0o755)
+            with self.assertRaises(SystemExit):
+                run_arm.check_run_root(root)
+
+
 if __name__ == "__main__":
     unittest.main()

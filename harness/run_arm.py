@@ -129,6 +129,26 @@ def claude_cmd(arm, model, wt):
     return cmd
 
 
+def check_run_root(root=None):
+    """Refuse to run unless no ancestor of RUNS can inject instructions and RUNS is private to this user.
+
+    Claude Code reads CLAUDE.md / .claude/ from every ancestor of a rep's working directory, and RUNS sits under a
+    world-writable parent (/Users/Shared), so this is checked before every run, not once."""
+    root = os.path.realpath(root or RUNS)
+    os.makedirs(root, mode=0o700, exist_ok=True)
+    st = os.stat(root)
+    if st.st_uid != os.getuid() or st.st_mode & 0o077:
+        sys.exit(f"{root} must be owned by you with mode 0700 (chmod 700 {root})")
+    d = root
+    while True:
+        d = os.path.dirname(d)
+        bad = [n for n in ("CLAUDE.md", "CLAUDE.local.md", ".claude") if os.path.lexists(os.path.join(d, n))]
+        if bad:
+            sys.exit(f"instruction files in an ancestor of {root}: {[os.path.join(d, n) for n in bad]}")
+        if d == os.path.dirname(d):
+            return root
+
+
 def run_env(wt):
     """Environment for one rep. Isolated mode (token file present): fresh HOME + config dir next to the worktree."""
     env = {k: os.environ[k] for k in ENV_KEEP if k in os.environ}
@@ -137,7 +157,7 @@ def run_env(wt):
         env["HOME"] = os.environ["HOME"]   # keychain login, user CLAUDE.md loads (T1 mode)
         return env, "user"
     home = wt + ".home"
-    os.makedirs(os.path.join(home, ".claude"))
+    os.makedirs(os.path.join(home, ".claude"), mode=0o700)
     env.update(HOME=home, CLAUDE_CONFIG_DIR=os.path.join(home, ".claude"),
                CLAUDE_CODE_OAUTH_TOKEN=open(TOKEN_FILE).read().strip())
     return env, "isolated"
@@ -268,6 +288,8 @@ def main():
     ap.add_argument("--until", action="store_true",
                     help="treat <reps> as the target number of valid reps; run only the shortfall")
     a = ap.parse_args()
+    os.umask(0o077)   # rep worktrees, homes and raw copies private to this user
+    check_run_root()
     if a.cmd == "setup":
         return setup(a.arm)
     frozen = os.path.join(SKILLS, "FROZEN.sha256")
