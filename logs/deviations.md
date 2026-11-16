@@ -57,3 +57,36 @@ A1 crashed on tasks with no input files (T2, T3d) because git does not track emp
 ## 8. Docker
 PMxAgent stack stopped at the user's request after the first matrix and restarted for the A1 top-up (15:45), then
 stopped again when A1 finished (15:59). Same pinned image digests (`env/versions.txt`); every A1 run is independent.
+
+---
+# Task 2 (case study) — from 2026-11-16 (IST)
+
+## 9. Restored on a fresh checkout
+The original working copy was not on this machine. The repo was cloned from GitHub; PMxAgent was re-deployed from its
+public tag `v1.0.0` into `~/pmxbench_runs/_pmxagent` and started from the **same image digests** as T1
+(`env/versions.txt`). T2 needs no supplement data. Arm repos rebuilt with `run_arm.py setup` from the frozen skills
+(hashes verified, all skill tests pass).
+
+## 10. Environment drift since T1
+Claude Code 2.1.283 → 2.1.310, R 4.6.1 → 4.6.2, Python 3.14.7 → 3.15.2, Docker 29.8.1 → 29.9.2. All R packages
+(PKNCA, mrgsolve, rxode2, nlmixr2lib, …) unchanged. Same for every T2 arm; the Claude Code version is in the ledger
+per run. T1 and T2 are separate comparisons, so drift between them does not affect any within-task arm comparison.
+
+## 11. Isolation: no user instructions in T2 (stronger than T1)
+The user's global `~/.claude/CLAUDE.md` and `~/.claude/rules/` had grown since T1 (they now include working-style
+rules such as "write tests first" and a PR workflow) and could change agent behaviour on an open-ended task.
+T2 runs therefore use a fresh, empty `CLAUDE_CONFIG_DIR` per rep, authenticated by a subscription token from
+`claude setup-token` (environment only, never logged). Nothing from the user's config loads; earlier reps' session
+files are unreachable. Ledger column `claude_config` = `isolated` for these runs (empty for T1 runs). Decided before
+any T2 run.
+
+## 12. Harness and scorer changes (no effect on T1 numbers)
+- `run_arm.py setup` handles tasks with no input files (T2, T3d) on a fresh clone.
+- Ledger writer rewrites the header when a run adds a column, so old rows stay aligned (`harness/tests`).
+- `score_all.py`, `summarize.py`, `audit_isolation.py` update their tables by run ID and keep rows for runs whose raw
+  files are not on this machine (T1 raw is on Zenodo); distinct-output counts fall back to the evidence manifest.
+  Check: re-running all three with no raw files leaves every committed T1 file byte-identical.
+- T2 scorer also finds A1's simulated data under `pmxagent_data/` (container paths in `results.json` are matched
+  by path suffix) (`scoring/tests`).
+- Isolation audit: project-path pattern now also matches `projects/pmxagent`; A1's own `/data/<runid>` host folder
+  is no longer counted as another run's area.

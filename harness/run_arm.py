@@ -10,6 +10,10 @@ Isolation
     A1's /data/<runid> host folder with them, so a running agent has no sibling run folders to browse.
   - claude flags: --setting-sources project (no user settings/plugins/hooks), --strict-mcp-config,
     git/web tools disallowed. `preflight` checks what actually leaks into context.
+  - user config: `--setting-sources project` still loads ~/.claude/CLAUDE.md and ~/.claude/rules/. If a subscription
+    token from `claude setup-token` is saved in TOKEN_FILE, each rep instead gets its own empty CLAUDE_CONFIG_DIR
+    (archived with the rep), so no user instructions load and no earlier session files are reachable. The ledger's
+    `claude_config` column records which mode a run used. The token is passed by environment only, never logged.
 
 Usage
   run_arm.py setup   <arm>                      build/refresh the arm repo + ws branches
@@ -28,6 +32,7 @@ TASKS = os.path.join(ROOT, "tasks")
 RAW = os.path.join(ROOT, "results", "raw")
 LEDGER = os.path.join(ROOT, "results", "runs.csv")
 ARMS = {"A0": None, "A1": None, "A2": "knowledge", "A3": "scripts", "A4": "scripts"}
+TOKEN_FILE = os.path.expanduser(os.environ.get("PMXBENCH_OAUTH_TOKEN_FILE", "~/.config/pmxbench/oauth_token"))
 MCP_TOKEN = "pmxagent-ci-token"   # PMxAgent's documented CI token (docker-compose.yml MCP_TEST_TOKEN)
 
 SUFFIX = ("\n\n---\nWork autonomously in the current directory and do not ask questions. "
@@ -74,7 +79,8 @@ def setup(arm):
             if p != ".git":
                 q = os.path.join(base, p)
                 shutil.rmtree(q) if os.path.isdir(q) else os.remove(q)
-        shutil.copytree(os.path.join(tdir, "inputs"), os.path.join(base, "inputs"))
+        if os.path.isdir(os.path.join(tdir, "inputs")):   # T2/T3d have none (git does not track empty dirs)
+            shutil.copytree(os.path.join(tdir, "inputs"), os.path.join(base, "inputs"))
         os.makedirs(os.path.join(base, "output"))
         open(os.path.join(base, "output", ".gitkeep"), "w").close()
         if ARMS[arm]:
@@ -114,6 +120,35 @@ def claude_cmd(arm, model, wt):
     return cmd
 
 
+def run_env(wt):
+    """Environment for one rep. Isolated mode (token file present): fresh config dir next to the worktree."""
+    env = {**os.environ, "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
+    env.pop("CLAUDE_CODE_OAUTH_TOKEN", None)
+    if not os.path.isfile(TOKEN_FILE):
+        return env, "user"
+    cfg = wt + ".claude_config"
+    os.makedirs(cfg)
+    env.update(CLAUDE_CONFIG_DIR=cfg, CLAUDE_CODE_OAUTH_TOKEN=open(TOKEN_FILE).read().strip())
+    return env, "isolated"
+
+
+def append_ledger(row):
+    """Append under a lock; if the row brings new columns, rewrite the file with the union header."""
+    with open(LEDGER, "a+", newline="") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)   # arms run in parallel
+        f.seek(0)
+        old = list(csv.DictReader(f))
+        cols = list(old[0]) if old else []
+        if not old or any(k not in cols for k in row):
+            cols += [k for k in row if k not in cols]
+            f.seek(0); f.truncate()
+            w = csv.DictWriter(f, fieldnames=cols, restval="")
+            w.writeheader(); w.writerows(old)
+        else:
+            w = csv.DictWriter(f, fieldnames=cols, restval="")
+        w.writerow(row)
+
+
 def sha_dir(d):
     out = {}
     for dp, _, fs in os.walk(d):
@@ -132,7 +167,7 @@ def archive(arm, runid):
     if os.path.isdir(wt):
         sh(["git", "-C", os.path.join(RUNS, arm, "base"), "worktree", "move", wt, os.path.join(dest, runid)])
     for src, name in ((os.path.join(PMX, "data", runid), runid + ".pmxagent_data"),
-                      (wt + ".mcp.json", runid + ".mcp.json")):
+                      (wt + ".mcp.json", runid + ".mcp.json"), (wt + ".claude_config", runid + ".claude_config")):
         if os.path.exists(src):
             shutil.move(src, os.path.join(dest, name))
 
@@ -160,12 +195,13 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True):
     raw = os.path.join(RAW, arm, task if suffix else "_preflight", runid)
     os.makedirs(raw)
     open(os.path.join(raw, "prompt.txt"), "w").write(full_prompt)
+    env, config_mode = run_env(wt)
     t0 = time.time()
     status = "ok"
     with open(os.path.join(raw, "transcript.jsonl"), "w") as tr, open(os.path.join(raw, "stderr.txt"), "w") as er:
         try:
             p = subprocess.run(claude_cmd(arm, model, wt), input=full_prompt, cwd=wt, stdout=tr, stderr=er,
-                               text=True, timeout=timeout_min * 60, env={**os.environ, "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"})
+                               text=True, timeout=timeout_min * 60, env=env)
             if p.returncode != 0:
                 status = f"exit{p.returncode}"
         except subprocess.TimeoutExpired:
@@ -203,14 +239,8 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True):
                                                "cacheCreationInputTokens", "costUSD")}
                                            for m, v in (res.get("modelUsage") or {}).items()}, separators=(",", ":")),
            "tool_calls": tools, "tool_errors": tool_err, "n_output_files": len(hashes), "ws_commit": head[:12],
-           "claude_version": sh(["claude", "--version"]).strip().split()[0]}
-    new = not os.path.exists(LEDGER)
-    with open(LEDGER, "a", newline="") as f:
-        fcntl.flock(f, fcntl.LOCK_EX)   # arms run in parallel
-        w = csv.DictWriter(f, fieldnames=list(row))
-        if new:
-            w.writeheader()
-        w.writerow(row)
+           "claude_version": sh(["claude", "--version"]).strip().split()[0], "claude_config": config_mode}
+    append_ledger(row)
     if suffix:
         archive(arm, runid)
     row["_limited"] = res.get("api_error_status") == 429   # not in ledger
@@ -251,7 +281,7 @@ def main():
     def state():   # re-read each time: another session may be topping up the same arm
         rows = [r for r in csv.DictReader(open(LEDGER)) if r["arm"] == a.arm and r["task"] == task and r["rep"] != "0"]
         live = [d for d in os.listdir(os.path.join(RUNS, a.arm, "runs")) if d.startswith(f"{a.arm}_{task}_r")
-                and not d.endswith(".mcp.json")] if os.path.isdir(os.path.join(RUNS, a.arm, "runs")) else []
+                and not d.endswith((".mcp.json", ".claude_config"))] if os.path.isdir(os.path.join(RUNS, a.arm, "runs")) else []
         reps_used = [int(r["rep"]) for r in rows] + [int(d.split("_r")[-1][:2]) for d in live]
         return sum(valid(r) for r in rows) + len(live), max(reps_used or [0])
     limited = 0

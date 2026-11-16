@@ -1,0 +1,88 @@
+"""Tests for the parts of scoring that must hold when only some runs' raw files are on this machine.
+
+T1 raw files live on Zenodo, not in results/raw/, so re-scoring T2 must keep the committed T1 rows.
+Run: python3 -m unittest discover -s scoring/tests
+"""
+import csv, json, math, os, sys, tempfile, unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(HERE))
+import runstore
+import score_all
+
+
+def write_csv(path, rows):
+    with open(path, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0])); w.writeheader(); w.writerows(rows)
+
+
+class MergeRows(unittest.TestCase):
+    def test_keeps_rows_not_rescanned_and_replaces_rescanned(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "scores.csv")
+            write_csv(p, [{"runid": "t1", "overall": "98.64"}, {"runid": "t2", "overall": "1"}])
+            runstore.merge_rows(p, [{"runid": "t2", "overall": "", "ec50": "50"}], rescanned={"t2"})
+            rows = list(csv.DictReader(open(p)))
+        self.assertEqual([r["runid"] for r in rows], ["t1", "t2"])
+        self.assertEqual(rows[0]["overall"], "98.64")
+        self.assertEqual(rows[1]["ec50"], "50")
+
+    def test_rescanned_run_that_no_longer_scores_is_dropped(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "scores.csv")
+            write_csv(p, [{"runid": "t1", "overall": "98"}])
+            runstore.merge_rows(p, [], rescanned={"t1"})
+            self.assertEqual(list(csv.DictReader(open(p))), [])
+
+
+class OutputHashes(unittest.TestCase):
+    def test_falls_back_to_evidence_manifest_when_raw_is_absent(self):
+        with tempfile.TemporaryDirectory() as d:
+            man = os.path.join(d, "MANIFEST.sha256")
+            open(man, "w").write("aa  results/raw/A3/T1_nca/run1/output/x.csv\n"
+                                 "bb  results/raw/A3/T1_nca/run1/output/sub/y.csv\n"
+                                 "cc  results/raw/A3/T1_nca/run1/transcript.jsonl\n"
+                                 "dd  results/raw/A3/T1_nca/run10/output/x.csv\n")
+            h = runstore.output_hashes("A3", "T1_nca", "run1", raw=os.path.join(d, "raw"), manifests=[man])
+        self.assertEqual(h, {"x.csv": "aa", os.path.join("sub", "y.csv"): "bb"})
+
+    def test_prefers_local_raw(self):
+        with tempfile.TemporaryDirectory() as d:
+            rd = os.path.join(d, "raw", "A3", "T2_case", "run1")
+            os.makedirs(rd)
+            json.dump({"r.json": "ff"}, open(os.path.join(rd, "output_sha256.json"), "w"))
+            self.assertEqual(runstore.output_hashes("A3", "T2_case", "run1", raw=os.path.join(d, "raw"), manifests=[]),
+                             {"r.json": "ff"})
+
+
+def bolus_profiles(dose, n, times):
+    """Analytical 1-CM bolus, CL=1, V=10: AUC0-last and Cmax are exact functions of the dose."""
+    return [(f"{dose}-{i}", t, dose / 10 * math.exp(-0.1 * t)) for i in range(n) for t in times]
+
+
+class ScoreCase(unittest.TestCase):
+    def test_finds_A1_simulation_in_pmxagent_data_via_container_path(self):
+        times = [0.5, 1, 2, 4, 8, 12, 24]
+        with tempfile.TemporaryDirectory() as run:
+            os.makedirs(os.path.join(run, "output")); os.makedirs(os.path.join(run, "pmxagent_data", "sim"))
+            rows = [{"ID": s, "TIME": t, "DV": c, "DOSE": d}
+                    for d in (10, 30, 100) for s, t, c in bolus_profiles(d, 20, times)]
+            write_csv(os.path.join(run, "pmxagent_data", "sim", "pk_sim.csv"), rows)
+            gs = []
+            for d in (10, 30, 100):
+                prof = [(t, c) for s, t, c in bolus_profiles(d, 1, times)]
+                gs.append({"dose_mg": d, "mean_AUClast": score_all.auclast_lulog(*zip(*prof)),
+                           "mean_Cmax": max(c for _, c in prof), "mean_half_life": math.log(2) / 0.1})
+            json.dump({"group_summary": gs, "ec50": 300.0, "ec50_units": "mg*h/L", "seed": 1,
+                       "n_timepoints_per_subject": 7, "pk_parameters": {"CL": 1},
+                       "files": {"simulated": "/data/A1_T2_case_r01_x/sim/pk_sim.csv"}},
+                      open(os.path.join(run, "output", "results.json"), "w"))
+            r = score_all.score_case_run(run)
+        self.assertTrue(r["completed"])
+        self.assertEqual(r["n_subjects_sim"], 60)
+        self.assertEqual(r["summary_consistent_pct"], 100.0)
+        self.assertEqual(r["sim_file"], os.path.join("pmxagent_data", "sim", "pk_sim.csv"))
+
+
+if __name__ == "__main__":
+    unittest.main()

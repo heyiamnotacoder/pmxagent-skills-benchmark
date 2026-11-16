@@ -4,8 +4,11 @@
 Tokens are summed per model from the ledger's model_usage_json (includes any internal helper-model calls).
 cost_usd = Claude Code's own list-price estimate (costBasis=list); runs used a subscription, so this is notional.
 """
-import csv, json, os, statistics as st
+import csv, json, os, statistics as st, sys
 from collections import defaultdict
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import runstore
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = os.path.join(ROOT, "results")
@@ -58,12 +61,8 @@ def main():
                "tool_calls_per_run": ms([f(r["tool_calls"]) for r in rs], 1),
                "tool_errors_per_run": ms([f(r["tool_errors"]) for r in rs], 1),
                "tokens_by_model": json.dumps({m: dict(v) for m, v in tok.items()}, separators=(",", ":"))}
-        hashes = set()
-        for r in rs:
-            p = os.path.join(RES, "raw", arm, task, r["runid"], "output_sha256.json")
-            if os.path.exists(p):
-                hashes.add(json.dumps(json.load(open(p)), sort_keys=True))
-        row["n_distinct_outputs"] = len(hashes)
+        hashes = [runstore.output_hashes(arm, task, r["runid"]) for r in rs]   # local raw, else evidence manifest
+        row["n_distinct_outputs"] = len({json.dumps(h, sort_keys=True) for h in hashes if h})
         if task == "T2_case":
             row["t2_completed"] = sum(s.get("completed") == "True" for s in sc)
             row["t2_summary_consistent_pct"] = ms([f(s.get("summary_consistent_pct")) for s in sc], 1)

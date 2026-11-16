@@ -54,7 +54,7 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 - Component verdict table: Docker, Plumber, OpenAPI→MCP, OAuth, file exchange, approval gates, audit trail → *necessary* / *replaceable* / *enterprise-only*.
 - Honest concessions: MCP is client-agnostic (Cursor/ChatGPT); typed input validation; locked multi-user GxP deployment.
 
-## Status (2026-09-28)
+## Status (updated 2026-11-16)
 - [x] PLAN.md + CLAUDE.md · model = **claude-sonnet-4-6** for all arms · A1 T1 baseline = published outputs, plus live A1 runs for cost + T3
 - [x] Phase 0: R stack (`env/versions.txt`), scorer calibrated: reproduces 98.3/98.2/95.6/94.5/91.6 exactly (`logs/calibration.txt`)
   - Finding: PMxAgent raw 10-run output (identical SHA ×10) scores 98.35. Their standardized single-run file scores 98.27, so their standardization dropped a few λz values.
@@ -62,7 +62,8 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 - [x] Tasks built (`tasks/build_tasks.py`): T1 verbatim · T2 case study (+ results.json) · T3a messy xlsx · T3b explicit BLQ · T3c unit harmonisation · T3d oral 1-CM (out of scope for PMxAgent /PK, analytical truth) · T3e 9,100 subjects
 - [x] Docker (colima + Rosetta) + PMxAgent 1.0.0 pinned by digest, deployed at `~/pmxbench_runs/_pmxagent` (`harness/pmxagent.sh up|down`); MCP reachable headless via CI bearer token (6 tools)
 - [x] Harness `harness/run_arm.py`: per-arm git repo `~/pmxbench_runs/<arm>/base` with `ws/<task>` branches, fresh `git worktree` per rep, ledger `results/runs.csv` (cost, tokens, turns, tool calls/errors, wall time), transcripts + output SHA-256 in `results/raw/`
-- [ ] **BLOCKER, isolation:** preflight shows the user-global `~/.claude/CLAUDE.md` + `~/.claude/rules/*.md` still load despite `--setting-sources project`. Options: (a) `--bare` + ANTHROPIC_API_KEY (cleanest; skills then via `--plugin-dir`), (b) find the flag/env that disables user memory, (c) accept (same leak in every arm) and document it. MCP/user skills/plugins do NOT leak (only Claude Code built-in skills, equal across arms).
-- [ ] Preflights A1/A2/A3 (after blocker) → then runs: T1 ×10 (A0, A2, A3; A1 ×3 for cost), T2 ×10, T3 ×5
-- [ ] T2 scorer (`scoring/score_case.py`) + T3d truth check; report
+- [x] Isolation blocker: T1 accepted the user-CLAUDE.md leak (equal in all arms; `logs/deviations.md`). T2 removes it: per-rep empty `CLAUDE_CONFIG_DIR` + `claude setup-token` subscription token (§11).
+- [x] **T1 complete (2026-09-28):** A0–A4, `results/T1_report.md`; evidence on Zenodo (doi:10.5281/zenodo.23019418). Scope decision: arms only, T1 first.
+- [ ] **T2 (in progress, 2026-11-16):** case study ×10 (A1 ×3), scorer `score_case_run` in `scoring/score_all.py` → `results/T2_report.md`
+- [ ] T3 stress (T3a–e ×5): needs the supplement re-downloaded to rebuild `tasks/*/reference/`
 - Note: a first A0 probe accidentally ran the full T1 task (harness bug, fixed); it was quarantined in `results/raw/A0/_preflight/`, marked in the ledger, and is excluded.
