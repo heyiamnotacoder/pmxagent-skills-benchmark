@@ -106,3 +106,10 @@ how they reach a rep:
   of the workspaces. `run_arm.py` now refuses to run unless the run root is owned by the user with mode 0700 and no
   ancestor holds `CLAUDE.md`, `CLAUDE.local.md` or `.claude/`; reps run with umask 077. Verified at the time: no such
   files in any ancestor, so earlier reps were unaffected.
+
+### §13 T2 scorer: either AUC rule counts (2026-11-16, ~22:20, before any T2 scoring)
+The first finished rep (A0 r11) reported group means from **linear-trapezoidal** AUClast; they match its own
+simulated data exactly, but the scorer only recomputed lin-up/log-down, so it read 50% consistent. The verbatim prompt
+names no AUC rule, so `score_case_run` now accepts either (`AUC_RULES`) and records which one the run used
+(`auc_method`: linear / lin-up/log-down / mixed / none). The same rule applies to every arm; found on the scorer's
+first real input, not tuned on any arm's results. Test: `test_linear_trapezoidal_summary_counts_as_consistent`.

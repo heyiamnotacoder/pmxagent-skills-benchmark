@@ -3,8 +3,8 @@
 
 NCA tasks (T1, T3a, T3b, T3c, T3e): paper metric (score_nca.score) vs tasks/<task>/reference/pkanalix_individual.csv.
   The individual-results file is picked by coverage of reference (subject, parameter) keys, never by accuracy.
-T2 (case study): completion + internal consistency, recomputed here from the agent's own simulated data with an
-  independent linear-up/log-down AUClast (no skill code).
+T2 (case study): completion + internal consistency, recomputed here from the agent's own simulated data with
+  independent AUClast code (no skill code); the prompt names no AUC rule, so linear or lin-up/log-down both count.
 T3d (oral 1-CM): typical Cmax/Tmax/AUCinf vs analytical truth (|RE| < 1% correct).
 Stdlib only.  Usage: score_all.py [--arm A3] [--task T1_nca]
 """
@@ -94,6 +94,16 @@ def auclast_lulog(t, c):
         else:
             auc += (c0 + c1) * dt / 2
     return auc
+
+
+def auclast_linear(t, c):
+    """Linear-trapezoidal AUC from first time to last measurable (>0) concentration."""
+    pts = sorted((a, b) for a, b in zip(t, c) if not math.isnan(b))
+    last = max((i for i, (_, b) in enumerate(pts) if b > 0), default=-1)
+    return sum((pts[i + 1][0] - pts[i][0]) * (pts[i][1] + pts[i + 1][1]) / 2 for i in range(last))
+
+
+AUC_RULES = {"lin-up/log-down": auclast_lulog, "linear": auclast_linear}   # the T2 prompt names no AUC method
 
 
 def find_col(cols, *pats):
@@ -186,19 +196,27 @@ def score_case_run(run_dir):
             break
         sim = None
     if sim:
-        by = defaultdict(lambda: {"auc": [], "cmax": []})
+        by = defaultdict(lambda: {"cmax": [], **{m: [] for m in AUC_RULES}})
         for (dose, _), s in sim.items():
-            by[dose]["auc"].append(auclast_lulog(s["t"], s["c"])); by[dose]["cmax"].append(max(s["c"]))
+            by[dose]["cmax"].append(max(s["c"]))
+            for m, rule in AUC_RULES.items():
+                by[dose][m].append(rule(s["t"], s["c"]))
+        mean = lambda xs: sum(xs) / len(xs)
         n_ok = n = 0
+        matched = []   # per dose: the AUC rules that reproduce the reported mean
         for dose, v in by.items():
             try:
                 g = gs[float(dose)]
+                rep_auc, rep_cmax = float(g["mean_AUClast"]), float(g["mean_Cmax"])
             except (KeyError, ValueError, TypeError):
                 continue
-            for k, rk in (("auc", "mean_AUClast"), ("cmax", "mean_Cmax")):
-                mine = sum(v[k]) / len(v[k])
-                n += 1
-                n_ok += sn.rel_err(float(g[rk]), mine) < 0.01
+            rules = {m for m in AUC_RULES if sn.rel_err(rep_auc, mean(v[m])) < 0.01}
+            matched.append(rules)
+            n += 2
+            n_ok += bool(rules) + (sn.rel_err(rep_cmax, mean(v["cmax"])) < 0.01)
+        common = set.intersection(*matched) if matched else set()
+        out["auc_method"] = ("lin-up/log-down" if "lin-up/log-down" in common else common.pop() if common
+                             else "mixed" if all(matched) else "none")
         out["n_subjects_sim"] = len(sim)
         out["summary_consistent_pct"] = round(100 * n_ok / n, 1) if n else None
     else:

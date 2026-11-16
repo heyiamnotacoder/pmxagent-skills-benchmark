@@ -82,6 +82,27 @@ class ScoreCase(unittest.TestCase):
         self.assertEqual(r["n_subjects_sim"], 60)
         self.assertEqual(r["summary_consistent_pct"], 100.0)
         self.assertEqual(r["sim_file"], os.path.join("pmxagent_data", "sim", "pk_sim.csv"))
+        self.assertEqual(r["auc_method"], "lin-up/log-down")
+
+    def test_linear_trapezoidal_summary_counts_as_consistent(self):
+        """The prompt names no AUC method, so a summary built with the linear rule is consistent too."""
+        times = [0, 1, 2, 4, 8, 24]
+        with tempfile.TemporaryDirectory() as run:
+            os.makedirs(os.path.join(run, "output"))
+            rows = [{"subject_id": s, "time_h": t, "conc": c, "dose_mg": d}
+                    for d in (10, 30, 100) for s, t, c in bolus_profiles(d, 20, times)]
+            write_csv(os.path.join(run, "output", "sim.csv"), rows)
+            gs = []
+            for d in (10, 30, 100):
+                t, c = zip(*[(t, c) for _, t, c in bolus_profiles(d, 1, times)])
+                lin = sum((t[i + 1] - t[i]) * (c[i] + c[i + 1]) / 2 for i in range(len(t) - 1))
+                self.assertGreater(lin / score_all.auclast_lulog(t, c), 1.01)   # the two rules really differ here
+                gs.append({"dose_mg": d, "mean_AUClast": lin, "mean_Cmax": max(c), "mean_half_life": 6.93})
+            json.dump({"group_summary": gs, "ec50": 20.0, "files": {"sim": "output/sim.csv"}},
+                      open(os.path.join(run, "output", "results.json"), "w"))
+            r = score_all.score_case_run(run)
+        self.assertEqual(r["summary_consistent_pct"], 100.0)
+        self.assertEqual(r["auc_method"], "linear")
 
 
 if __name__ == "__main__":
