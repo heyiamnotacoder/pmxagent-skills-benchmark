@@ -73,12 +73,23 @@ Claude Code 2.1.283 → 2.1.310, R 4.6.1 → 4.6.2, Python 3.14.7 → 3.15.2, Do
 per run. T1 and T2 are separate comparisons, so drift between them does not affect any within-task arm comparison.
 
 ## 11. Isolation: no user instructions in T2 (stronger than T1)
-The user's global `~/.claude/CLAUDE.md` and `~/.claude/rules/` had grown since T1 (they now include working-style
-rules such as "write tests first" and a PR workflow) and could change agent behaviour on an open-ended task.
-T2 runs therefore use a fresh, empty `CLAUDE_CONFIG_DIR` per rep, authenticated by a subscription token from
-`claude setup-token` (environment only, never logged). Nothing from the user's config loads; earlier reps' session
-files are unreachable. Ledger column `claude_config` = `isolated` for these runs (empty for T1 runs). Decided before
-any T2 run.
+The user's `~/.claude/CLAUDE.md` and `~/.claude/rules/` had grown since T1 (they now include working-style rules such
+as "write tests first" and a PR workflow) and could change agent behaviour on an open-ended task. Preflights traced
+how they reach a rep:
+- **Mechanism (also T1's accepted leak):** Claude Code reads `CLAUDE.md` and `.claude/rules/` from *every ancestor*
+  of its working directory. T1 worktrees lived under `~/pmxbench_runs/`, so `/Users/dhruvik/.claude/CLAUDE.md` and
+  its rules loaded as ancestor *project* instructions, which `--setting-sources project` does not exclude. An empty
+  `CLAUDE_CONFIG_DIR`, then an empty `HOME`, did not help (preflights quarantined under `results/raw/*/_preflight/`,
+  rep 0, never scored). A probe outside `~` with a sentinel `CLAUDE.md` in the config dir loaded nothing.
+- **Fix:** arm workspaces moved to `/Users/Shared/pmxbench_runs/` (no `.claude/` in any ancestor). PMxAgent stays
+  under `~` (colima mounts only the home folder); agents only read/write its data folder, they never run there.
+- **Also:** each rep gets a whitelisted environment (`PATH`, locale, `TERM`, `TMPDIR`, user/shell). The harness had
+  been launched from a Claude Code desktop session whose ~35 `CLAUDE_*`/`ANTHROPIC_*` variables (incl. a proxy base
+  URL) would otherwise pass to every rep. Each rep also gets its own empty `HOME` + config dir (archived with the rep;
+  earlier reps' session files unreachable), authenticated by a subscription token from `claude setup-token`
+  (environment only, never logged). Ledger column `claude_config` = `isolated` (empty for T1 runs).
+- **Check:** final preflights on A0/A2/A3/A4 (2026-11-16 21:58) report no CLAUDE.md/rules/memory, the pinned model,
+  and the expected skills (none for A0, the 5 pmx skills for A2–A4). Decided and verified before any T2 run.
 
 ## 12. Harness and scorer changes (no effect on T1 numbers)
 - `run_arm.py setup` handles tasks with no input files (T2, T3d) on a fresh clone.

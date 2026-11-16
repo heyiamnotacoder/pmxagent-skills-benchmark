@@ -9,13 +9,13 @@ Goal: test how much of PMxAgent's architecture (Docker + R Plumber + FastMCP) is
 - `skills/` — our Agent Skills (`pmx-nca`, `pmx-pksim`, `pmx-data`, `pmx-er`, `pmx-library`). Each = `SKILL.md` + `scripts/` + `tests/`.
 - `scoring/` — NCA scorer that reproduces the paper's metric.
 - `tasks/` — task prompts + inputs (`build_tasks.py`); `tasks/*/reference/` is scorer-only and git-ignored.
-- `harness/` — `run_arm.py` (setup/run/preflight; per-arm git repo + one worktree per rep in `~/pmxbench_runs/`), `pmxagent.sh` (A1 Docker stack).
+- `harness/` — `run_arm.py` (setup/run/preflight; per-arm git repo + one worktree per rep in `/Users/Shared/pmxbench_runs/`), `pmxagent.sh` (A1 Docker stack).
 - `results/`, `logs/`, `env/` — outputs, logs, pinned versions.
 
 ## Rules
 - Same pinned model for every arm in a comparison.
 - Skills are frozen (`skills/FROZEN.sha256`) before benchmark runs; never tune them on PKanalix reference values. Log any change in `logs/skill_changes.md`.
-- Arm workspaces live outside this repo (`~/pmxbench_runs/`) so no reference data or this CLAUDE.md leaks in.
+- Arm workspaces live outside this repo and outside `~` (`/Users/Shared/pmxbench_runs/`) so no reference data, this CLAUDE.md, or `~/.claude/` instructions leak in (Claude Code reads CLAUDE.md from every ancestor folder).
 - Don't delete supplement, repo, or run outputs.
 
 ## Commands

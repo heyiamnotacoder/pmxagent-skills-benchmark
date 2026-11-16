@@ -2,7 +2,10 @@
 """Run one arm x task x reps headlessly with Claude Code, each rep in a fresh git worktree.
 
 Isolation
-  - each arm has its own repo at ~/pmxbench_runs/<arm>/base holding only `ws/<task>` branches
+  - each arm has its own repo at RUNS/<arm>/base holding only `ws/<task>` branches. RUNS must be outside the user's
+    home: Claude Code reads CLAUDE.md and .claude/rules/ from every ancestor of its working directory, so a workspace
+    under ~ loads ~/.claude/CLAUDE.md and ~/.claude/rules/ as ancestor project instructions, whatever
+    --setting-sources says (this was T1's accepted leak).
     (task inputs + that arm's skills). Nothing from this project repo is reachable from it.
   - each rep = `git worktree add --detach` of ws/<task>; outputs are copied back to
     results/raw/ here and never committed to the arm repo, so later reps cannot see earlier ones.
@@ -11,8 +14,13 @@ Isolation
   - claude flags: --setting-sources project (no user settings/plugins/hooks), --strict-mcp-config,
     git/web tools disallowed. `preflight` checks what actually leaks into context.
   - user config: `--setting-sources project` still loads ~/.claude/CLAUDE.md and ~/.claude/rules/. If a subscription
-    token from `claude setup-token` is saved in TOKEN_FILE, each rep instead gets its own empty CLAUDE_CONFIG_DIR
-    (archived with the rep), so no user instructions load and no earlier session files are reachable. The ledger's
+    token from `claude setup-token` is saved in TOKEN_FILE, each rep instead gets its own empty HOME (with the Claude
+    config dir inside it; archived with the rep): CLAUDE_CONFIG_DIR alone is not enough, user CLAUDE.md/rules are
+    found via HOME. So no user instructions load and no earlier session files are reachable. PATH is inherited; R and
+    Python libraries are system-wide (none under HOME).
+  - environment: each rep gets only ENV_KEEP from the launcher's environment (plus HOME/auth). A launcher that is
+    itself a Claude Code session (desktop app, IDE) exports ~35 CLAUDE_*/ANTHROPIC_* variables, including a proxy
+    base URL that injects the host session's instructions into child sessions; none of these reach a rep. The ledger's
     `claude_config` column records which mode a run used. The token is passed by environment only, never logged.
 
 Usage
@@ -24,8 +32,8 @@ Arms: A0 plain | A1 PMxAgent MCP | A2 knowledge-only skills | A3 skills+scripts 
 import argparse, csv, fcntl, datetime, hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RUNS = os.path.expanduser("~/pmxbench_runs")
-PMX = os.path.join(RUNS, "_pmxagent")
+RUNS = os.environ.get("PMXBENCH_RUNS", "/Users/Shared/pmxbench_runs")   # outside ~ (see Isolation)
+PMX = os.path.expanduser("~/pmxbench_runs/_pmxagent")   # under ~: colima only mounts the home folder
 ARCHIVE = os.path.expanduser("~/pmxbench_archive")
 SKILLS = os.path.join(ROOT, "skills")
 TASKS = os.path.join(ROOT, "tasks")
@@ -33,6 +41,7 @@ RAW = os.path.join(ROOT, "results", "raw")
 LEDGER = os.path.join(ROOT, "results", "runs.csv")
 ARMS = {"A0": None, "A1": None, "A2": "knowledge", "A3": "scripts", "A4": "scripts"}
 TOKEN_FILE = os.path.expanduser(os.environ.get("PMXBENCH_OAUTH_TOKEN_FILE", "~/.config/pmxbench/oauth_token"))
+ENV_KEEP = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "TMPDIR", "USER", "LOGNAME", "SHELL")
 MCP_TOKEN = "pmxagent-ci-token"   # PMxAgent's documented CI token (docker-compose.yml MCP_TEST_TOKEN)
 
 SUFFIX = ("\n\n---\nWork autonomously in the current directory and do not ask questions. "
@@ -121,14 +130,16 @@ def claude_cmd(arm, model, wt):
 
 
 def run_env(wt):
-    """Environment for one rep. Isolated mode (token file present): fresh config dir next to the worktree."""
-    env = {**os.environ, "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
-    env.pop("CLAUDE_CODE_OAUTH_TOKEN", None)
+    """Environment for one rep. Isolated mode (token file present): fresh HOME + config dir next to the worktree."""
+    env = {k: os.environ[k] for k in ENV_KEEP if k in os.environ}
+    env["CLAUDE_CODE_DISABLE_AUTO_MEMORY"] = "1"
     if not os.path.isfile(TOKEN_FILE):
+        env["HOME"] = os.environ["HOME"]   # keychain login, user CLAUDE.md loads (T1 mode)
         return env, "user"
-    cfg = wt + ".claude_config"
-    os.makedirs(cfg)
-    env.update(CLAUDE_CONFIG_DIR=cfg, CLAUDE_CODE_OAUTH_TOKEN=open(TOKEN_FILE).read().strip())
+    home = wt + ".home"
+    os.makedirs(os.path.join(home, ".claude"))
+    env.update(HOME=home, CLAUDE_CONFIG_DIR=os.path.join(home, ".claude"),
+               CLAUDE_CODE_OAUTH_TOKEN=open(TOKEN_FILE).read().strip())
     return env, "isolated"
 
 
@@ -167,7 +178,7 @@ def archive(arm, runid):
     if os.path.isdir(wt):
         sh(["git", "-C", os.path.join(RUNS, arm, "base"), "worktree", "move", wt, os.path.join(dest, runid)])
     for src, name in ((os.path.join(PMX, "data", runid), runid + ".pmxagent_data"),
-                      (wt + ".mcp.json", runid + ".mcp.json"), (wt + ".claude_config", runid + ".claude_config")):
+                      (wt + ".mcp.json", runid + ".mcp.json"), (wt + ".home", runid + ".home")):
         if os.path.exists(src):
             shutil.move(src, os.path.join(dest, name))
 
@@ -281,7 +292,7 @@ def main():
     def state():   # re-read each time: another session may be topping up the same arm
         rows = [r for r in csv.DictReader(open(LEDGER)) if r["arm"] == a.arm and r["task"] == task and r["rep"] != "0"]
         live = [d for d in os.listdir(os.path.join(RUNS, a.arm, "runs")) if d.startswith(f"{a.arm}_{task}_r")
-                and not d.endswith((".mcp.json", ".claude_config"))] if os.path.isdir(os.path.join(RUNS, a.arm, "runs")) else []
+                and not d.endswith((".mcp.json", ".home"))] if os.path.isdir(os.path.join(RUNS, a.arm, "runs")) else []
         reps_used = [int(r["rep"]) for r in rows] + [int(d.split("_r")[-1][:2]) for d in live]
         return sum(valid(r) for r in rows) + len(live), max(reps_used or [0])
     limited = 0

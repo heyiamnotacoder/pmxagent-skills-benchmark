@@ -19,5 +19,20 @@ class AppendLedger(unittest.TestCase):
         self.assertEqual(rows[0]["cost_usd"], "0.2")
 
 
+
+class RunEnv(unittest.TestCase):
+    def test_isolated_env_drops_host_session_variables(self):
+        with tempfile.TemporaryDirectory() as d:
+            tok = os.path.join(d, "tok"); open(tok, "w").write("x\n")
+            run_arm.TOKEN_FILE = tok
+            os.environ.update(ANTHROPIC_BASE_URL="http://host-proxy", CLAUDE_CODE_CHILD_SESSION="1")
+            env, mode = run_arm.run_env(os.path.join(d, "wt"))
+        self.assertEqual(mode, "isolated")
+        self.assertFalse([k for k in env if k.startswith("ANTHROPIC") or k == "CLAUDE_CODE_CHILD_SESSION"])
+        self.assertEqual(env["HOME"], os.path.join(d, "wt.home"))
+        self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "x")
+        self.assertIn("PATH", env)
+
+
 if __name__ == "__main__":
     unittest.main()
