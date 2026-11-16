@@ -4,6 +4,11 @@
 # --until tops each arm x task up to the target number of valid reps and stops a lane on a usage-limit (429)
 # response, so re-running this script after the limit resets resumes where it stopped.
 #
+# Claude Code must be the version pinned in env/versions.txt (2.1.283, as for every T1 run); run_arm.py refuses
+# otherwise. Install it and stop auto-updates before starting:
+#   npm install -g @anthropic-ai/claude-code@2.1.283   (and export DISABLE_AUTOUPDATER=1 in your shell profile)
+# A run on another version needs `run_arm.py ... --allow-version-drift` by hand, plus an entry in logs/deviations.md.
+#
 # T3b runs only after the BLQ protocol check (scoring/check_blq_reference.py, paper/SPEC.md, slice S2):
 #   T3B_OK=1 bash harness/run_t2_t3_lanes.sh
 # A1 T1 is topped up to 10 runs first (decided 2026-11-16, paper/SPEC.md slice S3); A1_T1=0 skips that.
@@ -13,6 +18,8 @@ S=claude-sonnet-4-6; H=claude-haiku-4-5-20251001
 TASKS="T3d_oral:5 T2_case:10 T3a_messy:5 T3c_units:5 T3e_large:5"
 [ "${T3B_OK:-0}" = 1 ] && TASKS="$TASKS T3b_blq:5" || echo "T3b skipped (set T3B_OK=1 after the BLQ check)"
 mkdir -p logs
+# fail here, in the foreground, rather than inside the background lanes
+python3 -c 'import sys; sys.path.insert(0, "harness"); import run_arm; run_arm.check_claude_version()' || exit 1
 
 lane() {   # lane <model> <arm>...
   local model=$1; shift
