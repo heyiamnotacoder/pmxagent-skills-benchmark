@@ -1,4 +1,4 @@
-# Spec: arXiv preprint — MCP platform vs Agent Skills for pharmacometrics agents
+# Spec: bioRxiv preprint — MCP platform vs Agent Skills for pharmacometrics agents
 
 Status: open. Tracking issue: #2; one sub-issue per slice (#3–#16, see "Slices" below). This file is the
 source of truth for scope and decisions; the issues are the work. The benchmark protocol itself is `../PLAN.md`.
@@ -14,7 +14,7 @@ which of these produces accuracy and reproducibility. Our Letter to the Editor o
 not take letters on its open-access articles). The T1 (NCA) benchmark is complete; T2 and T3 have never run.
 
 ## Solution
-A standalone research article, posted to **arXiv** once T2 and T3 are complete, that separates the three ingredients:
+A standalone research article, posted to **bioRxiv (Pharmacology & Toxicology)** once T2 and T3 are complete, that separates the three ingredients:
 instructions only (A2), instructions + fixed script (A3/A4), server stack (A1), against no tools (A0), in one
 client with one model. PMxAgent is the motivating system and one arm, not the target. Tone: neutral; credit their
 benchmark and open data; state what MCP gives that Skills do not.
@@ -26,7 +26,8 @@ benchmark and open data; state what MCP gives that Skills do not.
 | 2026-11-16 | Post only after T2 and T3 are complete | user |
 | 2026-11-16 | Pre-specified analysis fixed in commit `08ea7b3` (section below, unchanged) | — |
 | 2026-11-16 | Top up A1 on T1 from 3 to 10 runs (was "R0, your call") | user |
-| 2026-11-16 | Venue: **arXiv** (was bioRxiv). Proposed category q-bio.QM, cross-list cs.AI; confirm at submission | user |
+| 2026-11-16 | Venue: **bioRxiv**, Pharmacology & Toxicology (no endorsement needed). A later edit that switched this to arXiv misread the user and was reverted the same day | user |
+| 2026-11-16 | Manuscript drafting: T1 sections were drafted before T2/T3, without asking first; the user had said to wait for T2 + T3. Further manuscript work waits for T2/T3 results (#15) | user |
 | 2026-11-16 | Corresponding author: Dhruvik Pandya. Co-author Prof. Surjit Singh has agreed to the preprint | user |
 | 2026-11-16 | Competing interests: none | user |
 
@@ -42,7 +43,7 @@ benchmark and open data; state what MCP gives that Skills do not.
 5. As a reviewer, I want every comparison specified before the data were seen, every number generated from the
    results files, and the raw transcripts archived, so that I can audit the claims.
 6. As the PMxAgent authors, I want our system run as published and described fairly, including what MCP does better.
-7. As the authors, we want a submission package arXiv accepts first time (TeX source with `.bbl`, no TODOs).
+7. As the authors, we want a PDF that passes bioRxiv screening first time (reads as original research, no TODOs).
 
 ## Claims the data must support (and wording rules)
 | # | Claim | Evidence | Wording rule |
@@ -86,8 +87,8 @@ in `logs/deviations.md` with the reason.
   rule the T3b prompt states, using only input data and reference, never agent output.
 - **Comparisons for non-NCA tasks** (T3d) are exploratory: `stats.py` may compute them, but the paper labels them as
   not pre-specified.
-- **arXiv package:** TeX source + `.bbl` (arXiv does not run BibTeX reliably), figures as PDF, no line numbers, no
-  `\TODO`. Built by a script, not by hand.
+- **bioRxiv submission:** one PDF built from the LaTeX source (line numbers kept, figures embedded, no `\TODO`),
+  built by a script, not by hand.
 
 ## Testing decisions
 - Scorer: `python3 scoring/score_nca.py --calibrate` must still reproduce the paper's published scores (max |diff| 0.00)
@@ -122,7 +123,7 @@ Claude subscription, or an account action); AFK = an agent can do it in this rep
 | S11 | #13 | Verify software and web references | AFK | — |
 | S12 | #14 | Isolation audit, evidence bundle, Zenodo new version | HITL | S3–S7 (#5–#9) |
 | S13 | #15 | Finalise manuscript and co-author sign-off | HITL | S3–S12 (#5–#14) |
-| S14 | #16 | arXiv submission package and posting | HITL | S12, S13 (#14, #15) |
+| S14 | #16 | bioRxiv submission PDF and posting | HITL | S12, S13 (#14, #15) |
 
 ## Known limitations to state in the paper
 Single benchmark source (paper's 182-drug set, PKanalix as reference, not ground truth) · subscription runs, cost is
