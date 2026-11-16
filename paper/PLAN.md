@@ -25,7 +25,7 @@ platform versus Agent Skills for noncompartmental analysis and PK workflows.*
 | C5 | Skills extend to steps outside the MCP tool set | T3d (oral 1-CM, PMxAgent /PK is IV only), T2 | report A1 behaviour as observed |
 
 ## Pre-specified analysis (freeze by committing this file before any T2/T3 run)
-Commit hash of this file = the analysis plan. Nothing below may be changed after seeing T2/T3 scores; any change goes
+Analysis plan fixed in commit `08ea7b3` (2026-11-16). Nothing below may be changed after seeing T2/T3 scores; any change goes
 in `logs/deviations.md` with the reason.
 - **Unit of analysis:** one run. Valid run = ledger `status == ok` and not `is_error`. Only exclusion rule: HTTP 429 /
   usage limit (as for T1). Every completed run counts, whatever its score.
