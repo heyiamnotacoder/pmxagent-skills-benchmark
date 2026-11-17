@@ -24,3 +24,17 @@ Goal: test how much of PMxAgent's architecture (Docker + R Plumber + FastMCP) is
 - Score a run: `python3 scoring/score_nca.py <individual.csv>`
 - Build arm repos: `python3 harness/run_arm.py setup <arm>` · probe isolation: `python3 harness/run_arm.py preflight <arm> claude-sonnet-4-6`
 - Run an arm: `bash harness/run_arm.sh <A0|A1|A2|A3|A4> <task> <reps> claude-sonnet-4-6` (A1 needs `bash harness/pmxagent.sh up`)
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues (heyiamnotacoder/pmxagent-skills-benchmark), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
