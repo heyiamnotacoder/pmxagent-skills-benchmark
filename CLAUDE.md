@@ -1,12 +1,13 @@
 # cptpaper — PMxAgent vs Claude Code + Skills
 
-Goal: test how much of PMxAgent's architecture (Docker + R Plumber + FastMCP) is needed versus plain Claude Code with Skills. Full plan and status: `PLAN.md`.
+Goal: test how much of PMxAgent's architecture (Docker + R Plumber + FastMCP) is needed versus plain Claude Code with Skills. Full plan and status: `docs/PLAN.md`.
 
 ## Layout
 - `CPT ... PMxAgent ....pdf` — the paper.
 - `psp470325-sup-0001-appendixs1/` — their supplement: benchmark data, prompts, PKanalix reference, all agents' results. Read-only.
 - `pmxagent-main/` — their repo. Read-only. Only infra files may be read; do NOT read `apis/endpoints/*` or `apis/models/*` while writing our skills (independence).
 - `skills/` — our Agent Skills (`pmx-nca`, `pmx-pksim`, `pmx-data`, `pmx-er`, `pmx-library`). Each = `SKILL.md` + `scripts/` + `tests/`.
+- `docs/` — project docs: `PLAN.md` (plan + status), `agents/` (agent-skills config); `GLOSSARY.md`/`docs/adr/` when created.
 - `scoring/` — NCA scorer that reproduces the paper's metric.
 - `tasks/` — task prompts + inputs (`build_tasks.py`); `tasks/*/reference/` is scorer-only and git-ignored.
 - `harness/` — `run_arm.py` (setup/run/preflight; per-arm git repo + one worktree per rep in `~/pmxbench_runs/`), `pmxagent.sh` (A1 Docker stack).

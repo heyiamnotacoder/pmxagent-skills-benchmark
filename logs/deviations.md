@@ -1,6 +1,6 @@
 # Protocol log and deviations
 
-Everything that departed from `PLAN.md`, in time order (IST, 2026-09-28). Nothing listed here was decided by looking at
+Everything that departed from `docs/PLAN.md`, in time order (IST, 2026-09-28). Nothing listed here was decided by looking at
 accuracy scores; the only exclusion rule is "run did not finish because the API returned HTTP 429 (usage limit)".
 
 ## Rules that held throughout
