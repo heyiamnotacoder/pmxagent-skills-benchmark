@@ -3,8 +3,10 @@
 
 NCA tasks (T1, T3a, T3b, T3c, T3e): paper metric (score_nca.score) vs tasks/<task>/reference/pkanalix_individual.csv.
   The individual-results file is picked by coverage of reference (subject, parameter) keys, never by accuracy.
-T2 (case study): completion + internal consistency, recomputed here from the agent's own simulated data with an
-  independent linear-up/log-down AUClast (no skill code).
+T2 (case study): completion + internal consistency, recomputed here from the agent's own simulated data with
+  independent AUClast code (no skill code). Primary `summary_consistent_pct` = the pre-specified check (commit
+  08ea7b3): AUClast recomputed lin-up/log-down. `summary_consistent_any_rule_pct` = post-hoc sensitivity
+  (logs/deviations.md §13, §15): the prompt names no AUC rule, so linear or lin-up/log-down both count.
 T3d (oral 1-CM): typical Cmax/Tmax/AUCinf vs analytical truth (|RE| < 1% correct).
 Stdlib only.  Usage: score_all.py [--arm A3] [--task T1_nca]
 """
@@ -12,6 +14,7 @@ import argparse, csv, glob, json, math, os, re, sys
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import runstore
 import score_nca as sn
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -95,6 +98,16 @@ def auclast_lulog(t, c):
     return auc
 
 
+def auclast_linear(t, c):
+    """Linear-trapezoidal AUC from first time to last measurable (>0) concentration."""
+    pts = sorted((a, b) for a, b in zip(t, c) if not math.isnan(b))
+    last = max((i for i, (_, b) in enumerate(pts) if b > 0), default=-1)
+    return sum((pts[i + 1][0] - pts[i][0]) * (pts[i][1] + pts[i + 1][1]) / 2 for i in range(last))
+
+
+AUC_RULES = {"lin-up/log-down": auclast_lulog, "linear": auclast_linear}   # the T2 prompt names no AUC method
+
+
 def find_col(cols, *pats):
     for p in pats:
         for c in cols:
@@ -130,6 +143,30 @@ def read_sim(path):
     return subj
 
 
+def candidate_csvs(run_dir, declared):
+    """CSV files the run produced (output/, and pmxagent_data/ for A1), those named in results.json `files` first.
+
+    Declared paths may be relative, absolute on the run machine, or container paths (/data/<runid>/...), so they are
+    matched by their longest path suffix that exists among the run's files."""
+    found = [p for sub in ("output", "pmxagent_data")
+             for p in sorted(glob.glob(os.path.join(run_dir, sub, "**", "*.csv"), recursive=True))]
+    rel = {p: os.path.relpath(p, run_dir).split(os.sep) for p in found}
+    vals = list(declared.values()) if isinstance(declared, dict) else list(declared or [])
+    first = []
+    for d in (v for v in vals if isinstance(v, str) and v.lower().endswith(".csv")):
+        parts = [x for x in d.replace("\\", "/").split("/") if x]
+        best, best_n = None, 0
+        for p, r in rel.items():
+            n = 0
+            while n < min(len(parts), len(r)) and parts[-1 - n] == r[-1 - n]:
+                n += 1
+            if n > best_n:
+                best, best_n = p, n
+        if best and best not in first:
+            first.append(best)
+    return first + [p for p in found if p not in first]
+
+
 def score_case_run(run_dir):
     out = {"note": ""}
     rj = glob.glob(os.path.join(run_dir, "output", "**", "results.json"), recursive=True)
@@ -154,34 +191,39 @@ def score_case_run(run_dir):
         pass
     # recompute group means from the agent's own simulated data
     sim = None
-    files = j.get("files") or {}
-    paths = list(files.values()) if isinstance(files, dict) else list(files)
-    for p in [x for x in paths if isinstance(x, str)] + glob.glob(os.path.join(run_dir, "output", "**", "*.csv"), recursive=True):
-        q = p if os.path.isabs(p) and os.path.exists(p) else os.path.join(run_dir, p if not p.startswith("output/") else p)
-        if not os.path.exists(q):
-            q = os.path.join(run_dir, "output", os.path.basename(p))
-        if os.path.exists(q) and q.endswith(".csv"):
-            sim = read_sim(q)
-            if sim and len(sim) >= 60:
-                out["sim_file"] = os.path.relpath(q, run_dir)
-                break
-            sim = None
+    for q in candidate_csvs(run_dir, j.get("files")):
+        sim = read_sim(q)
+        if sim and len(sim) >= 60:
+            out["sim_file"] = os.path.relpath(q, run_dir)
+            break
+        sim = None
     if sim:
-        by = defaultdict(lambda: {"auc": [], "cmax": []})
+        by = defaultdict(lambda: {"cmax": [], **{m: [] for m in AUC_RULES}})
         for (dose, _), s in sim.items():
-            by[dose]["auc"].append(auclast_lulog(s["t"], s["c"])); by[dose]["cmax"].append(max(s["c"]))
-        n_ok = n = 0
+            by[dose]["cmax"].append(max(s["c"]))
+            for m, rule in AUC_RULES.items():
+                by[dose][m].append(rule(s["t"], s["c"]))
+        mean = lambda xs: sum(xs) / len(xs)
+        n_ok = n_ok_any = n = 0
+        matched = []   # per dose: the AUC rules that reproduce the reported mean
         for dose, v in by.items():
             try:
                 g = gs[float(dose)]
+                rep_auc, rep_cmax = float(g["mean_AUClast"]), float(g["mean_Cmax"])
             except (KeyError, ValueError, TypeError):
                 continue
-            for k, rk in (("auc", "mean_AUClast"), ("cmax", "mean_Cmax")):
-                mine = sum(v[k]) / len(v[k])
-                n += 1
-                n_ok += sn.rel_err(float(g[rk]), mine) < 0.01
+            rules = {m for m in AUC_RULES if sn.rel_err(rep_auc, mean(v[m])) < 0.01}
+            matched.append(rules)
+            n += 2
+            cmax_ok = sn.rel_err(rep_cmax, mean(v["cmax"])) < 0.01
+            n_ok += ("lin-up/log-down" in rules) + cmax_ok        # primary: pre-specified rule only
+            n_ok_any += bool(rules) + cmax_ok                     # sensitivity: either rule
+        common = set.intersection(*matched) if matched else set()
+        out["auc_method"] = ("lin-up/log-down" if "lin-up/log-down" in common else common.pop() if common
+                             else "mixed" if matched and all(matched) else "none")   # nothing compared: none
         out["n_subjects_sim"] = len(sim)
         out["summary_consistent_pct"] = round(100 * n_ok / n, 1) if n else None
+        out["summary_consistent_any_rule_pct"] = round(100 * n_ok_any / n, 1) if n else None
     else:
         out["note"] = "sim file not parseable"
     return out
@@ -215,13 +257,14 @@ def main():
     ap.add_argument("--out", default=os.path.join(ROOT, "results", "scores.csv"))
     a = ap.parse_args()
     ledger = {r["runid"]: r for r in csv.DictReader(open(os.path.join(ROOT, "results", "runs.csv")))}
-    rows = []
+    rows, rescanned = [], set()
     for run_dir in sorted(glob.glob(os.path.join(RAW, "*", "*", "*"))):
         arm, task, runid = run_dir.split(os.sep)[-3:]
         if task.startswith("_") or (a.arm and arm != a.arm) or (a.task and task != a.task):
             continue
         if runid not in ledger:   # still running
             continue
+        rescanned.add(runid)
         if ledger[runid]["status"] != "ok" or ledger[runid]["is_error"] == "True":   # usage-limit / crashed runs
             continue
         if task in NCA_TASKS:
@@ -233,12 +276,8 @@ def main():
         else:
             continue
         rows.append({"runid": runid, "arm": arm, "task": task, "status": ledger[runid]["status"], **r})
-    cols = []
-    for r in rows:
-        cols += [k for k in r if k not in cols]
-    with open(a.out, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=cols); w.writeheader(); w.writerows(rows)
-    print(f"{len(rows)} runs scored -> {a.out}")
+    kept = len(runstore.merge_rows(a.out, rows, rescanned)) - len(rows)
+    print(f"{len(rows)} runs scored, {kept} rows kept for runs not on this machine -> {a.out}")
 
 
 if __name__ == "__main__":

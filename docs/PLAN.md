@@ -4,6 +4,9 @@ Paper: Bloomingdale & Khot, *PMxAgent: An Agentic Platform for Pharmacometrics*,
 Their stack: Docker Compose → R Plumber API (PKNCA, mrgsolve, rxode2) → OpenAPI → FastMCP server (OAuth) → MCP client.
 Our stack: Claude Code + Agent Skills (SKILL.md + bundled, tested R scripts) run via Bash. No containers, no servers.
 
+Preprint (bioRxiv) spec, decisions and the pre-specified analysis for T2/T3: `paper/SPEC.md`. **Where this plan and
+`paper/SPEC.md` disagree, SPEC wins** (decided 2026-11-17).
+
 ## Hypothesis
 Determinism and accuracy come from *executing fixed, validated code*, not from MCP/Docker.
 A skill that bundles a validated script should match PMxAgent on accuracy and reproducibility at a fraction of the infrastructure.
@@ -37,7 +40,7 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 | Arm | Setup |
 |---|---|
 | A0 | Plain Claude Code (no skills, no MCP) |
-| A1 | PMxAgent. **T1/T2: use their published outputs** (Sonnet 4.6, 10 runs + case study) — no Docker. Docker only if we run T3 stress on A1 |
+| A1 | PMxAgent 1.0.0 run live via MCP (Docker, digest-pinned): T1 10 runs (3 + top-up), T2 10, T3 5 per task. Their published outputs are used for scorer calibration only |
 | A2 | Claude Code + knowledge-only skills (no scripts) |
 | A3 | Claude Code + skills with scripts ← main contender |
 | A4 | A3 on a small model (Haiku 4.5) — optional |
@@ -54,7 +57,7 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 - Component verdict table: Docker, Plumber, OpenAPI→MCP, OAuth, file exchange, approval gates, audit trail → *necessary* / *replaceable* / *enterprise-only*.
 - Honest concessions: MCP is client-agnostic (Cursor/ChatGPT); typed input validation; locked multi-user GxP deployment.
 
-## Status (2026-09-28)
+## Status (updated 2026-11-17)
 - [x] PLAN.md + CLAUDE.md · model = **claude-sonnet-4-6** for all arms · A1 T1 baseline = published outputs, plus live A1 runs for cost + T3
 - [x] Phase 0: R stack (`env/versions.txt`), scorer calibrated: reproduces 98.3/98.2/95.6/94.5/91.6 exactly (`logs/calibration.txt`)
   - Finding: PMxAgent raw 10-run output (identical SHA ×10) scores 98.35. Their standardized single-run file scores 98.27, so their standardization dropped a few λz values.
@@ -62,7 +65,10 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 - [x] Tasks built (`tasks/build_tasks.py`): T1 verbatim · T2 case study (+ results.json) · T3a messy xlsx · T3b explicit BLQ · T3c unit harmonisation · T3d oral 1-CM (out of scope for PMxAgent /PK, analytical truth) · T3e 9,100 subjects
 - [x] Docker (colima + Rosetta) + PMxAgent 1.0.0 pinned by digest, deployed at `~/pmxbench_runs/_pmxagent` (`harness/pmxagent.sh up|down`); MCP reachable headless via CI bearer token (6 tools)
 - [x] Harness `harness/run_arm.py`: per-arm git repo `~/pmxbench_runs/<arm>/base` with `ws/<task>` branches, fresh `git worktree` per rep, ledger `results/runs.csv` (cost, tokens, turns, tool calls/errors, wall time), transcripts + output SHA-256 in `results/raw/`
-- [ ] **BLOCKER, isolation:** preflight shows the user-global `~/.claude/CLAUDE.md` + `~/.claude/rules/*.md` still load despite `--setting-sources project`. Options: (a) `--bare` + ANTHROPIC_API_KEY (cleanest; skills then via `--plugin-dir`), (b) find the flag/env that disables user memory, (c) accept (same leak in every arm) and document it. MCP/user skills/plugins do NOT leak (only Claude Code built-in skills, equal across arms).
-- [ ] Preflights A1/A2/A3 (after blocker) → then runs: T1 ×10 (A0, A2, A3; A1 ×3 for cost), T2 ×10, T3 ×5
-- [ ] T2 scorer (`scoring/score_case.py`) + T3d truth check; report
+- [x] Isolation blocker: T1 accepted the user-CLAUDE.md leak (equal in all arms; `logs/deviations.md`). T2 removes it: per-rep empty `CLAUDE_CONFIG_DIR` + `claude setup-token` subscription token (§11).
+- [x] **T1 complete (2026-09-28):** A0–A4, `results/T1_report.md`; evidence on Zenodo (doi:10.5281/zenodo.23019418). Scope decision: arms only, T1 first.
+- [x] Preprint branch merged into the T2 work (2026-11-17): `paper/SPEC.md`, stats/figures/tables pipeline, per-task Claude Code pin (`logs/deviations.md` §15)
+- [ ] A1 T1 top-up to 10 runs (T1 pin 2.1.283, isolated; sensitivity by isolation regime)
+- [ ] **T2 (in progress):** case study ×10 per arm incl. A1; 3 valid A0 reps so far. Scorer `score_case_run` (primary = pre-specified lin-up/log-down consistency) → `results/T2_report.md`
+- [ ] T3 stress (T3a–e ×5): needs the supplement re-downloaded to rebuild `tasks/*/reference/`
 - Note: a first A0 probe accidentally ran the full T1 task (harness bug, fixed); it was quarantined in `results/raw/A0/_preflight/`, marked in the ledger, and is excluded.

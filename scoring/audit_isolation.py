@@ -5,7 +5,10 @@ Flags, per run: mentions of another run's id or folder, the run archive, parent-
 own session/memory folders, or this project repo. Only tool calls (what the agent actually did) are checked, not the
 system prompt. Stdlib only.  Usage: audit_isolation.py
 """
-import csv, glob, json, os, re
+import csv, glob, json, os, re, sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import runstore
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = os.path.join(ROOT, "results", "raw")
@@ -14,7 +17,7 @@ PATTERNS = {
     "run_area": None,       # run area paths other than the run's own folder (filled per run)
     "parent_dir": re.compile(r"(^|[\s'\"=(])\.\./|cd \.\.(\s|$|;|&)"),
     "claude_state": re.compile(r"\.claude/(projects|todos|memory)|\.claude\.json"),
-    "project_repo": re.compile(r"projects/cptpaper|psp470325|pkanalix_individual"),
+    "project_repo": re.compile(r"projects/(cptpaper|pmxagent)\b|psp470325|pkanalix_individual"),
 }
 RUN_AREA = re.compile(r"pmxbench_runs/A\d/(runs|base)|pmxbench_runs/?[\"'\s]|pmxbench_runs/_pmxagent|pmxbench_archive")
 RUNID = re.compile(r"A\d_T[0-9a-z]+_[a-z_]*?r\d\d_\d{8}-\d{6}")
@@ -34,23 +37,22 @@ def tool_inputs(path):
 
 
 def main():
-    rows = []
+    rows = []   # runs whose transcripts are not on this machine keep their committed rows
     for tr in sorted(glob.glob(os.path.join(RAW, "*", "*", "*", "transcript.jsonl"))):
         arm, task, runid = tr.split(os.sep)[-4:-1]
         hits = {k: 0 for k in PATTERNS}
         for inp in tool_inputs(tr):
             hits["other_run_id"] += sum(1 for m in RUNID.findall(inp) if m != runid)
-            own = inp.replace(f"/runs/{runid}", "/OWN")
+            own = inp.replace(f"/runs/{runid}", "/OWN").replace(f"_pmxagent/data/{runid}", "OWN")   # A1 data folder
             hits["run_area"] += len(RUN_AREA.findall(own))
             for k, rx in PATTERNS.items():
                 if rx is not None:
                     hits[k] += len(rx.findall(inp))
         rows.append({"runid": runid, "arm": arm, "task": task, **hits, "flagged": any(hits.values())})
     out = os.path.join(ROOT, "results", "isolation_audit.csv")
-    with open(out, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0])); w.writeheader(); w.writerows(rows)
+    allrows = runstore.merge_rows(out, rows, {r["runid"] for r in rows})
     flagged = [r for r in rows if r["flagged"]]
-    print(f"{len(rows)} transcripts audited, {len(flagged)} flagged -> {out}")
+    print(f"{len(rows)} transcripts audited here, {len(flagged)} flagged; {len(allrows)} rows in {out}")
     for r in flagged:
         print(r)
 

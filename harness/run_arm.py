@@ -2,7 +2,10 @@
 """Run one arm x task x reps headlessly with Claude Code, each rep in a fresh git worktree.
 
 Isolation
-  - each arm has its own repo at ~/pmxbench_runs/<arm>/base holding only `ws/<task>` branches
+  - each arm has its own repo at RUNS/<arm>/base holding only `ws/<task>` branches. RUNS must be outside the user's
+    home: Claude Code reads CLAUDE.md and .claude/rules/ from every ancestor of its working directory, so a workspace
+    under ~ loads ~/.claude/CLAUDE.md and ~/.claude/rules/ as ancestor project instructions, whatever
+    --setting-sources says (this was T1's accepted leak).
     (task inputs + that arm's skills). Nothing from this project repo is reachable from it.
   - each rep = `git worktree add --detach` of ws/<task>; outputs are copied back to
     results/raw/ here and never committed to the arm repo, so later reps cannot see earlier ones.
@@ -10,24 +13,39 @@ Isolation
     A1's /data/<runid> host folder with them, so a running agent has no sibling run folders to browse.
   - claude flags: --setting-sources project (no user settings/plugins/hooks), --strict-mcp-config,
     git/web tools disallowed. `preflight` checks what actually leaks into context.
+  - user config: `--setting-sources project` still loads ~/.claude/CLAUDE.md and ~/.claude/rules/. If a subscription
+    token from `claude setup-token` is saved in TOKEN_FILE, each rep instead gets its own empty HOME (with the Claude
+    config dir inside it; archived with the rep): CLAUDE_CONFIG_DIR alone is not enough, user CLAUDE.md/rules are
+    found via HOME. So no user instructions load and no earlier session files are reachable. PATH is inherited; R and
+    Python libraries are system-wide (none under HOME).
+  - environment: each rep gets only ENV_KEEP from the launcher's environment (plus HOME/auth). A launcher that is
+    itself a Claude Code session (desktop app, IDE) exports ~35 CLAUDE_*/ANTHROPIC_* variables, including a proxy
+    base URL that injects the host session's instructions into child sessions; none of these reach a rep. The ledger's
+    `claude_config` column records which mode a run used. The token is passed by environment only, never logged,
+    and CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 keeps it out of the agent's own Bash/R/Python subprocesses.
 
 Usage
   run_arm.py setup   <arm>                      build/refresh the arm repo + ws branches
-  run_arm.py run     <arm> <task> <reps> <model> [--timeout-min 90]
-  run_arm.py preflight <arm> <model>            one cheap probe run: lists skills/MCP/instructions seen
+  run_arm.py run     <arm> <task> <reps> <model> [--timeout-min 90] [--until] [--allow-version-drift]
+  run_arm.py preflight <arm> <model> [<task>]   one cheap probe run on <task>'s pinned Claude Code (default T1_nca):
+                                                lists skills/MCP/instructions seen
 Arms: A0 plain | A1 PMxAgent MCP | A2 knowledge-only skills | A3 skills+scripts | A4 = A3 (small model)
 """
 import argparse, csv, fcntl, datetime, hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RUNS = os.path.expanduser("~/pmxbench_runs")
-PMX = os.path.join(RUNS, "_pmxagent")
+RUNS = os.environ.get("PMXBENCH_RUNS", "/Users/Shared/pmxbench_runs")   # outside ~ (see Isolation)
+PMX = os.path.expanduser("~/pmxbench_runs/_pmxagent")   # under ~: colima only mounts the home folder
 ARCHIVE = os.path.expanduser("~/pmxbench_archive")
 SKILLS = os.path.join(ROOT, "skills")
 TASKS = os.path.join(ROOT, "tasks")
 RAW = os.path.join(ROOT, "results", "raw")
 LEDGER = os.path.join(ROOT, "results", "runs.csv")
+VERSIONS = os.path.join(ROOT, "env", "versions.txt")   # pinned toolchain; `claude-code-pin <task>:` lines
+CLAUDE_DIR = os.path.expanduser(os.environ.get("PMXBENCH_CLAUDE_DIR", "~/.local/share/pmxbench/claude"))
 ARMS = {"A0": None, "A1": None, "A2": "knowledge", "A3": "scripts", "A4": "scripts"}
+TOKEN_FILE = os.path.expanduser(os.environ.get("PMXBENCH_OAUTH_TOKEN_FILE", "~/.config/pmxbench/oauth_token"))
+ENV_KEEP = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "TMPDIR", "USER", "LOGNAME", "SHELL")
 MCP_TOKEN = "pmxagent-ci-token"   # PMxAgent's documented CI token (docker-compose.yml MCP_TEST_TOKEN)
 
 SUFFIX = ("\n\n---\nWork autonomously in the current directory and do not ask questions. "
@@ -74,7 +92,8 @@ def setup(arm):
             if p != ".git":
                 q = os.path.join(base, p)
                 shutil.rmtree(q) if os.path.isdir(q) else os.remove(q)
-        shutil.copytree(os.path.join(tdir, "inputs"), os.path.join(base, "inputs"))
+        if os.path.isdir(os.path.join(tdir, "inputs")):   # T2/T3d have none (git does not track empty dirs)
+            shutil.copytree(os.path.join(tdir, "inputs"), os.path.join(base, "inputs"))
         os.makedirs(os.path.join(base, "output"))
         open(os.path.join(base, "output", ".gitkeep"), "w").close()
         if ARMS[arm]:
@@ -100,8 +119,8 @@ def pmx_healthy():
         return False
 
 
-def claude_cmd(arm, model, wt):
-    cmd = ["claude", "-p", "--model", model, "--output-format", "stream-json", "--verbose",
+def claude_cmd(arm, model, wt, exe="claude"):
+    cmd = [exe, "-p", "--model", model, "--output-format", "stream-json", "--verbose",
            "--setting-sources", "project", "--strict-mcp-config", "--no-chrome",
            "--permission-mode", "bypassPermissions",
            "--disallowedTools", "WebSearch", "WebFetch", "Bash(git:*)", "Bash(gh:*)"]
@@ -112,6 +131,59 @@ def claude_cmd(arm, model, wt):
                   open(cfg, "w"))
         cmd += ["--mcp-config", os.path.abspath(cfg)]
     return cmd
+
+
+def check_run_root(root=None):
+    """Refuse to run unless no ancestor of RUNS can inject instructions and RUNS is private to this user.
+
+    Claude Code reads CLAUDE.md / .claude/ from every ancestor of a rep's working directory, and RUNS sits under a
+    world-writable parent (/Users/Shared), so this is checked before every run, not once."""
+    root = os.path.realpath(root or RUNS)
+    os.makedirs(root, mode=0o700, exist_ok=True)
+    st = os.stat(root)
+    if st.st_uid != os.getuid() or st.st_mode & 0o077:
+        sys.exit(f"{root} must be owned by you with mode 0700 (chmod 700 {root})")
+    d = root
+    while True:
+        d = os.path.dirname(d)
+        bad = [n for n in ("CLAUDE.md", "CLAUDE.local.md", ".claude") if os.path.lexists(os.path.join(d, n))]
+        if bad:
+            sys.exit(f"instruction files in an ancestor of {root}: {[os.path.join(d, n) for n in bad]}")
+        if d == os.path.dirname(d):
+            return root
+
+
+def run_env(wt):
+    """Environment for one rep. Isolated mode (token file present): fresh HOME + config dir next to the worktree."""
+    env = {k: os.environ[k] for k in ENV_KEEP if k in os.environ}
+    env["CLAUDE_CODE_DISABLE_AUTO_MEMORY"] = "1"
+    env["DISABLE_AUTOUPDATER"] = "1"   # a rep must not update the pinned binary under itself
+    env["CLAUDE_CODE_SUBPROCESS_ENV_SCRUB"] = "1"   # the agent's Bash/R/Python never see Anthropic credentials
+    if not os.path.isfile(TOKEN_FILE):
+        env["HOME"] = os.environ["HOME"]   # keychain login, user CLAUDE.md loads (T1 mode)
+        return env, "user"
+    home = wt + ".home"
+    os.makedirs(os.path.join(home, ".claude"), mode=0o700)
+    env.update(HOME=home, CLAUDE_CONFIG_DIR=os.path.join(home, ".claude"),
+               CLAUDE_CODE_OAUTH_TOKEN=open(TOKEN_FILE).read().strip())
+    return env, "isolated"
+
+
+def append_ledger(row):
+    """Append under a lock; if the row brings new columns, rewrite the file with the union header."""
+    with open(LEDGER, "a+", newline="") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)   # arms run in parallel
+        f.seek(0)
+        old = list(csv.DictReader(f))
+        cols = list(old[0]) if old else []
+        if not old or any(k not in cols for k in row):
+            cols += [k for k in row if k not in cols]
+            f.seek(0); f.truncate()
+            w = csv.DictWriter(f, fieldnames=cols, restval="")
+            w.writeheader(); w.writerows(old)
+        else:
+            w = csv.DictWriter(f, fieldnames=cols, restval="")
+        w.writerow(row)
 
 
 def sha_dir(d):
@@ -132,16 +204,79 @@ def archive(arm, runid):
     if os.path.isdir(wt):
         sh(["git", "-C", os.path.join(RUNS, arm, "base"), "worktree", "move", wt, os.path.join(dest, runid)])
     for src, name in ((os.path.join(PMX, "data", runid), runid + ".pmxagent_data"),
-                      (wt + ".mcp.json", runid + ".mcp.json")):
+                      (wt + ".mcp.json", runid + ".mcp.json"), (wt + ".home", runid + ".home")):
         if os.path.exists(src):
             shutil.move(src, os.path.join(dest, name))
+
+
+def pinned_claude_version(task):
+    """Claude Code version pinned for `task`: `claude-code-pin <task>:` line, else `claude-code-pin default:`.
+    Every arm of one task runs on one version (logs/deviations.md §15)."""
+    pins = {}
+    with open(VERSIONS) as f:
+        for line in f:
+            m = re.match(r"\s*claude-code-pin\s+(\S+):\s*(\S+)", line)
+            if m:
+                pins[m.group(1)] = m.group(2)
+    pin = pins.get(task) or pins.get("default")
+    if not pin:
+        sys.exit(f"no 'claude-code-pin {task}:' or 'claude-code-pin default:' line in {os.path.relpath(VERSIONS, ROOT)}")
+    return pin
+
+
+def claude_exe(version):
+    """Harness-owned pinned binary if installed (immune to the native installer's updates and clean-up), else PATH."""
+    for rel in ("claude", os.path.join("node_modules", ".bin", "claude")):
+        p = os.path.join(CLAUDE_DIR, version, rel)
+        if os.path.isfile(p) and os.access(p, os.X_OK):
+            return p
+    return "claude"
+
+
+def check_claude_version(task, allow_drift=False):
+    """Resolve the Claude Code binary for `task` and refuse it unless it reports the pinned version.
+    Called before anything is created or written, so a refused run leaves no trace. Returns the binary to use."""
+    pin = pinned_claude_version(task)
+    exe = claude_exe(pin)
+    try:
+        out = subprocess.run([exe, "--version"], capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError) as e:
+        sys.exit(f"cannot run `{exe} --version`: {e}")
+    have = out.split()[0] if out else "(unknown)"
+    if have == pin:
+        return exe
+    msg = f"Claude Code {have} ({exe}) found, but {task} runs are pinned to {pin} (env/versions.txt)."
+    if not allow_drift:
+        sys.exit(f"{msg}\nInstall the pinned version privately: npm install --prefix {os.path.join(CLAUDE_DIR, pin)} "
+                 f"@anthropic-ai/claude-code@{pin}, or pass --allow-version-drift and log the drift in "
+                 f"logs/deviations.md.")
+    print(f"WARNING: {msg} Proceeding because of --allow-version-drift: log this in logs/deviations.md.",
+          file=sys.stderr, flush=True)
+    return exe
 
 
 def valid(r):
     return r["status"] == "ok" and r["is_error"] != "True"
 
 
-def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True):
+def rep_state(arm, task, ledger_rows, live_names):
+    """(valid + in-progress reps, highest rep number used) for arm x task. Rep 0 is a preflight probe: its ledger
+    row and any leftover worktree folder never count toward --until."""
+    rows = [r for r in ledger_rows if r["arm"] == arm and r["task"] == task and r["rep"] != "0"]
+    live = [d for d in live_names if d.startswith(f"{arm}_{task}_r") and not d.endswith((".mcp.json", ".home"))]
+    live_reps = [int(d[len(f"{arm}_{task}_r"):][:2]) for d in live]
+    live_reps = [r for r in live_reps if r != 0]
+    return sum(valid(r) for r in rows) + len(live_reps), max([int(r["rep"]) for r in rows] + live_reps or [0])
+
+
+def run_status(proc_status, res):
+    """Ledger status: a usage-limit (HTTP 429) stop gets the deviations-§1 label, not the bare exit code."""
+    if res.get("api_error_status") == 429:
+        return "failed_ratelimit_midrun" if res.get("total_cost_usd") else "failed_ratelimit"
+    return proc_status
+
+
+def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True, exe="claude"):
     base = os.path.join(RUNS, arm, "base")
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     runid = f"{arm}_{task}_r{rep:02d}_{stamp}"
@@ -160,12 +295,13 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True):
     raw = os.path.join(RAW, arm, task if suffix else "_preflight", runid)
     os.makedirs(raw)
     open(os.path.join(raw, "prompt.txt"), "w").write(full_prompt)
+    env, config_mode = run_env(wt)
     t0 = time.time()
     status = "ok"
     with open(os.path.join(raw, "transcript.jsonl"), "w") as tr, open(os.path.join(raw, "stderr.txt"), "w") as er:
         try:
-            p = subprocess.run(claude_cmd(arm, model, wt), input=full_prompt, cwd=wt, stdout=tr, stderr=er,
-                               text=True, timeout=timeout_min * 60, env={**os.environ, "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"})
+            p = subprocess.run(claude_cmd(arm, model, wt, exe), input=full_prompt, cwd=wt, stdout=tr, stderr=er,
+                               text=True, timeout=timeout_min * 60, env=env)
             if p.returncode != 0:
                 status = f"exit{p.returncode}"
         except subprocess.TimeoutExpired:
@@ -191,7 +327,7 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True):
             tool_err += sum(1 for x in c if isinstance(x, dict) and x.get("type") == "tool_result" and x.get("is_error"))
     u = res.get("usage", {})
     row = {"runid": runid, "arm": arm, "task": task, "rep": rep, "model": model,
-           "model_seen": ",".join(sorted((res.get("modelUsage") or {}).keys())), "status": status,
+           "model_seen": ",".join(sorted((res.get("modelUsage") or {}).keys())), "status": run_status(status, res),
            "is_error": res.get("is_error"), "cost_usd": res.get("total_cost_usd"), "num_turns": res.get("num_turns"),
            "duration_s": round(wall, 1), "api_duration_s": (res.get("duration_api_ms") or 0) / 1000,
            "input_tokens": u.get("input_tokens"), "output_tokens": u.get("output_tokens"),
@@ -203,17 +339,9 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True):
                                                "cacheCreationInputTokens", "costUSD")}
                                            for m, v in (res.get("modelUsage") or {}).items()}, separators=(",", ":")),
            "tool_calls": tools, "tool_errors": tool_err, "n_output_files": len(hashes), "ws_commit": head[:12],
-           "claude_version": sh(["claude", "--version"]).strip().split()[0]}
-    new = not os.path.exists(LEDGER)
-    with open(LEDGER, "a", newline="") as f:
-        fcntl.flock(f, fcntl.LOCK_EX)   # arms run in parallel
-        w = csv.DictWriter(f, fieldnames=list(row))
-        if new:
-            w.writeheader()
-        w.writerow(row)
-    if suffix:
-        archive(arm, runid)
-    row["_limited"] = res.get("api_error_status") == 429   # not in ledger
+           "claude_version": sh([exe, "--version"]).strip().split()[0], "claude_config": config_mode}
+    append_ledger(row)
+    archive(arm, runid)   # preflights too: a leftover worktree must not look like a rep in progress
     print(json.dumps(row), flush=True)
     return row
 
@@ -226,9 +354,15 @@ def main():
     ap.add_argument("--timeout-min", type=int, default=90)
     ap.add_argument("--until", action="store_true",
                     help="treat <reps> as the target number of valid reps; run only the shortfall")
+    ap.add_argument("--allow-version-drift", action="store_true",
+                    help="run even if Claude Code differs from env/versions.txt (log it in logs/deviations.md)")
     a = ap.parse_args()
+    os.umask(0o077)   # rep worktrees, homes and raw copies private to this user
+    check_run_root()
     if a.cmd == "setup":
         return setup(a.arm)
+    probe_task = (a.rest[1] if len(a.rest) > 1 else "T1_nca") if a.cmd == "preflight" else None
+    exe = check_claude_version(probe_task or a.rest[0], a.allow_version_drift)
     frozen = os.path.join(SKILLS, "FROZEN.sha256")
     if a.arm in ("A2", "A3", "A4"):
         chk = subprocess.run(["shasum", "-a", "256", "-c", frozen], cwd=SKILLS, capture_output=True, text=True)
@@ -241,30 +375,28 @@ def main():
         prompt = ("Do not use any tools. List, as short bullet lists: (1) every skill available to you, (2) every MCP "
                   "server and MCP tool available, (3) any CLAUDE.md, rules or memory instructions in your context "
                   "(quote their first line), (4) your exact model id.")
-        return run_once(a.arm, "T1_nca", 0, model, prompt, 5, suffix=False)
+        return run_once(a.arm, probe_task, 0, model, prompt, 5, suffix=False, exe=exe)
     task, reps, model = a.rest[0], int(a.rest[1]), a.rest[2]
     prompt = open(os.path.join(TASKS, task, "prompt.md")).read().strip()
     if not a.until:
         for rep in range(1, reps + 1):
-            run_once(a.arm, task, rep, model, prompt, a.timeout_min)
+            run_once(a.arm, task, rep, model, prompt, a.timeout_min, exe=exe)
         return
     def state():   # re-read each time: another session may be topping up the same arm
-        rows = [r for r in csv.DictReader(open(LEDGER)) if r["arm"] == a.arm and r["task"] == task and r["rep"] != "0"]
-        live = [d for d in os.listdir(os.path.join(RUNS, a.arm, "runs")) if d.startswith(f"{a.arm}_{task}_r")
-                and not d.endswith(".mcp.json")] if os.path.isdir(os.path.join(RUNS, a.arm, "runs")) else []
-        reps_used = [int(r["rep"]) for r in rows] + [int(d.split("_r")[-1][:2]) for d in live]
-        return sum(valid(r) for r in rows) + len(live), max(reps_used or [0])
+        live_dir = os.path.join(RUNS, a.arm, "runs")
+        return rep_state(a.arm, task, list(csv.DictReader(open(LEDGER))),
+                         os.listdir(live_dir) if os.path.isdir(live_dir) else [])
     limited = 0
     have, rep = state()
     print(f"{a.arm} {task}: {have} valid or in-progress reps, target {reps}", flush=True)
     while have < reps:
-        row = run_once(a.arm, task, rep + 1, model, prompt, a.timeout_min)
+        row = run_once(a.arm, task, rep + 1, model, prompt, a.timeout_min, exe=exe)
         have, rep = state()
         if valid({k: str(v) for k, v in row.items()}):
             limited = 0
-        elif row["_limited"] or not row["cost_usd"]:   # usage limit (429) or instant API failure
+        elif (hit := row["status"].startswith("failed_ratelimit")) or not row["cost_usd"]:   # 429 or instant API failure
             limited += 1
-            if row["_limited"] or limited >= 2:
+            if hit or limited >= 2:
                 sys.exit(f"{a.arm} {task}: usage limit / API failure - stopping at {have}/{reps} valid reps")
 
 

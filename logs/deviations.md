@@ -57,3 +57,105 @@ A1 crashed on tasks with no input files (T2, T3d) because git does not track emp
 ## 8. Docker
 PMxAgent stack stopped at the user's request after the first matrix and restarted for the A1 top-up (15:45), then
 stopped again when A1 finished (15:59). Same pinned image digests (`env/versions.txt`); every A1 run is independent.
+
+---
+# Task 2 (case study) — from 2026-11-16 (IST)
+
+## 9. Restored on a fresh checkout
+The original working copy was not on this machine. The repo was cloned from GitHub; PMxAgent was re-deployed from its
+public tag `v1.0.0` into `~/pmxbench_runs/_pmxagent` and started from the **same image digests** as T1
+(`env/versions.txt`). T2 needs no supplement data. Arm repos rebuilt with `run_arm.py setup` from the frozen skills
+(hashes verified, all skill tests pass).
+
+## 10. Environment drift since T1
+Claude Code 2.1.283 → 2.1.310, R 4.6.1 → 4.6.2, Python 3.14.7 → 3.15.2, Docker 29.8.1 → 29.9.2. All R packages
+(PKNCA, mrgsolve, rxode2, nlmixr2lib, …) unchanged. Same for every T2 arm; the Claude Code version is in the ledger
+per run. T1 and T2 are separate comparisons, so drift between them does not affect any within-task arm comparison.
+
+## 11. Isolation: no user instructions in T2 (stronger than T1)
+The user's `~/.claude/CLAUDE.md` and `~/.claude/rules/` had grown since T1 (they now include working-style rules such
+as "write tests first" and a PR workflow) and could change agent behaviour on an open-ended task. Preflights traced
+how they reach a rep:
+- **Mechanism (also T1's accepted leak):** Claude Code reads `CLAUDE.md` and `.claude/rules/` from *every ancestor*
+  of its working directory. T1 worktrees lived under `~/pmxbench_runs/`, so `/Users/dhruvik/.claude/CLAUDE.md` and
+  its rules loaded as ancestor *project* instructions, which `--setting-sources project` does not exclude. An empty
+  `CLAUDE_CONFIG_DIR`, then an empty `HOME`, did not help (preflights quarantined under `results/raw/*/_preflight/`,
+  rep 0, never scored). A probe outside `~` with a sentinel `CLAUDE.md` in the config dir loaded nothing.
+- **Fix:** arm workspaces moved to `/Users/Shared/pmxbench_runs/` (no `.claude/` in any ancestor). PMxAgent stays
+  under `~` (colima mounts only the home folder); agents only read/write its data folder, they never run there.
+- **Also:** each rep gets a whitelisted environment (`PATH`, locale, `TERM`, `TMPDIR`, user/shell). The harness had
+  been launched from a Claude Code desktop session whose ~35 `CLAUDE_*`/`ANTHROPIC_*` variables (incl. a proxy base
+  URL) would otherwise pass to every rep. Each rep also gets its own empty `HOME` + config dir (archived with the rep;
+  earlier reps' session files unreachable), authenticated by a subscription token from `claude setup-token`
+  (environment only, never logged). Ledger column `claude_config` = `isolated` (empty for T1 runs).
+- **Check:** final preflights on A0/A2/A3/A4 (2026-11-16 21:58) report no CLAUDE.md/rules/memory, the pinned model,
+  and the expected skills (none for A0, the 5 pmx skills for A2–A4). Decided and verified before any T2 run.
+
+## 12. Harness and scorer changes (no effect on T1 numbers)
+- `run_arm.py setup` handles tasks with no input files (T2, T3d) on a fresh clone.
+- Ledger writer rewrites the header when a run adds a column, so old rows stay aligned (`harness/tests`).
+- `score_all.py`, `summarize.py`, `audit_isolation.py` update their tables by run ID and keep rows for runs whose raw
+  files are not on this machine (T1 raw is on Zenodo); distinct-output counts fall back to the evidence manifest.
+  Check: re-running all three with no raw files leaves every committed T1 file byte-identical.
+- T2 scorer also finds A1's simulated data under `pmxagent_data/` (container paths in `results.json` are matched
+  by path suffix) (`scoring/tests`).
+- Isolation audit: project-path pattern now also matches `projects/pmxagent`; A1's own `/data/<runid>` host folder
+  is no longer counted as another run's area.
+- Run-root guard (added 2026-11-16 ~22:05, while A0 T2 reps were running; a check only, no change to what a rep
+  sees): `/Users/Shared` is world-writable, so another local user could plant `CLAUDE.md`/`.claude/` in an ancestor
+  of the workspaces. `run_arm.py` now refuses to run unless the run root is owned by the user with mode 0700 and no
+  ancestor holds `CLAUDE.md`, `CLAUDE.local.md` or `.claude/`; reps run with umask 077. Verified at the time: no such
+  files in any ancestor, so earlier reps were unaffected.
+
+### §13 T2 scorer: either AUC rule counts (2026-11-16, ~22:20, before any T2 scoring)
+The first finished rep (A0 r11) reported group means from **linear-trapezoidal** AUClast; they match its own
+simulated data exactly, but the scorer only recomputed lin-up/log-down, so it read 50% consistent. The verbatim prompt
+names no AUC rule, so `score_case_run` now accepts either (`AUC_RULES`) and records which one the run used
+(`auc_method`: linear / lin-up/log-down / mixed / none). The same rule applies to every arm; found on the scorer's
+first real input, not tuned on any arm's results. Test: `test_linear_trapezoidal_summary_counts_as_consistent`.
+
+### §14 T2 usage-limit stop labelled in the ledger (2026-11-17)
+At 22:23 IST on 2026-11-16 the subscription's 5-hour limit was reached (`429 usage_limit_reached`, "resets 12am").
+Two reps were cut off mid-run: **A0 r14** (7 turns) and **A1 r01** (10 turns). The runner saw the 429, kept both out
+of scoring and stopped both lanes as designed (§2), but wrote the bare exit code (`exit1`) to the ledger, so a 429
+stop could not be told apart from a real crash. `run_arm.run_status` now writes the §1 labels itself
+(`failed_ratelimit` = no tokens, `failed_ratelimit_midrun` = partly run); the two rows were relabelled
+`exit1` → `failed_ratelimit_midrun` (original status in `logs/t2_lane_*.log`). No effect on any score: both rows were
+already excluded. Test: `harness/tests` `RunStatus`.
+
+### §15 Branches merged, Claude Code pinned per task, A1 top-up isolation, test-artifact clean-up (2026-11-17, ~22:15–23:00 IST)
+Decided with the user before any T2 score was computed and before A1 T1 runs 4–10 (`paper/SPEC.md` decisions log).
+- **Branches.** The preprint branch (`paper/SPEC.md`, analysis plan of commit `08ea7b3`, stats/figures/tables, the
+  Claude Code version guard of issue #3) and the T2 branch (isolation §11–12, T2 scorer §13) had diverged from
+  `d09381a`. Merged; only `CLAUDE.md` conflicted (text only). The guard had never been active for the T2 reps.
+- **Version rule.** SPEC said every new run uses 2.1.283; the first T2 reps (A0 r11–r14, A1 r01) ran on 2.1.310 and
+  2.1.325 is now installed. The user removed that rule. New rule: **one pinned version per task** —
+  `claude-code-pin T1_nca: 2.1.283` (A1 top-up, same as all T1 runs), `claude-code-pin default: 2.1.310` (T2/T3, same
+  as the existing T2 reps). `run_arm.py` runs a harness-owned binary from `~/.local/share/pmxbench/claude/<version>/`
+  (2.1.283 from npm, 2.1.310 copied from the native install) and refuses any other version; reps get
+  `DISABLE_AUTOUPDATER=1`. The ledger's `claude_version` is read from that binary.
+- **A1 T1 runs 4–10: isolated.** Runs 1–3 loaded the user's global CLAUDE.md (§ "Rules that held throughout"). That
+  file has changed since; its T1-era text is not in Claude Code's file history and Time Machine could not mount its
+  disk, so the T1 condition cannot be reproduced. Runs 4–10 therefore load no user instructions. Pre-specified
+  sensitivity: `scoring/stats.py` reports A1 per regime and repeats A2−A1 and A3−A1 on each regime (primary = pooled).
+- **T2 consistency.** Primary = the pre-specified lin-up/log-down check (`summary_consistent_pct`); the §13 "either
+  rule" value is kept as a post-hoc sensitivity column (`summary_consistent_any_rule_pct`).
+- **A1 T2 = 10 reps** (SPEC), not 3 (old runner/PLAN). `run_t2_two_sessions.sh` superseded by `run_t2_t3_lanes.sh`.
+- **Test artifacts (no effect on data).** After the merge, the version-guard tests from the preprint branch still
+  assumed the run root lived under `HOME`; with the run root at `/Users/Shared/pmxbench_runs` the "version matches"
+  tests ran a stub `claude` as real A0 T1 reps and appended 9 rows (`status ok`, 0 tokens, `claude_version 9.9.9`)
+  to `results/runs.csv` at 22:16–22:28. The ledger was restored from git (byte-identical to the committed file); the
+  9 raw folders were moved to `results/raw/A0/_test_artifacts/` and their worktrees to
+  `~/pmxbench_archive/_test_artifacts/A0/` (nothing deleted). The tests now use a private temporary run root and fail
+  if the real ledger changes.
+- **`--until` bug.** A leftover preflight worktree (rep 0) counted as a rep in progress. Every arm had one (16 Nov
+  preflights, named `*_T1_nca_r00_*`), so the A1 T1 top-up would have stopped at 9 instead of 10; T2 counts were not
+  affected (different task name). Fixed (`rep_state`, test in `harness/tests`); preflights are now archived like reps,
+  and the five leftover preflight worktrees were moved to `~/pmxbench_archive/<arm>/`.
+- **Code review of PR #20 (2026-11-17, ~23:30 IST).** (a) Reps now get `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`: in
+  isolated mode the subscription token is in the rep's environment, and the agent's own Bash/R/Python subprocesses
+  inherited it, so an agent running `env` could have written it into a transcript that is later published. Checked
+  before the fix: no file in `results/raw/` or `~/pmxbench_archive/` contains the token. The variable only removes
+  credentials from subprocess environments; the 3 valid A0 T2 reps ran without it, all later reps run with it.
+  (b) `auc_method` was `mixed` instead of `none` for a T2 run where no dose could be compared (label only; both
+  consistency values were already empty). (c) `preflight` takes an optional task, so the T2/T3 binary can be probed.

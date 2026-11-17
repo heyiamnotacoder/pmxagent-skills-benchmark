@@ -21,3 +21,15 @@ pmxagent-mcp:  ghcr.io/peterbloomingdale/pmxagent-mcp@sha256:44795024bc39c233dc2
 ## Notes
 - rxode2 model compile: CRAN R expects /opt/gfortran libs (absent). skills/pmx-library/scripts/Makevars.rxode2 (FLIBS=) is set via R_MAKEVARS_USER by the script only; no global change.
 - PMxAgent containers run amd64 under Rosetta on arm64: wall-time for A1 is penalised vs native R in A0/A2/A3. Token cost is unaffected.
+
+# Task 2 environment (2026-11-16) — see logs/deviations.md §10
+claude-code: 2.1.310 (Claude Code)
+R: R version 4.6.2 (2026-10-29); R packages above unchanged
+python: Python 3.15.2
+docker: Docker version 29.9.2 via colima 0.10.3 (vz + rosetta, 6 cpu, 8 GB); PMxAgent images: same digests as above
+
+# Claude Code pin per task (2026-11-17) — logs/deviations.md §15, paper/SPEC.md decisions log
+# Every arm of one task runs on one version. harness/run_arm.py uses <PMXBENCH_CLAUDE_DIR>/<version>/claude
+# (default ~/.local/share/pmxbench/claude), else `claude` on PATH, and refuses a version that is not the pin.
+claude-code-pin T1_nca: 2.1.283
+claude-code-pin default: 2.1.310
