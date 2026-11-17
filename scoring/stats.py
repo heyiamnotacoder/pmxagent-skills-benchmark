@@ -6,6 +6,9 @@ For each task with a run-level accuracy (`overall` in results/scores.csv) and ea
   - two-sided permutation p-value (exact when the number of splits is <= 200,000, else 100,000 random splits)
   - equivalence vs the +/-1.0 percentage-point margin: "equivalent" only if the whole 95% CI lies inside the margin
 Per arm: n, mean, SD, min, max, and the number of distinct parameter-value sets (needs results/raw/; else "n/a").
+Sensitivity (pre-specified 2026-11-17, before A1 T1 runs 4-10; logs/deviations.md §15): for an arm whose runs in a
+task used more than one isolation regime (ledger `claude_config`: empty/"user" = user instructions loaded, as in T1;
+"isolated" = none), per-regime arm stats and every pair involving that arm recomputed on each regime alone.
 Valid runs only (scores.csv already holds only those). Stdlib only.  Usage: stats.py [--b 10000] [--seed 20261116]
 """
 import argparse, csv, glob, hashlib, itertools, math, os, random, statistics as st, sys
@@ -63,6 +66,41 @@ def value_set_hash(run_dir, scored_file):
     return hashlib.sha256(repr(items).encode()).hexdigest()
 
 
+def regime(ledger_row):
+    """Isolation regime of a run: T1-era runs have an empty `claude_config`, which meant user config loaded."""
+    return (ledger_row.get("claude_config") or "user").strip() or "user"
+
+
+def compare(x, y, b, rng):
+    lo, hi = boot_ci(x, y, b, rng)
+    p, how = perm_p(x, y, rng)
+    return {"n_x": len(x), "n_y": len(y), "diff": mean(x) - mean(y), "ci_lo": lo, "ci_hi": hi, "p_perm": p,
+            "p_method": how, "equivalent_1pp": -MARGIN < lo and hi < MARGIN}
+
+
+def sensitivity(by, pairs, b, seed):
+    """by[task][arm][regime] = accuracies. Only arms with >1 regime in a task are split."""
+    arms, out = [], []
+    for task in sorted(by):
+        pooled = {arm: [v for vs in regs.values() for v in vs] for arm, regs in by[task].items()}
+        for arm in sorted(by[task]):
+            regs = by[task][arm]
+            if len(regs) < 2:
+                continue
+            for reg in sorted(regs):
+                x = regs[reg]
+                arms.append({"task": task, "arm": arm, "regime": reg, "n": len(x), "mean": mean(x),
+                             "sd": st.stdev(x) if len(x) > 1 else 0.0})
+                for xa, ya in pairs:
+                    if arm not in (xa, ya) or xa not in pooled or ya not in pooled:
+                        continue
+                    x_, y_ = (x if xa == arm else pooled[xa]), (x if ya == arm else pooled[ya])
+                    rng = random.Random(f"{seed}-{task}-{xa}-{ya}-{arm}-{reg}")
+                    out.append({"task": task, "comparison": f"{xa} - {ya}", "split_arm": arm, "regime": reg,
+                                **compare(x_, y_, b, rng)})
+    return arms, out
+
+
 def pfmt(p):
     return "<0.0001" if p < 1e-4 else f"{p:.4f}"
 
@@ -77,7 +115,9 @@ def main():
     ap.add_argument("--seed", type=int, default=20261116)
     a = ap.parse_args()
     rows = list(csv.DictReader(open(os.path.join(RES, "scores.csv"))))
+    ledger = {r["runid"]: r for r in csv.DictReader(open(os.path.join(RES, "runs.csv")))}
     acc = defaultdict(lambda: defaultdict(list))
+    by_regime = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     vsets = defaultdict(lambda: defaultdict(set))
     have_raw = defaultdict(lambda: defaultdict(bool))
     for r in rows:
@@ -86,6 +126,7 @@ def main():
         except (KeyError, TypeError, ValueError):
             continue
         acc[r["task"]][r["arm"]].append(v)
+        by_regime[r["task"]][r["arm"]][regime(ledger.get(r["runid"], {}))].append(v)
         run_dir = os.path.join(RES, "raw", r["arm"], r["task"], r["runid"])
         if os.path.isdir(run_dir) and r.get("scored_file"):
             h = value_set_hash(run_dir, r["scored_file"])
@@ -103,19 +144,19 @@ def main():
         for xa, ya in PAIRS:
             if xa not in acc[task] or ya not in acc[task]:
                 continue
-            x, y = acc[task][xa], acc[task][ya]
             rng = random.Random(f"{a.seed}-{task}-{xa}-{ya}")
-            lo, hi = boot_ci(x, y, a.b, rng)
-            p, how = perm_p(x, y, rng)
-            out_pair.append({"task": task, "comparison": f"{xa} - {ya}", "n_x": len(x), "n_y": len(y),
-                             "diff": mean(x) - mean(y), "ci_lo": lo, "ci_hi": hi, "p_perm": p, "p_method": how,
-                             "equivalent_1pp": -MARGIN < lo and hi < MARGIN})
+            out_pair.append({"task": task, "comparison": f"{xa} - {ya}",
+                             **compare(acc[task][xa], acc[task][ya], a.b, rng)})
+    sens_arm, sens_pair = sensitivity(by_regime, PAIRS, a.b, a.seed)
 
     with open(os.path.join(RES, "stats.csv"), "w", newline="") as f:
         cols = list(out_pair[0]) if out_pair else ["task"]
         w = csv.DictWriter(f, fieldnames=cols); w.writeheader(); w.writerows(out_pair)
     with open(os.path.join(RES, "stats_arms.csv"), "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(out_arm[0])); w.writeheader(); w.writerows(out_arm)
+    with open(os.path.join(RES, "stats_sensitivity.csv"), "w", newline="") as f:
+        cols = list(sens_pair[0]) if sens_pair else ["task", "comparison", "split_arm", "regime"]
+        w = csv.DictWriter(f, fieldnames=cols); w.writeheader(); w.writerows(sens_pair)
 
     md = ["# Pre-specified comparisons", "",
           f"Overall accuracy (paper metric, percentage points). Difference = mean(X) - mean(Y); 95% percentile "
@@ -130,6 +171,19 @@ def main():
                f"{r['ci_hi']:+.2f} | {pfmt(r['p_perm'])} ({r['p_method']}) | {'yes' if r['equivalent_1pp'] else 'no'} |"
                for r in out_pair if r["task"] == task]
         md.append("")
+        if any(r["task"] == task for r in sens_arm):
+            md += [f"### {task}: sensitivity by isolation regime", "",
+                   "Arms whose runs used more than one isolation regime, split by regime (user = user instructions "
+                   "loaded, as in T1 runs 1-3; isolated = none). Pre-specified before the runs it splits.", "",
+                   "| Arm | Regime | n | Mean | SD |", "|---|---|---|---|---|"]
+            md += [f"| {r['arm']} | {r['regime']} | {r['n']} | {fmt(r['mean'])} | {fmt(r['sd'])} |"
+                   for r in sens_arm if r["task"] == task]
+            md += ["", "| Comparison | Split arm: regime | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |",
+                   "|---|---|---|---|---|---|---|"]
+            md += [f"| {r['comparison']} | {r['split_arm']}: {r['regime']} | {r['n_x']} vs {r['n_y']} | {r['diff']:+.2f} "
+                   f"| {r['ci_lo']:+.2f} to {r['ci_hi']:+.2f} | {pfmt(r['p_perm'])} ({r['p_method']}) | "
+                   f"{'yes' if r['equivalent_1pp'] else 'no'} |" for r in sens_pair if r["task"] == task]
+            md.append("")
     open(os.path.join(RES, "stats.md"), "w").write("\n".join(md))
     print("\n".join(md))
 

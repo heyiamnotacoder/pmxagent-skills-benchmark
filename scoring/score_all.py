@@ -4,7 +4,9 @@
 NCA tasks (T1, T3a, T3b, T3c, T3e): paper metric (score_nca.score) vs tasks/<task>/reference/pkanalix_individual.csv.
   The individual-results file is picked by coverage of reference (subject, parameter) keys, never by accuracy.
 T2 (case study): completion + internal consistency, recomputed here from the agent's own simulated data with
-  independent AUClast code (no skill code); the prompt names no AUC rule, so linear or lin-up/log-down both count.
+  independent AUClast code (no skill code). Primary `summary_consistent_pct` = the pre-specified check (commit
+  08ea7b3): AUClast recomputed lin-up/log-down. `summary_consistent_any_rule_pct` = post-hoc sensitivity
+  (logs/deviations.md §13, §15): the prompt names no AUC rule, so linear or lin-up/log-down both count.
 T3d (oral 1-CM): typical Cmax/Tmax/AUCinf vs analytical truth (|RE| < 1% correct).
 Stdlib only.  Usage: score_all.py [--arm A3] [--task T1_nca]
 """
@@ -202,7 +204,7 @@ def score_case_run(run_dir):
             for m, rule in AUC_RULES.items():
                 by[dose][m].append(rule(s["t"], s["c"]))
         mean = lambda xs: sum(xs) / len(xs)
-        n_ok = n = 0
+        n_ok = n_ok_any = n = 0
         matched = []   # per dose: the AUC rules that reproduce the reported mean
         for dose, v in by.items():
             try:
@@ -213,12 +215,15 @@ def score_case_run(run_dir):
             rules = {m for m in AUC_RULES if sn.rel_err(rep_auc, mean(v[m])) < 0.01}
             matched.append(rules)
             n += 2
-            n_ok += bool(rules) + (sn.rel_err(rep_cmax, mean(v["cmax"])) < 0.01)
+            cmax_ok = sn.rel_err(rep_cmax, mean(v["cmax"])) < 0.01
+            n_ok += ("lin-up/log-down" in rules) + cmax_ok        # primary: pre-specified rule only
+            n_ok_any += bool(rules) + cmax_ok                     # sensitivity: either rule
         common = set.intersection(*matched) if matched else set()
         out["auc_method"] = ("lin-up/log-down" if "lin-up/log-down" in common else common.pop() if common
                              else "mixed" if all(matched) else "none")
         out["n_subjects_sim"] = len(sim)
         out["summary_consistent_pct"] = round(100 * n_ok / n, 1) if n else None
+        out["summary_consistent_any_rule_pct"] = round(100 * n_ok_any / n, 1) if n else None
     else:
         out["note"] = "sim file not parseable"
     return out

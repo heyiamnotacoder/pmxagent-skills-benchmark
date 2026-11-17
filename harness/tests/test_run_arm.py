@@ -31,6 +31,20 @@ class RunStatus(unittest.TestCase):
         self.assertEqual(run_arm.run_status("timeout", {}), "timeout")
 
 
+class RepState(unittest.TestCase):
+    """--until counts valid reps + reps still in progress; a leftover preflight (rep 0) is neither."""
+    def test_preflight_folder_and_rep0_rows_do_not_count(self):
+        rows = [{"arm": "A1", "task": "T1_nca", "rep": "0", "status": "ok", "is_error": "False"},
+                {"arm": "A1", "task": "T1_nca", "rep": "1", "status": "ok", "is_error": "False"},
+                {"arm": "A1", "task": "T1_nca", "rep": "2", "status": "failed_ratelimit_midrun", "is_error": "True"},
+                {"arm": "A1", "task": "T1_nca", "rep": "3", "status": "ok", "is_error": "False"},
+                {"arm": "A1", "task": "T2_case", "rep": "4", "status": "ok", "is_error": "False"}]
+        live = ["A1_T1_nca_r00_20261116-222130", "A1_T1_nca_r00_20261116-222130.home",
+                "A1_T1_nca_r00_20261116-222130.mcp.json", "A1_T1_nca_r04_20261117-090000",
+                "A1_T1_nca_r04_20261117-090000.home", "A1_T2_case_r05_20261117-090000"]
+        self.assertEqual(run_arm.rep_state("A1", "T1_nca", rows, live), (3, 4))   # 2 valid + r04 live; last rep 4
+
+
 class RunEnv(unittest.TestCase):
     def test_isolated_env_drops_host_session_variables(self):
         with tempfile.TemporaryDirectory() as d:

@@ -65,7 +65,8 @@ def main():
         row["n_distinct_outputs"] = len({json.dumps(h, sort_keys=True) for h in hashes if h})
         if task == "T2_case":
             row["t2_completed"] = sum(s.get("completed") == "True" for s in sc)
-            row["t2_summary_consistent_pct"] = ms([f(s.get("summary_consistent_pct")) for s in sc], 1)
+            row["t2_summary_consistent_pct"] = ms([f(s.get("summary_consistent_pct")) for s in sc], 1)   # primary
+            row["t2_summary_consistent_any_rule_pct"] = ms([f(s.get("summary_consistent_any_rule_pct")) for s in sc], 1)
             row["t2_ec50"] = ms([f(s.get("ec50")) for s in sc], 1)
         rows.append(row)
     cols = []

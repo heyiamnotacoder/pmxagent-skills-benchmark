@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # T2 case study, at most 2 concurrent Claude Code sessions (as T1, logs/deviations.md §3):
 #   lane 1 = A1 (PMxAgent; waits until the stack answers), lane 2 = A0, A2, A3, A4 one after another.
+# Superseded on 2026-11-17 by harness/run_t2_t3_lanes.sh (kept: it produced A0 T2 r11-r14 and A1 T2 r01).
 # --until tops each arm up to the target number of valid reps and stops a lane on a usage-limit (429) response.
 cd "$(dirname "$0")/.."
 S=claude-sonnet-4-6; H=claude-haiku-4-5-20251001

@@ -122,3 +122,33 @@ stop could not be told apart from a real crash. `run_arm.run_status` now writes 
 (`failed_ratelimit` = no tokens, `failed_ratelimit_midrun` = partly run); the two rows were relabelled
 `exit1` → `failed_ratelimit_midrun` (original status in `logs/t2_lane_*.log`). No effect on any score: both rows were
 already excluded. Test: `harness/tests` `RunStatus`.
+
+### §15 Branches merged, Claude Code pinned per task, A1 top-up isolation, test-artifact clean-up (2026-11-17, ~22:15–23:00 IST)
+Decided with the user before any T2 score was computed and before A1 T1 runs 4–10 (`paper/SPEC.md` decisions log).
+- **Branches.** The preprint branch (`paper/SPEC.md`, analysis plan of commit `08ea7b3`, stats/figures/tables, the
+  Claude Code version guard of issue #3) and the T2 branch (isolation §11–12, T2 scorer §13) had diverged from
+  `d09381a`. Merged; only `CLAUDE.md` conflicted (text only). The guard had never been active for the T2 reps.
+- **Version rule.** SPEC said every new run uses 2.1.283; the first T2 reps (A0 r11–r14, A1 r01) ran on 2.1.310 and
+  2.1.325 is now installed. The user removed that rule. New rule: **one pinned version per task** —
+  `claude-code-pin T1_nca: 2.1.283` (A1 top-up, same as all T1 runs), `claude-code-pin default: 2.1.310` (T2/T3, same
+  as the existing T2 reps). `run_arm.py` runs a harness-owned binary from `~/.local/share/pmxbench/claude/<version>/`
+  (2.1.283 from npm, 2.1.310 copied from the native install) and refuses any other version; reps get
+  `DISABLE_AUTOUPDATER=1`. The ledger's `claude_version` is read from that binary.
+- **A1 T1 runs 4–10: isolated.** Runs 1–3 loaded the user's global CLAUDE.md (§ "Rules that held throughout"). That
+  file has changed since; its T1-era text is not in Claude Code's file history and Time Machine could not mount its
+  disk, so the T1 condition cannot be reproduced. Runs 4–10 therefore load no user instructions. Pre-specified
+  sensitivity: `scoring/stats.py` reports A1 per regime and repeats A2−A1 and A3−A1 on each regime (primary = pooled).
+- **T2 consistency.** Primary = the pre-specified lin-up/log-down check (`summary_consistent_pct`); the §13 "either
+  rule" value is kept as a post-hoc sensitivity column (`summary_consistent_any_rule_pct`).
+- **A1 T2 = 10 reps** (SPEC), not 3 (old runner/PLAN). `run_t2_two_sessions.sh` superseded by `run_t2_t3_lanes.sh`.
+- **Test artifacts (no effect on data).** After the merge, the version-guard tests from the preprint branch still
+  assumed the run root lived under `HOME`; with the run root at `/Users/Shared/pmxbench_runs` the "version matches"
+  tests ran a stub `claude` as real A0 T1 reps and appended 9 rows (`status ok`, 0 tokens, `claude_version 9.9.9`)
+  to `results/runs.csv` at 22:16–22:28. The ledger was restored from git (byte-identical to the committed file); the
+  9 raw folders were moved to `results/raw/A0/_test_artifacts/` and their worktrees to
+  `~/pmxbench_archive/_test_artifacts/A0/` (nothing deleted). The tests now use a private temporary run root and fail
+  if the real ledger changes.
+- **`--until` bug.** A leftover preflight worktree (rep 0) counted as a rep in progress. Every arm had one (16 Nov
+  preflights, named `*_T1_nca_r00_*`), so the A1 T1 top-up would have stopped at 9 instead of 10; T2 counts were not
+  affected (different task name). Fixed (`rep_state`, test in `harness/tests`); preflights are now archived like reps,
+  and the five leftover preflight worktrees were moved to `~/pmxbench_archive/<arm>/`.

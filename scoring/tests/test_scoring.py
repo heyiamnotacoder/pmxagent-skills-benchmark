@@ -81,11 +81,13 @@ class ScoreCase(unittest.TestCase):
         self.assertTrue(r["completed"])
         self.assertEqual(r["n_subjects_sim"], 60)
         self.assertEqual(r["summary_consistent_pct"], 100.0)
+        self.assertEqual(r["summary_consistent_any_rule_pct"], 100.0)
         self.assertEqual(r["sim_file"], os.path.join("pmxagent_data", "sim", "pk_sim.csv"))
         self.assertEqual(r["auc_method"], "lin-up/log-down")
 
-    def test_linear_trapezoidal_summary_counts_as_consistent(self):
-        """The prompt names no AUC method, so a summary built with the linear rule is consistent too."""
+    def test_linear_trapezoidal_summary_primary_vs_any_rule(self):
+        """Primary (pre-specified, commit 08ea7b3): AUClast recomputed lin-up/log-down only, so a linear-rule summary
+        matches on Cmax but not AUC (3 of 6 checks). Post-hoc sensitivity (deviations §13): either rule counts."""
         times = [0, 1, 2, 4, 8, 24]
         with tempfile.TemporaryDirectory() as run:
             os.makedirs(os.path.join(run, "output"))
@@ -101,7 +103,8 @@ class ScoreCase(unittest.TestCase):
             json.dump({"group_summary": gs, "ec50": 20.0, "files": {"sim": "output/sim.csv"}},
                       open(os.path.join(run, "output", "results.json"), "w"))
             r = score_all.score_case_run(run)
-        self.assertEqual(r["summary_consistent_pct"], 100.0)
+        self.assertEqual(r["summary_consistent_pct"], 50.0)
+        self.assertEqual(r["summary_consistent_any_rule_pct"], 100.0)
         self.assertEqual(r["auc_method"], "linear")
 
 

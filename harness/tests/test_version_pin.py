@@ -24,11 +24,15 @@ class VersionPin(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.bin = os.path.join(self.tmp.name, "bin")
-        self.home = os.path.join(self.tmp.name, "home")   # ~/pmxbench_runs resolves here
-        os.makedirs(self.bin); os.makedirs(self.home)
+        self.home = os.path.join(self.tmp.name, "home")
+        self.runs = os.path.join(self.tmp.name, "runs")   # private empty run root: no arm repo, so a run that gets
+        os.makedirs(self.bin); os.makedirs(self.home)     # past the guard fails before any worktree or ledger write
+        os.makedirs(self.runs, mode=0o700)
+        self.ledger_before = sha(LEDGER)
 
     def tearDown(self):
         self.tmp.cleanup()
+        self.assertEqual(sha(LEDGER), self.ledger_before, "a test wrote to the real ledger")
 
     def stub(self, version):
         p = os.path.join(self.bin, "claude")
@@ -37,7 +41,7 @@ class VersionPin(unittest.TestCase):
         os.chmod(p, 0o755)
 
     def run_arm(self, *args):
-        env = dict(os.environ, PATH=self.bin + os.pathsep + os.environ["PATH"], HOME=self.home)
+        env = dict(os.environ, PATH=self.bin + os.pathsep + os.environ["PATH"], HOME=self.home, PMXBENCH_RUNS=self.runs)
         return subprocess.run([sys.executable, RUN_ARM, *args], env=env, capture_output=True, text=True, timeout=60)
 
     def test_mismatch_refused_before_any_side_effect(self):
@@ -51,6 +55,7 @@ class VersionPin(unittest.TestCase):
             self.assertIn("--allow-version-drift", r.stderr)
         self.assertEqual(sha(LEDGER), before, "ledger was written")
         self.assertEqual(os.listdir(self.home), [], "a run/worktree directory was created")
+        self.assertEqual(os.listdir(self.runs), [], "a run/worktree directory was created")
 
     def test_match_passes_the_check(self):
         self.stub(PIN)
@@ -68,7 +73,44 @@ class VersionPin(unittest.TestCase):
     def test_setup_needs_no_claude(self):
         sys.path.insert(0, HARNESS)
         import run_arm
-        self.assertEqual(run_arm.pinned_claude_version(), PIN)
+        self.assertEqual(run_arm.pinned_claude_version("T1_nca"), PIN)
+
+    # --- per-task pin (logs/deviations.md §15): T1 stays on its version, T2/T3 use the `default` pin ---
+    def pinned_install(self, version):
+        """A harness-owned pinned binary: <PMXBENCH_CLAUDE_DIR>/<version>/claude."""
+        d = os.path.join(self.tmp.name, "pins", version)
+        os.makedirs(d)
+        p = os.path.join(d, "claude")
+        with open(p, "w") as f:
+            f.write(f"#!/bin/sh\necho '{version} (Claude Code)'\n")
+        os.chmod(p, 0o755)
+
+    def run_arm_pins(self, *args):
+        env = dict(os.environ, PATH=self.bin + os.pathsep + os.environ["PATH"], HOME=self.home, PMXBENCH_RUNS=self.runs,
+                   PMXBENCH_CLAUDE_DIR=os.path.join(self.tmp.name, "pins"))
+        return subprocess.run([sys.executable, RUN_ARM, *args], env=env, capture_output=True, text=True, timeout=60)
+
+    def test_pin_differs_by_task(self):
+        sys.path.insert(0, HARNESS)
+        import run_arm
+        default = run_arm.pinned_claude_version("T2_case")
+        self.assertNotEqual(default, PIN)
+        self.assertEqual(run_arm.pinned_claude_version("T3d_oral"), default)
+
+    def test_pinned_install_preferred_over_path(self):
+        self.stub("9.9.9")                      # whatever `claude` on PATH is, the pinned binary is used
+        self.pinned_install(PIN)
+        r = self.run_arm_pins("run", "A0", "T1_nca", "1", "claude-sonnet-4-6")
+        self.assertNotIn("pinned to", r.stderr)
+
+    def test_task_with_other_pin_refused(self):
+        sys.path.insert(0, HARNESS)
+        import run_arm
+        self.stub("9.9.9")
+        self.pinned_install(PIN)                # only the T1 pin is installed; T2 needs the default pin
+        r = self.run_arm_pins("run", "A0", "T2_case", "1", "claude-sonnet-4-6")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn(run_arm.pinned_claude_version("T2_case"), r.stderr)
 
 
 if __name__ == "__main__":

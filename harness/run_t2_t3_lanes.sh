@@ -4,14 +4,17 @@
 # --until tops each arm x task up to the target number of valid reps and stops a lane on a usage-limit (429)
 # response, so re-running this script after the limit resets resumes where it stopped.
 #
-# Claude Code must be the version pinned in env/versions.txt (2.1.283, as for every T1 run); run_arm.py refuses
-# otherwise. Install it and stop auto-updates before starting:
-#   npm install -g @anthropic-ai/claude-code@2.1.283   (and export DISABLE_AUTOUPDATER=1 in your shell profile)
+# Claude Code: one pinned version per task (env/versions.txt `claude-code-pin` lines; logs/deviations.md §15).
+# run_arm.py runs the pinned binary from ~/.local/share/pmxbench/claude/<version>/ and refuses any other version, so
+# your own `claude` may update freely. Install a pin once, e.g.:
+#   npm install --prefix ~/.local/share/pmxbench/claude/2.1.310 @anthropic-ai/claude-code@2.1.310
 # A run on another version needs `run_arm.py ... --allow-version-drift` by hand, plus an entry in logs/deviations.md.
+#
+# The A1 T1 top-up (T1 pin) runs BEFORE this script, alone (paper/SPEC.md decisions 2026-11-17):
+#   bash harness/pmxagent.sh up && python3 harness/run_arm.py run A1 T1_nca 10 claude-sonnet-4-6 --until
 #
 # T3b runs only after the BLQ protocol check (scoring/check_blq_reference.py, paper/SPEC.md, slice S2):
 #   T3B_OK=1 bash harness/run_t2_t3_lanes.sh
-# A1 T1 is topped up to 10 runs first (decided 2026-11-16, paper/SPEC.md slice S3); A1_T1=0 skips that.
 set -u
 cd "$(dirname "$0")/.."
 S=claude-sonnet-4-6; H=claude-haiku-4-5-20251001
@@ -19,7 +22,8 @@ TASKS="T3d_oral:5 T2_case:10 T3a_messy:5 T3c_units:5 T3e_large:5"
 [ "${T3B_OK:-0}" = 1 ] && TASKS="$TASKS T3b_blq:5" || echo "T3b skipped (set T3B_OK=1 after the BLQ check)"
 mkdir -p logs
 # fail here, in the foreground, rather than inside the background lanes
-python3 -c 'import sys; sys.path.insert(0, "harness"); import run_arm; run_arm.check_claude_version()' || exit 1
+python3 -c 'import sys; sys.path.insert(0, "harness"); import run_arm
+for spec in sys.argv[1:]: run_arm.check_claude_version(spec.split(":")[0])' $TASKS || exit 1
 
 lane() {   # lane <model> <arm>...
   local model=$1; shift
@@ -31,7 +35,7 @@ lane() {   # lane <model> <arm>...
 }
 
 for arm in A0 A1 A2 A3 A4; do python3 harness/run_arm.py setup "$arm" || exit 1; done
-( [ "${A1_T1:-10}" != 0 ] && python3 harness/run_arm.py run A1 T1_nca "${A1_T1:-10}" $S --until
+( until curl -sf -o /dev/null http://localhost:5762/__docs__/; do sleep 30; done   # PMxAgent stack answering
   lane $S A1 ) >> logs/t2t3_lane_A1.log 2>&1 &
 ( lane $S A0 A2 A3 && lane $H A4 ) >> logs/t2t3_lane_others.log 2>&1 &
 wait
