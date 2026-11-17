@@ -19,6 +19,17 @@ class AppendLedger(unittest.TestCase):
         self.assertEqual(rows[0]["cost_usd"], "0.2")
 
 
+class RunStatus(unittest.TestCase):
+    """A usage-limit (HTTP 429) stop must be told apart from a real crash in the ledger (deviations §1 labels)."""
+    def test_usage_limit_is_labelled_not_exit_code(self):
+        midrun = {"api_error_status": 429, "total_cost_usd": 0.17, "is_error": True}
+        instant = {"api_error_status": 429, "total_cost_usd": 0, "is_error": True}
+        self.assertEqual(run_arm.run_status("exit1", midrun), "failed_ratelimit_midrun")
+        self.assertEqual(run_arm.run_status("exit1", instant), "failed_ratelimit")
+        self.assertEqual(run_arm.run_status("exit1", {}), "exit1")            # no result event: a real crash
+        self.assertEqual(run_arm.run_status("ok", {"is_error": False}), "ok")
+        self.assertEqual(run_arm.run_status("timeout", {}), "timeout")
+
 
 class RunEnv(unittest.TestCase):
     def test_isolated_env_drops_host_session_variables(self):

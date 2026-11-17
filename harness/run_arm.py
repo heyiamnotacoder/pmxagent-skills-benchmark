@@ -207,6 +207,13 @@ def valid(r):
     return r["status"] == "ok" and r["is_error"] != "True"
 
 
+def run_status(proc_status, res):
+    """Ledger status: a usage-limit (HTTP 429) stop gets the deviations-§1 label, not the bare exit code."""
+    if res.get("api_error_status") == 429:
+        return "failed_ratelimit_midrun" if res.get("total_cost_usd") else "failed_ratelimit"
+    return proc_status
+
+
 def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True):
     base = os.path.join(RUNS, arm, "base")
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -258,7 +265,7 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True):
             tool_err += sum(1 for x in c if isinstance(x, dict) and x.get("type") == "tool_result" and x.get("is_error"))
     u = res.get("usage", {})
     row = {"runid": runid, "arm": arm, "task": task, "rep": rep, "model": model,
-           "model_seen": ",".join(sorted((res.get("modelUsage") or {}).keys())), "status": status,
+           "model_seen": ",".join(sorted((res.get("modelUsage") or {}).keys())), "status": run_status(status, res),
            "is_error": res.get("is_error"), "cost_usd": res.get("total_cost_usd"), "num_turns": res.get("num_turns"),
            "duration_s": round(wall, 1), "api_duration_s": (res.get("duration_api_ms") or 0) / 1000,
            "input_tokens": u.get("input_tokens"), "output_tokens": u.get("output_tokens"),
@@ -274,7 +281,6 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True):
     append_ledger(row)
     if suffix:
         archive(arm, runid)
-    row["_limited"] = res.get("api_error_status") == 429   # not in ledger
     print(json.dumps(row), flush=True)
     return row
 
@@ -325,9 +331,9 @@ def main():
         have, rep = state()
         if valid({k: str(v) for k, v in row.items()}):
             limited = 0
-        elif row["_limited"] or not row["cost_usd"]:   # usage limit (429) or instant API failure
+        elif (hit := row["status"].startswith("failed_ratelimit")) or not row["cost_usd"]:   # 429 or instant API failure
             limited += 1
-            if row["_limited"] or limited >= 2:
+            if hit or limited >= 2:
                 sys.exit(f"{a.arm} {task}: usage limit / API failure - stopping at {have}/{reps} valid reps")
 
 

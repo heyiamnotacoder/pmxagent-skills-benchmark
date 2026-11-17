@@ -113,3 +113,12 @@ simulated data exactly, but the scorer only recomputed lin-up/log-down, so it re
 names no AUC rule, so `score_case_run` now accepts either (`AUC_RULES`) and records which one the run used
 (`auc_method`: linear / lin-up/log-down / mixed / none). The same rule applies to every arm; found on the scorer's
 first real input, not tuned on any arm's results. Test: `test_linear_trapezoidal_summary_counts_as_consistent`.
+
+### §14 T2 usage-limit stop labelled in the ledger (2026-11-17)
+At 22:23 IST on 2026-11-16 the subscription's 5-hour limit was reached (`429 usage_limit_reached`, "resets 12am").
+Two reps were cut off mid-run: **A0 r14** (7 turns) and **A1 r01** (10 turns). The runner saw the 429, kept both out
+of scoring and stopped both lanes as designed (§2), but wrote the bare exit code (`exit1`) to the ledger, so a 429
+stop could not be told apart from a real crash. `run_arm.run_status` now writes the §1 labels itself
+(`failed_ratelimit` = no tokens, `failed_ratelimit_midrun` = partly run); the two rows were relabelled
+`exit1` → `failed_ratelimit_midrun` (original status in `logs/t2_lane_*.log`). No effect on any score: both rows were
+already excluded. Test: `harness/tests` `RunStatus`.
