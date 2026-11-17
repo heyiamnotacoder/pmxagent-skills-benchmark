@@ -152,3 +152,10 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4â€
   preflights, named `*_T1_nca_r00_*`), so the A1 T1 top-up would have stopped at 9 instead of 10; T2 counts were not
   affected (different task name). Fixed (`rep_state`, test in `harness/tests`); preflights are now archived like reps,
   and the five leftover preflight worktrees were moved to `~/pmxbench_archive/<arm>/`.
+- **Code review of PR #20 (2026-11-17, ~23:30 IST).** (a) Reps now get `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`: in
+  isolated mode the subscription token is in the rep's environment, and the agent's own Bash/R/Python subprocesses
+  inherited it, so an agent running `env` could have written it into a transcript that is later published. Checked
+  before the fix: no file in `results/raw/` or `~/pmxbench_archive/` contains the token. The variable only removes
+  credentials from subprocess environments; the 3 valid A0 T2 reps ran without it, all later reps run with it.
+  (b) `auc_method` was `mixed` instead of `none` for a T2 run where no dose could be compared (label only; both
+  consistency values were already empty). (c) `preflight` takes an optional task, so the T2/T3 binary can be probed.

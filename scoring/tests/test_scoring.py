@@ -107,6 +107,21 @@ class ScoreCase(unittest.TestCase):
         self.assertEqual(r["summary_consistent_any_rule_pct"], 100.0)
         self.assertEqual(r["auc_method"], "linear")
 
+    def test_no_dose_compared_is_auc_method_none(self):
+        """Summary doses that match no simulated dose: nothing compared, so no rule can be named."""
+        times = [0, 1, 2, 4, 8, 24]
+        with tempfile.TemporaryDirectory() as run:
+            os.makedirs(os.path.join(run, "output"))
+            rows = [{"subject_id": s, "time_h": t, "conc": c, "dose_mg": d}
+                    for d in (10, 30, 100) for s, t, c in bolus_profiles(d, 20, times)]
+            write_csv(os.path.join(run, "output", "sim.csv"), rows)
+            gs = [{"dose_mg": d, "mean_AUClast": 1.0, "mean_Cmax": 1.0} for d in (5, 50, 500)]
+            json.dump({"group_summary": gs, "ec50": 20.0, "files": {"sim": "output/sim.csv"}},
+                      open(os.path.join(run, "output", "results.json"), "w"))
+            r = score_all.score_case_run(run)
+        self.assertEqual(r["auc_method"], "none")
+        self.assertIsNone(r["summary_consistent_pct"])
+
 
 if __name__ == "__main__":
     unittest.main()

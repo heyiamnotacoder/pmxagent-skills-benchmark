@@ -21,12 +21,14 @@ Isolation
   - environment: each rep gets only ENV_KEEP from the launcher's environment (plus HOME/auth). A launcher that is
     itself a Claude Code session (desktop app, IDE) exports ~35 CLAUDE_*/ANTHROPIC_* variables, including a proxy
     base URL that injects the host session's instructions into child sessions; none of these reach a rep. The ledger's
-    `claude_config` column records which mode a run used. The token is passed by environment only, never logged.
+    `claude_config` column records which mode a run used. The token is passed by environment only, never logged,
+    and CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 keeps it out of the agent's own Bash/R/Python subprocesses.
 
 Usage
   run_arm.py setup   <arm>                      build/refresh the arm repo + ws branches
   run_arm.py run     <arm> <task> <reps> <model> [--timeout-min 90] [--until] [--allow-version-drift]
-  run_arm.py preflight <arm> <model>            one cheap probe run: lists skills/MCP/instructions seen
+  run_arm.py preflight <arm> <model> [<task>]   one cheap probe run on <task>'s pinned Claude Code (default T1_nca):
+                                                lists skills/MCP/instructions seen
 Arms: A0 plain | A1 PMxAgent MCP | A2 knowledge-only skills | A3 skills+scripts | A4 = A3 (small model)
 """
 import argparse, csv, fcntl, datetime, hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
@@ -156,6 +158,7 @@ def run_env(wt):
     env = {k: os.environ[k] for k in ENV_KEEP if k in os.environ}
     env["CLAUDE_CODE_DISABLE_AUTO_MEMORY"] = "1"
     env["DISABLE_AUTOUPDATER"] = "1"   # a rep must not update the pinned binary under itself
+    env["CLAUDE_CODE_SUBPROCESS_ENV_SCRUB"] = "1"   # the agent's Bash/R/Python never see Anthropic credentials
     if not os.path.isfile(TOKEN_FILE):
         env["HOME"] = os.environ["HOME"]   # keychain login, user CLAUDE.md loads (T1 mode)
         return env, "user"
@@ -358,7 +361,8 @@ def main():
     check_run_root()
     if a.cmd == "setup":
         return setup(a.arm)
-    exe = check_claude_version("T1_nca" if a.cmd == "preflight" else a.rest[0], a.allow_version_drift)
+    probe_task = (a.rest[1] if len(a.rest) > 1 else "T1_nca") if a.cmd == "preflight" else None
+    exe = check_claude_version(probe_task or a.rest[0], a.allow_version_drift)
     frozen = os.path.join(SKILLS, "FROZEN.sha256")
     if a.arm in ("A2", "A3", "A4"):
         chk = subprocess.run(["shasum", "-a", "256", "-c", frozen], cwd=SKILLS, capture_output=True, text=True)
@@ -371,7 +375,7 @@ def main():
         prompt = ("Do not use any tools. List, as short bullet lists: (1) every skill available to you, (2) every MCP "
                   "server and MCP tool available, (3) any CLAUDE.md, rules or memory instructions in your context "
                   "(quote their first line), (4) your exact model id.")
-        return run_once(a.arm, "T1_nca", 0, model, prompt, 5, suffix=False, exe=exe)
+        return run_once(a.arm, probe_task, 0, model, prompt, 5, suffix=False, exe=exe)
     task, reps, model = a.rest[0], int(a.rest[1]), a.rest[2]
     prompt = open(os.path.join(TASKS, task, "prompt.md")).read().strip()
     if not a.until:

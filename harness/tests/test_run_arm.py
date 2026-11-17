@@ -56,6 +56,8 @@ class RunEnv(unittest.TestCase):
         self.assertFalse([k for k in env if k.startswith("ANTHROPIC") or k == "CLAUDE_CODE_CHILD_SESSION"])
         self.assertEqual(env["HOME"], os.path.join(d, "wt.home"))
         self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "x")
+        # the agent's own Bash/R/Python subprocesses must not inherit the token (it would reach published transcripts)
+        self.assertEqual(env["CLAUDE_CODE_SUBPROCESS_ENV_SCRUB"], "1")
         self.assertIn("PATH", env)
 
 

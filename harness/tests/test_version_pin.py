@@ -103,6 +103,15 @@ class VersionPin(unittest.TestCase):
         r = self.run_arm_pins("run", "A0", "T1_nca", "1", "claude-sonnet-4-6")
         self.assertNotIn("pinned to", r.stderr)
 
+    def test_preflight_probes_the_pin_of_the_given_task(self):
+        sys.path.insert(0, HARNESS)
+        import run_arm
+        self.stub("9.9.9")
+        self.pinned_install(PIN)                # T1 pin only: a T2 preflight must ask for the default pin
+        r = self.run_arm_pins("preflight", "A0", "claude-sonnet-4-6", "T2_case")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn(run_arm.pinned_claude_version("T2_case"), r.stderr)
+
     def test_task_with_other_pin_refused(self):
         sys.path.insert(0, HARNESS)
         import run_arm

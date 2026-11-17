@@ -220,7 +220,7 @@ def score_case_run(run_dir):
             n_ok_any += bool(rules) + cmax_ok                     # sensitivity: either rule
         common = set.intersection(*matched) if matched else set()
         out["auc_method"] = ("lin-up/log-down" if "lin-up/log-down" in common else common.pop() if common
-                             else "mixed" if all(matched) else "none")
+                             else "mixed" if matched and all(matched) else "none")   # nothing compared: none
         out["n_subjects_sim"] = len(sim)
         out["summary_consistent_pct"] = round(100 * n_ok / n, 1) if n else None
         out["summary_consistent_any_rule_pct"] = round(100 * n_ok_any / n, 1) if n else None
