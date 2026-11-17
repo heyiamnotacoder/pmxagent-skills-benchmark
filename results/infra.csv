@@ -1,0 +1,17 @@
+stack,group,kind,files,lines
+Skills,pmx-data,text.md,1,32
+Skills,pmx-data/scripts,code.r,1,159
+Skills,pmx-data/tests,code.r,1,74
+Skills,pmx-er,text.md,1,39
+Skills,pmx-er/scripts,code.r,1,126
+Skills,pmx-er/tests,code.r,1,47
+Skills,pmx-library,text.md,1,33
+Skills,pmx-library/scripts,code.r,1,88
+Skills,pmx-library/tests,code.r,1,35
+Skills,pmx-nca,text.md,1,59
+Skills,pmx-nca/scripts,code.r,1,145
+Skills,pmx-nca/tests,code.r,1,89
+Skills,pmx-pksim,text.md,1,51
+Skills,pmx-pksim/scripts,code.r,1,115
+Skills,pmx-pksim/tests,code.r,1,63
+Skills,runtime services,services,0,

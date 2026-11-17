@@ -4,6 +4,8 @@ Paper: Bloomingdale & Khot, *PMxAgent: An Agentic Platform for Pharmacometrics*,
 Their stack: Docker Compose → R Plumber API (PKNCA, mrgsolve, rxode2) → OpenAPI → FastMCP server (OAuth) → MCP client.
 Our stack: Claude Code + Agent Skills (SKILL.md + bundled, tested R scripts) run via Bash. No containers, no servers.
 
+Preprint (bioRxiv) spec, decisions and the pre-specified analysis for T2/T3: `paper/SPEC.md`.
+
 ## Hypothesis
 Determinism and accuracy come from *executing fixed, validated code*, not from MCP/Docker.
 A skill that bundles a validated script should match PMxAgent on accuracy and reproducibility at a fraction of the infrastructure.

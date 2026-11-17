@@ -25,7 +25,7 @@ Isolation
 
 Usage
   run_arm.py setup   <arm>                      build/refresh the arm repo + ws branches
-  run_arm.py run     <arm> <task> <reps> <model> [--timeout-min 90]
+  run_arm.py run     <arm> <task> <reps> <model> [--timeout-min 90] [--until] [--allow-version-drift]
   run_arm.py preflight <arm> <model>            one cheap probe run: lists skills/MCP/instructions seen
 Arms: A0 plain | A1 PMxAgent MCP | A2 knowledge-only skills | A3 skills+scripts | A4 = A3 (small model)
 """
@@ -39,6 +39,7 @@ SKILLS = os.path.join(ROOT, "skills")
 TASKS = os.path.join(ROOT, "tasks")
 RAW = os.path.join(ROOT, "results", "raw")
 LEDGER = os.path.join(ROOT, "results", "runs.csv")
+VERSIONS = os.path.join(ROOT, "env", "versions.txt")   # pinned toolchain; `claude-code:` line = Claude Code version
 ARMS = {"A0": None, "A1": None, "A2": "knowledge", "A3": "scripts", "A4": "scripts"}
 TOKEN_FILE = os.path.expanduser(os.environ.get("PMXBENCH_OAUTH_TOKEN_FILE", "~/.config/pmxbench/oauth_token"))
 ENV_KEEP = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "TMPDIR", "USER", "LOGNAME", "SHELL")
@@ -203,6 +204,35 @@ def archive(arm, runid):
             shutil.move(src, os.path.join(dest, name))
 
 
+def pinned_claude_version():
+    with open(VERSIONS) as f:
+        for line in f:
+            m = re.match(r"\s*claude-code:\s*(\S+)", line)
+            if m:
+                return m.group(1)
+    sys.exit(f"no 'claude-code:' line in {os.path.relpath(VERSIONS, ROOT)}")
+
+
+def check_claude_version(allow_drift=False):
+    """Every run must use the Claude Code version pinned in env/versions.txt (all T1 runs used it).
+    Called before anything is created or written, so a refused run leaves no trace."""
+    pin = pinned_claude_version()
+    try:
+        out = subprocess.run(["claude", "--version"], capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError) as e:
+        sys.exit(f"cannot run `claude --version`: {e}")
+    have = out.split()[0] if out else "(unknown)"
+    if have == pin:
+        return
+    msg = f"Claude Code {have} is installed, but runs are pinned to {pin} (env/versions.txt)."
+    if not allow_drift:
+        sys.exit(f"{msg}\nInstall the pinned version: npm install -g @anthropic-ai/claude-code@{pin} "
+                 f"(and export DISABLE_AUTOUPDATER=1 so it stays there), or pass --allow-version-drift and log the drift in "
+                 f"logs/deviations.md.")
+    print(f"WARNING: {msg} Proceeding because of --allow-version-drift: log this in logs/deviations.md.",
+          file=sys.stderr, flush=True)
+
+
 def valid(r):
     return r["status"] == "ok" and r["is_error"] != "True"
 
@@ -293,11 +323,14 @@ def main():
     ap.add_argument("--timeout-min", type=int, default=90)
     ap.add_argument("--until", action="store_true",
                     help="treat <reps> as the target number of valid reps; run only the shortfall")
+    ap.add_argument("--allow-version-drift", action="store_true",
+                    help="run even if Claude Code differs from env/versions.txt (log it in logs/deviations.md)")
     a = ap.parse_args()
     os.umask(0o077)   # rep worktrees, homes and raw copies private to this user
     check_run_root()
     if a.cmd == "setup":
         return setup(a.arm)
+    check_claude_version(a.allow_version_drift)
     frozen = os.path.join(SKILLS, "FROZEN.sha256")
     if a.arm in ("A2", "A3", "A4"):
         chk = subprocess.run(["shasum", "-a", "256", "-c", frozen], cwd=SKILLS, capture_output=True, text=True)
