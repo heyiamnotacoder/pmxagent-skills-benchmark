@@ -187,7 +187,7 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   for a rep with any denial. Denials are recorded only; they are not an exclusion criterion (SPEC.md: the only
   exclusion rule is the usage limit).
 
-### §17 A1 never called PMxAgent on T1; two A1 runs unscorable; post-hoc sensitivity (2026-11-20, ~23:00–00:30 IST)
+### §17 No valid A1 T1 run called PMxAgent; two A1 runs unscorable; post-hoc sensitivity (2026-11-20, ~23:00–00:30 IST)
 - **Scored after the supplement was restored.** The supplement was re-downloaded and unpacked at the repo root.
   `build_tasks.py` rebuilt every input unchanged except `T3a_messy/inputs/pk_raw.xlsx`: same 30 sheets with identical
   cells, but in a different order, because R's `list.files()` sorts by locale and this shell had `LANG` unset. The
@@ -208,9 +208,15 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   `connected` with its 6 tools listed in every init event. In each run the agent loaded the NCA tool's definition via
   `ToolSearch` and then wrote its own PKNCA script. The zeros are therefore not a PMxAgent code defect; they come from
   the agent's own code. A1 measures "agent with PMxAgent offered", not PMxAgent's NCA endpoint. Reported in the preprint
-  as observed (SPEC.md C5 wording rule).
+  as observed (SPEC.md C5 wording rule). The tools were callable: the rate-limited (invalid, unscored) rep
+  `A1_T2_case_r01_20261116-222204` made 7 PMxAgent calls.
+- **Per-parameter zeros are post hoc too.** Scoring every parameter of an unscorable run as 0 was made explicit after
+  the scores were seen; it changes A1's per-parameter cells in `tab_accuracy_T1_nca`, not any `overall`. Stated so in
+  the preprint's Methods.
 - **Post-hoc sensitivity (decided after seeing the scores, labelled post hoc).** Requested by the author: each NCA task
   with an unscorable run is also analysed without those runs (`scoring/stats.py` → `results/stats_posthoc.csv`,
-  section in `results/stats.md`; macros `...PostHoc` in `paper/tables/numbers.tex`). The primary analysis is unchanged.
+  per-arm rows in `results/stats_posthoc_arms.csv`, section in `results/stats.md`; macros `...PostHoc`). The primary
+  analysis is unchanged. The pre-specified isolation-regime split (§15) is now also reported in the preprint: both
+  unscorable runs are in the `isolated` regime (A1 runs 4–10).
 - **Reproducibility TODO closed.** With the raw outputs local, `stats.py` computes distinct parameter-value sets for T1;
   the preprint now cites them through macros.

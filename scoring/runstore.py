@@ -43,3 +43,18 @@ def output_hashes(arm, task, runid, raw=RAW, manifests=None):
             if rel.startswith(prefix):
                 out[os.path.join(*rel[len(prefix):].split("/"))] = h
     return out
+
+
+def tool_uses(transcript):
+    """Yield every tool_use block ({"name", "input", ...}) the agent made, from a Claude Code stream-json transcript.
+    Unparseable lines are skipped."""
+    for line in open(transcript, encoding="utf-8", errors="replace"):
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        if ev.get("type") != "assistant":
+            continue
+        for c in (ev.get("message") or {}).get("content") or []:
+            if isinstance(c, dict) and c.get("type") == "tool_use":
+                yield c

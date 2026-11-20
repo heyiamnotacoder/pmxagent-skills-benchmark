@@ -71,6 +71,9 @@ def pick_individual(run_dir, ref):
     return best, best_cov / len(refkeys) if refkeys else 0
 
 
+UNSCORABLE = "no scorable individual file"   # scores.csv `note` of a completed NCA run with nothing to score
+
+
 def score_nca_run(run_dir, task):
     return score_nca_dir(run_dir, sn.load(os.path.join(ROOT, "tasks", task, "reference", "pkanalix_individual.csv")))
 
@@ -85,27 +88,17 @@ def score_nca_dir(run_dir, ref):
            "overall": round(r["overall"], 2), "npts_match_pct": round(r["terminal_points_match_pct"], 2)}
     row.update({f"{p}_pct": round(r[p]["correct_pct"], 2) for p in sn.PARAMS})
     if not f:
-        row["note"] = "no scorable individual file"
+        row["note"] = UNSCORABLE
     return row
 
 
 def pmxagent_tool_calls(run_dir):
-    """Number of PMxAgent MCP tool calls (`mcp__pmxagent__*` tool_use blocks) in the run's transcript; None without one.
+    """Number of PMxAgent MCP tool calls (`mcp__pmxagent__*`) in the run's transcript; None without one.
     Shows whether A1 used the tool stack at all or did the work with its own code."""
     p = os.path.join(run_dir, "transcript.jsonl")
     if not os.path.exists(p):
         return None
-    n = 0
-    for line in open(p, encoding="utf-8", errors="replace"):
-        try:
-            e = json.loads(line)
-        except ValueError:
-            continue
-        if e.get("type") != "assistant":
-            continue
-        for c in (e.get("message") or {}).get("content") or []:
-            n += isinstance(c, dict) and c.get("type") == "tool_use" and str(c.get("name", "")).startswith("mcp__pmxagent__")
-    return n
+    return sum(str(c.get("name", "")).startswith("mcp__pmxagent__") for c in runstore.tool_uses(p))
 
 
 def auclast_lulog(t, c):
