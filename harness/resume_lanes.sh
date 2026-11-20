@@ -1,38 +1,62 @@
 #!/usr/bin/env bash
-# Re-run harness/run_t2_t3_lanes.sh (it resumes where each arm stopped) until a round ends without a usage-limit stop.
-# When every pool account is limited, wait until the earliest one is free again (harness/tokens.py next-free) + 5 min.
-# Start it from a Terminal tab, never from inside a Claude session (paper/SPEC.md 2026-11-20; deviations §19):
-#   caffeinate -is bash harness/resume_lanes.sh [<start epoch>]  2>&1 | tee -a logs/t2t3_resume.log
+# Run the T2/T3 lanes to the end across usage-limit resets (paper/SPEC.md decisions 2026-11-20; deviations §19).
+# Re-runs harness/run_t2_t3_lanes.sh (each arm resumes where it stopped) and acts on its exit code:
+#   0  every lane done                       -> stop, exit 0
+#   75 a lane stopped on a usage limit / API failure (run_arm.py EXIT_LIMIT)
+#        every account limited  -> wait until the earliest is free (harness/tokens.py next-free) + MARGIN_S
+#        an account still free   -> API failure, not a limit: wait RETRY_S
+#   else broken (version pin, setup, preflight, PMxAgent stack down, crash) -> stop with that code; needs a human
+# Start it from a Terminal tab, never from inside a Claude session (it refuses), one copy at a time (lock):
+#   caffeinate -is bash harness/resume_lanes.sh 2>&1 | tee -a logs/t2t3_resume.log
 set -u
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO" || exit 1
-export T3B_OK=1                       # S2 passed (#4, logs/deviations.md §18)
-next=${1:-0}
-for round in $(seq 1 12); do
-  [ "$(date +%s)" -lt "$next" ] && echo "[round $round] waiting until $(date -r "$next") or until an account is free"
-  # Re-read the pool each minute: a newly added tokens/acct<N>, or a reset passing, ends the wait early.
-  while [ "$(date +%s)" -lt "$next" ] && [ "$(python3 harness/tokens.py next-free)" -gt "$(date +%s)" ]; do sleep 60; done
-  sizes=$(for f in logs/t2t3_lane_A1.log logs/t2t3_lane_others.log logs/t2t3_resume.log; do
-            if [ -f "$f" ]; then wc -c < "$f" | tr -d ' '; else echo 0; fi; done | paste -sd, -)
+MAX_ROUNDS=${RESUME_MAX_ROUNDS:-30}   # usage-limit windows to sit out before giving up
+MARGIN_S=${RESUME_MARGIN_S:-300}      # after the reported reset
+RETRY_S=${RESUME_RETRY_S:-1800}       # after an API failure while an account is free
+POLL_S=${RESUME_POLL_S:-60}           # (RESUME_* overrides exist for harness/tests only)
+export T3B_OK=1       # S2 passed (#4, logs/deviations.md §18)
+
+if [ -n "${CLAUDECODE:-}" ] || [ -n "${CLAUDE_CODE_ENTRYPOINT:-}" ]; then
+  echo "refusing to run inside a Claude Code session: start it from a Terminal tab (deviations §19)" >&2; exit 2
+fi
+LOCK="$REPO/logs/.resume_lanes.lock"
+if ! mkdir "$LOCK" 2>/dev/null; then
+  old=$(cat "$LOCK/pid" 2>/dev/null || true)
+  if [ -n "$old" ] && kill -0 "$old" 2>/dev/null; then
+    echo "another resume_lanes.sh is running (pid $old): at most 2 sessions in total (deviations §3)" >&2; exit 2
+  fi
+  echo "removing stale lock of pid ${old:-?}"
+fi
+echo $$ > "$LOCK/pid"
+trap 'rm -rf "$LOCK"' EXIT
+
+now() { date +%s; }
+next_free() {   # epoch when a pool account is next free; now if one is
+  local t; t=$(python3 harness/tokens.py next-free) || t=0
+  case "$t" in ''|*[!0-9]*) now ;; *) echo "$t" ;; esac
+}
+
+for round in $(seq 1 "$MAX_ROUNDS"); do
   echo "[round $round] starting lanes $(date)"; python3 harness/tokens.py status
-  bash harness/run_t2_t3_lanes.sh
-  echo "[round $round] lanes exited $? at $(date)"
-  stopped=$(python3 -I - "$REPO" "$sizes" <<'EOF'
-import os, sys
-repo, sizes = sys.argv[1], [int(x) for x in sys.argv[2].split(",")]
-n = 0   # "usage limit" lines written during this round only
-for log, off in zip(("t2t3_lane_A1.log", "t2t3_lane_others.log", "t2t3_resume.log"), sizes):
-    p = os.path.join(repo, "logs", log)
-    if os.path.exists(p):
-        with open(p, "rb") as f:
-            f.seek(off)
-            n += f.read().decode(errors="replace").count("usage limit")
-print(n)
-EOF
-)
-  if [ "$stopped" = 0 ]; then echo "[round $round] no usage-limit stop: lanes finished $(date)"; exit 0; fi
-  free=$(python3 harness/tokens.py next-free); now=$(date +%s)
-  if [ "$free" -gt "$now" ]; then next=$(( free + 300 )); echo "[round $round] all accounts limited; next free $(date -r "$free")"
-  else next=$(( now + 1800 )); echo "[round $round] stopped but an account is free (API failure?); retry in 30 min"; fi
+  bash harness/run_t2_t3_lanes.sh; rc=$?
+  echo "[round $round] lanes exit $rc at $(date)"
+  case "$rc" in
+    0)  echo "all lanes done $(date)"; exit 0 ;;
+    75) ;;
+    *)  echo "lanes broken (exit $rc): not a usage limit - fix and start again" >&2; exit "$rc" ;;
+  esac
+  free=$(next_free)
+  if [ "$free" -gt "$(now)" ]; then
+    until_t=$(( free + MARGIN_S )); echo "[round $round] every account limited; resuming at $(date -r "$until_t")"
+    # re-read the pool each minute: a token added meanwhile, or an earlier reset, brings the restart forward
+    while [ "$(now)" -lt "$until_t" ]; do
+      sleep "$POLL_S"; f=$(next_free)
+      [ $(( f + MARGIN_S )) -lt "$until_t" ] && until_t=$(( f + MARGIN_S ))
+    done
+  else
+    echo "[round $round] stopped although an account is free (API failure?): retrying in $(( RETRY_S / 60 )) min"
+    sleep "$RETRY_S"
+  fi
 done
-echo "gave up after 12 rounds $(date)"; exit 1
+echo "gave up after $MAX_ROUNDS rounds $(date)" >&2; exit 1

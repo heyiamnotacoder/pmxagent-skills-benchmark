@@ -36,6 +36,7 @@ Usage
   run_arm.py preflight <arm> <model> [<task>]   one cheap probe run on <task>'s pinned Claude Code (default T1_nca):
                                                 lists skills/MCP/instructions seen; exits non-zero unless one Bash
                                                 call ran, nothing was denied and every tool shown is allowed
+Exit codes: 0 done · 75 (EXIT_LIMIT) stopped on a usage limit / API failure, re-run later · other: broken, needs a human
 Arms: A0 plain | A1 PMxAgent MCP | A2 knowledge-only skills | A3 skills+scripts | A4 = A3 (small model)
 """
 import argparse, csv, fcntl, datetime, hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
@@ -319,6 +320,15 @@ def run_status(proc_status, res):
     return proc_status
 
 
+EXIT_LIMIT = 75   # EX_TEMPFAIL: stopped on a usage limit / API failure; resume_lanes.sh waits and re-runs
+
+
+def limit_stop(msg):
+    """Stop because of a usage limit or API failure, with the exit code the lane scripts treat as "try again later"."""
+    print(msg, file=sys.stderr, flush=True)
+    sys.exit(EXIT_LIMIT)
+
+
 class AccountsLimited(Exception):
     """Every pool account is at its usage limit; the message says until when."""
 
@@ -486,6 +496,8 @@ def preflight(arm, model, task, exe):
               "(2) every MCP server and MCP tool available, (3) any CLAUDE.md, rules or memory instructions in "
               "your context (quote their first line), (4) your exact model id.")
     row = run_once(arm, task, 0, model, prompt, 5, suffix=False, exe=exe, pool=tokens.Pool.load())
+    if rate_limited(row["status"]):   # the probe itself hit a 429: not a broken setup, try again later
+        limit_stop(f"preflight {arm}: usage limit on account {row['auth_label'] or '(keychain)'}")
     if problems := preflight_problems(arm, raw_dir(arm, task, row["runid"], preflight=True)):
         sys.exit(f"PREFLIGHT FAILED {row['runid']}:\n  " + "\n  ".join(problems))
     print(f"preflight ok: {arm} on Claude Code {row['claude_version']}: a tool ran, only `{PREFLIGHT_DENIED}` was "
@@ -520,7 +532,7 @@ def main():
         try:
             return preflight(a.arm, a.rest[0], probe_task, exe)
         except AccountsLimited as e:
-            sys.exit(f"preflight {a.arm}: usage limit - {e}")
+            limit_stop(f"preflight {a.arm}: usage limit - {e}")
     task, reps, model = a.rest[0], int(a.rest[1]), a.rest[2]
     prompt = open(os.path.join(TASKS, task, "prompt.md")).read().strip()
     pool = tokens.Pool.load()
@@ -532,7 +544,7 @@ def main():
             for rep in range(1, reps + 1):
                 run_once(a.arm, task, rep, model, prompt, a.timeout_min, exe=exe, pool=pool)
         except AccountsLimited as e:
-            sys.exit(f"{a.arm} {task}: usage limit / API failure - {e}")
+            limit_stop(f"{a.arm} {task}: usage limit / API failure - {e}")
         return
     def state():   # re-read each time: another session may be topping up the same arm
         live_dir = os.path.join(RUNS, a.arm, "runs")
@@ -545,13 +557,13 @@ def main():
         try:
             row = run_once(a.arm, task, rep + 1, model, prompt, a.timeout_min, exe=exe, pool=pool)
         except AccountsLimited as e:
-            sys.exit(f"{a.arm} {task}: usage limit / API failure - stopping at {have}/{reps} valid reps; {e}")
+            limit_stop(f"{a.arm} {task}: usage limit / API failure - stopping at {have}/{reps} valid reps; {e}")
         have, rep = state()
         step, limited, switches = next_step(row, limited, switches, pool)
         if step == "switch":
             print(f"{a.arm} {task}: account {row['auth_label']} limited or unusable - switching account", flush=True)
         elif step == "stop":
-            sys.exit(f"{a.arm} {task}: usage limit / API failure - stopping at {have}/{reps} valid reps")
+            limit_stop(f"{a.arm} {task}: usage limit / API failure - stopping at {have}/{reps} valid reps")
 
 
 if __name__ == "__main__":
