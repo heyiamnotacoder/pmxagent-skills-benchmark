@@ -36,6 +36,7 @@ benchmark and open data; state what MCP gives that Skills do not.
 | 2026-11-17 | A1 T1 runs 4–10 run **isolated** (no user instructions): the T1-era global CLAUDE.md cannot be recovered on this machine. Pre-specified sensitivity analysis by isolation regime (below), fixed before those runs | user |
 | 2026-11-17 | T2 internal consistency: **primary = the pre-specified lin-up/log-down check**; the "either AUC rule" version (§13) is a labelled post-hoc sensitivity analysis | user |
 | 2026-11-17 | Run order: A1 T1 top-up alone (T1 pin) → lanes on the T2/T3 pin (T3d, T2, T3a, T3c, T3e) → T3b after the BLQ check (S2). Lanes started from a Terminal tab the user can watch | user |
+| 2026-11-20 | Two A1 T1 runs had no scorable file (drug without subject) and stay at 0 in the primary analysis; a **post-hoc** analysis without them is added and labelled as such. The preprint reports that A1's agent never called a PMxAgent tool on T1 (`logs/deviations.md` §17) | user |
 
 ## User stories
 1. As a pharmacometrician reading the preprint, I want to see which ingredient (instructions, fixed code, server
@@ -78,6 +79,11 @@ in `logs/deviations.md` with the reason.
   individual table, sorted, values rounded to 6 significant digits). Distinct *file* sets reported separately.
 - **Effort:** cost/run, wall time, turns, tool calls, tool errors (mean ± SD).
 - **Reps:** T1 = 10 per arm (A1 currently 3, see R0), T2 = 10 per arm (A1 included), T3a–e = 5 per arm.
+
+Added 2026-11-20, **post hoc** (after seeing the T1 scores; `logs/deviations.md` §17), at the author's request:
+- **Unscorable-run sensitivity (post-hoc, labelled as such):** in each NCA task where a completed run had no
+  scorable individual file (scored 0 above), per-arm stats and the pairs involving an arm that lost runs, repeated
+  without those runs (`scoring/stats.py` → `results/stats_posthoc.csv`). The primary analysis is unchanged.
 
 Added 2026-11-17, before any T2 score was computed and before A1 T1 runs 4–10 (`logs/deviations.md` §15):
 - **T2 sensitivity (post-hoc, labelled as such):** internal consistency with either AUC rule (linear or
@@ -146,4 +152,6 @@ isolated (sensitivity analysis by regime); T2/T3 load no user instructions · sk
 written with Claude from package docs · A1 containers under Rosetta (wall time) · one model family (Claude) · ceiling
 effect near 98.6% (remaining errors mostly λz point selection) · T1 comparisons specified after the T1 runs · A1 T1
 runs 4–10 made about seven weeks after runs 1–3 (same pinned Claude Code, models and images) · T2/T3 on a later
-Claude Code version than T1 (2.1.310 vs 2.1.283; within-task comparisons unaffected).
+Claude Code version than T1 (2.1.310 vs 2.1.283; within-task comparisons unaffected) · A1's agent never called a
+PMxAgent tool on T1 (0/10 runs; it wrote its own PKNCA code), so A1 is "PMxAgent offered", not its NCA endpoint; two A1
+T1 runs unscorable (drug without subject), analysis without them is post hoc (§17).

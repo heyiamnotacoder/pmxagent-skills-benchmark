@@ -72,15 +72,40 @@ def pick_individual(run_dir, ref):
 
 
 def score_nca_run(run_dir, task):
-    ref = sn.load(os.path.join(ROOT, "tasks", task, "reference", "pkanalix_individual.csv"))
+    return score_nca_dir(run_dir, sn.load(os.path.join(ROOT, "tasks", task, "reference", "pkanalix_individual.csv")))
+
+
+def score_nca_dir(run_dir, ref):
+    """Score the run's best-covering individual file. With none (e.g. DRUG holds the drug name only, so no row maps to a
+    subject), score an empty table with the same metric: every parameter and `overall` are 0, since a completed run
+    counts whatever its score (paper/SPEC.md; logs/deviations.md §17)."""
     f, cov = pick_individual(run_dir, ref)
-    if not f:
-        return {"scored_file": "", "coverage_pct": 0.0, "overall": 0.0, "note": "no scorable individual file"}
-    r = sn.score(load_any(f), ref)
-    row = {"scored_file": os.path.relpath(f, run_dir), "coverage_pct": round(100 * cov, 2), "overall": round(r["overall"], 2),
-           "npts_match_pct": round(r["terminal_points_match_pct"], 2)}
+    r = sn.score(load_any(f) if f else {}, ref)
+    row = {"scored_file": os.path.relpath(f, run_dir) if f else "", "coverage_pct": round(100 * cov, 2),
+           "overall": round(r["overall"], 2), "npts_match_pct": round(r["terminal_points_match_pct"], 2)}
     row.update({f"{p}_pct": round(r[p]["correct_pct"], 2) for p in sn.PARAMS})
+    if not f:
+        row["note"] = "no scorable individual file"
     return row
+
+
+def pmxagent_tool_calls(run_dir):
+    """Number of PMxAgent MCP tool calls (`mcp__pmxagent__*` tool_use blocks) in the run's transcript; None without one.
+    Shows whether A1 used the tool stack at all or did the work with its own code."""
+    p = os.path.join(run_dir, "transcript.jsonl")
+    if not os.path.exists(p):
+        return None
+    n = 0
+    for line in open(p, encoding="utf-8", errors="replace"):
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if e.get("type") != "assistant":
+            continue
+        for c in (e.get("message") or {}).get("content") or []:
+            n += isinstance(c, dict) and c.get("type") == "tool_use" and str(c.get("name", "")).startswith("mcp__pmxagent__")
+    return n
 
 
 def auclast_lulog(t, c):
@@ -275,7 +300,8 @@ def main():
             r = score_oral_run(run_dir)
         else:
             continue
-        rows.append({"runid": runid, "arm": arm, "task": task, "status": ledger[runid]["status"], **r})
+        rows.append({"runid": runid, "arm": arm, "task": task, "status": ledger[runid]["status"], **r,
+                     "pmxagent_tool_calls": pmxagent_tool_calls(run_dir) if arm == "A1" else None})
     kept = len(runstore.merge_rows(a.out, rows, rescanned)) - len(rows)
     print(f"{len(rows)} runs scored, {kept} rows kept for runs not on this machine -> {a.out}")
 

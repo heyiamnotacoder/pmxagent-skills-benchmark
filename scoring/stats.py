@@ -9,6 +9,9 @@ Per arm: n, mean, SD, min, max, and the number of distinct parameter-value sets 
 Sensitivity (pre-specified 2026-11-17, before A1 T1 runs 4-10; logs/deviations.md §15): for an arm whose runs in a
 task used more than one isolation regime (ledger `claude_config`: empty/"user" = user instructions loaded, as in T1;
 "isolated" = none), per-regime arm stats and every pair involving that arm recomputed on each regime alone.
+Post-hoc sensitivity (decided 2026-11-20 after seeing T1 scores; logs/deviations.md §17; labelled post-hoc): in each
+task where a completed run had no scorable individual file (scored 0 under the primary rule), per-arm stats and every
+pair involving an arm that lost runs, recomputed without those runs -> results/stats_posthoc.csv.
 Valid runs only (scores.csv already holds only those). Stdlib only.  Usage: stats.py [--b 10000] [--seed 20261116]
 """
 import argparse, csv, glob, hashlib, itertools, math, os, random, statistics as st, sys
@@ -101,6 +104,36 @@ def sensitivity(by, pairs, b, seed):
     return arms, out
 
 
+UNSCORABLE = "no scorable individual file"
+
+
+def posthoc_unscorable(rows, pairs, b, seed):
+    """rows: scores.csv dicts. Returns (arm stats, pair comparisons) without runs noted UNSCORABLE, only for tasks
+    where at least one such run exists, and only pairs involving an arm that lost runs."""
+    kept, dropped = defaultdict(lambda: defaultdict(list)), defaultdict(lambda: defaultdict(int))
+    for r in rows:
+        try:
+            v = float(r["overall"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if (r.get("note") or "") == UNSCORABLE:
+            dropped[r["task"]][r["arm"]] += 1
+        else:
+            kept[r["task"]][r["arm"]].append(v)
+    arms, out = [], []
+    for task in sorted(t for t in dropped if any(dropped[t].values())):
+        for arm in sorted(set(kept[task]) | set(dropped[task])):
+            x = kept[task][arm]
+            arms.append({"task": task, "arm": arm, "n": len(x), "n_dropped": dropped[task][arm],
+                         "mean": mean(x) if x else None, "sd": st.stdev(x) if len(x) > 1 else 0.0})
+        for xa, ya in pairs:
+            if not (dropped[task][xa] or dropped[task][ya]) or not kept[task][xa] or not kept[task][ya]:
+                continue
+            rng = random.Random(f"{seed}-{task}-{xa}-{ya}-posthoc")
+            out.append({"task": task, "comparison": f"{xa} - {ya}", **compare(kept[task][xa], kept[task][ya], b, rng)})
+    return arms, out
+
+
 def pfmt(p):
     return "<0.0001" if p < 1e-4 else f"{p:.4f}"
 
@@ -148,6 +181,7 @@ def main():
             out_pair.append({"task": task, "comparison": f"{xa} - {ya}",
                              **compare(acc[task][xa], acc[task][ya], a.b, rng)})
     sens_arm, sens_pair = sensitivity(by_regime, PAIRS, a.b, a.seed)
+    ph_arm, ph_pair = posthoc_unscorable(rows, PAIRS, a.b, a.seed)
 
     with open(os.path.join(RES, "stats.csv"), "w", newline="") as f:
         cols = list(out_pair[0]) if out_pair else ["task"]
@@ -157,6 +191,10 @@ def main():
     with open(os.path.join(RES, "stats_sensitivity.csv"), "w", newline="") as f:
         cols = list(sens_pair[0]) if sens_pair else ["task", "comparison", "split_arm", "regime"]
         w = csv.DictWriter(f, fieldnames=cols); w.writeheader(); w.writerows(sens_pair)
+
+    with open(os.path.join(RES, "stats_posthoc.csv"), "w", newline="") as f:
+        cols = list(ph_pair[0]) if ph_pair else ["task", "comparison"]
+        w = csv.DictWriter(f, fieldnames=cols); w.writeheader(); w.writerows(ph_pair)
 
     md = ["# Pre-specified comparisons", "",
           f"Overall accuracy (paper metric, percentage points). Difference = mean(X) - mean(Y); 95% percentile "
@@ -183,6 +221,18 @@ def main():
             md += [f"| {r['comparison']} | {r['split_arm']}: {r['regime']} | {r['n_x']} vs {r['n_y']} | {r['diff']:+.2f} "
                    f"| {r['ci_lo']:+.2f} to {r['ci_hi']:+.2f} | {pfmt(r['p_perm'])} ({r['p_method']}) | "
                    f"{'yes' if r['equivalent_1pp'] else 'no'} |" for r in sens_pair if r["task"] == task]
+            md.append("")
+        if any(r["task"] == task for r in ph_arm):
+            md += [f"### {task}: post-hoc, without runs that had no scorable file", "",
+                   "**Post-hoc** (decided after seeing the scores; logs/deviations.md §17). Completed runs whose individual "
+                   "file could not be matched to any subject score 0 in the primary analysis above; here they are left out.",
+                   "", "| Arm | n | Dropped | Mean | SD |", "|---|---|---|---|---|"]
+            md += [f"| {r['arm']} | {r['n']} | {r['n_dropped']} | {fmt(r['mean'])} | {fmt(r['sd'])} |"
+                   for r in ph_arm if r["task"] == task]
+            md += ["", "| Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |", "|---|---|---|---|---|---|"]
+            md += [f"| {r['comparison']} | {r['n_x']} vs {r['n_y']} | {r['diff']:+.2f} | {r['ci_lo']:+.2f} to "
+                   f"{r['ci_hi']:+.2f} | {pfmt(r['p_perm'])} ({r['p_method']}) | {'yes' if r['equivalent_1pp'] else 'no'} |"
+                   for r in ph_pair if r["task"] == task]
             md.append("")
     open(os.path.join(RES, "stats.md"), "w").write("\n".join(md))
     print("\n".join(md))

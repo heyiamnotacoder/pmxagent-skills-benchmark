@@ -110,7 +110,9 @@ for drug in t3a:
     write_csv(os.path.join(wb_dir, f"{drug[:31]}.csv"), ["Patient", "Dose (mg)", "Route", "Conc. units"] + tcols, table)
 xlsx = os.path.join(d, "inputs", "pk_raw.xlsx")
 subprocess.run(["Rscript", "-e", f"""
-fs <- list.files('{wb_dir}', full.names=TRUE); sh <- lapply(fs, function(f) {{
+fs <- list.files('{wb_dir}', full.names=TRUE)
+fs <- fs[order(tolower(basename(fs)), method='radix')]  # case-insensitive sheet order in any locale (deviations §17)
+sh <- lapply(fs, function(f) {{
   x <- read.csv(f, check.names=FALSE, colClasses='character'); x }})
 names(sh) <- tools::file_path_sans_ext(basename(fs)); writexl::write_xlsx(sh, '{xlsx}')"""], check=True)
 shutil.rmtree(wb_dir)

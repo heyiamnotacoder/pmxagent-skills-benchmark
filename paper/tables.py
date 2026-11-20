@@ -4,6 +4,9 @@
 tab_accuracy_<task>.tex  per-parameter + overall accuracy, mean over runs (NCA tasks)
 tab_stats_<task>.tex     pre-specified comparisons (results/stats.csv, from scoring/stats.py)
 tab_effort_<task>.tex    cost, wall time, turns, tool calls, tool errors per run (results/runs.csv, valid runs)
+numbers.tex              \\num... macros; per arm also `Distinct` (parameter-value sets, results/stats_arms.csv), `Unscorable` (runs with no scorable file, scored 0),
+                         `AccPostHoc` (mean without them; post-hoc, logs/deviations.md §17) and, where transcripts were
+                         scanned, `PmxRuns`/`PmxKnown` (runs with >=1 PMxAgent tool call / runs scanned).
 Usage: python3 paper/tables.py   (run scoring/stats.py first)
 """
 import csv, os, statistics as st
@@ -60,6 +63,10 @@ def main():
         scores[r["task"]][r["arm"]].append(r)
     runs = {r["runid"]: r for r in csv.DictReader(open(os.path.join(RES, "runs.csv")))}
     stats = list(csv.DictReader(open(os.path.join(RES, "stats.csv")))) if os.path.exists(os.path.join(RES, "stats.csv")) else []
+    sa_p = os.path.join(RES, "stats_arms.csv")
+    distinct = {(r["task"], r["arm"]): r["distinct_value_sets"] for r in csv.DictReader(open(sa_p))} if os.path.exists(sa_p) else {}
+    ph_p = os.path.join(RES, "stats_posthoc.csv")
+    posthoc = list(csv.DictReader(open(ph_p))) if os.path.exists(ph_p) else []
 
     nums = []
     for task, by_arm in sorted(scores.items()):
@@ -73,6 +80,15 @@ def main():
             vals = {"N": str(len(rs)), "Acc": f"{st.mean(ov):.2f}" if ov else "--",
                     "AccSD": f"{st.stdev(ov):.2f}" if len(ov) > 1 else "--",
                     "Cost": f"{st.mean(cost):.2f}" if cost else "--", "Wall": f"{st.mean(wall):.1f}" if wall else "--"}
+            unsc = [r for r in rs if (r.get("note") or "") == "no scorable individual file"]
+            ph = [f(r["overall"]) for r in rs if r not in unsc and f(r.get("overall")) is not None]
+            if distinct.get((task, a), "n/a") != "n/a":
+                vals["Distinct"] = distinct[(task, a)]
+            vals["Unscorable"] = str(len(unsc))
+            vals["AccPostHoc"] = f"{st.mean(ph):.2f}" if ph else "--"
+            pmx = [int(f(r["pmxagent_tool_calls"])) for r in rs if f(r.get("pmxagent_tool_calls")) is not None]
+            if pmx:
+                vals["PmxRuns"], vals["PmxKnown"] = str(sum(n > 0 for n in pmx)), str(len(pmx))
             nums += [f"\\newcommand{{{macro(task, a, k)}}}{{{v}}}" for k, v in vals.items()]
         if task in NCA:
             L = ["\\begin{tabular}{l r " + "r" * len(PARAMS) + " r r}", "\\toprule",
@@ -114,6 +130,11 @@ def main():
                 k = macro(task, x, "Vs" + "".join(WORD.get(c, c) for c in y).title())
                 nums += [f"\\newcommand{{{k}Diff}}{{{sg(float(r['diff']))}}}",
                          f"\\newcommand{{{k}CI}}{{{sg(float(r['ci_lo']))} to {sg(float(r['ci_hi']))}}}"]
+    for r in posthoc:   # post-hoc comparisons (logs/deviations.md §17), e.g. \\numToneAtwoVsAonePostHocDiff
+        x, y = r["comparison"].split(" - ")
+        k = macro(r["task"], x, "Vs" + "".join(WORD.get(c, c) for c in y).title() + "PostHoc")
+        nums += [f"\\newcommand{{{k}Diff}}{{{sg(float(r['diff']))}}}",
+                 f"\\newcommand{{{k}CI}}{{{sg(float(r['ci_lo']))} to {sg(float(r['ci_hi']))}}}"]
     write("numbers.tex", nums)
 
 

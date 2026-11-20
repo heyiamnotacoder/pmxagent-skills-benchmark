@@ -6,16 +6,59 @@ Overall accuracy (paper metric, percentage points). Difference = mean(X) - mean(
 
 | Arm | n | Mean | SD | Min | Max | Distinct value sets |
 |---|---|---|---|---|---|---|
-| A0 | 10 | 93.21 | 1.13 | 91.57 | 95.09 | n/a |
-| A1 | 3 | 98.18 | 0.18 | 97.97 | 98.29 | n/a |
-| A2 | 10 | 98.65 | 0.06 | 98.58 | 98.70 | n/a |
-| A3 | 10 | 98.64 | 0.00 | 98.64 | 98.64 | n/a |
-| A4 | 10 | 98.64 | 0.00 | 98.64 | 98.64 | n/a |
+| A0 | 10 | 93.21 | 1.13 | 91.57 | 95.09 | 7 |
+| A1 | 10 | 78.58 | 41.41 | 0.00 | 98.29 | 6 |
+| A2 | 10 | 98.65 | 0.06 | 98.58 | 98.70 | 9 |
+| A3 | 10 | 98.64 | 0.00 | 98.64 | 98.64 | 1 |
+| A4 | 10 | 98.64 | 0.00 | 98.64 | 98.64 | 1 |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
-| A2 - A1 | 10 vs 3 | +0.47 | +0.34 to +0.67 | 0.0035 (exact) | yes |
-| A3 - A1 | 10 vs 3 | +0.46 | +0.35 to +0.67 | 0.0035 (exact) | yes |
+| A2 - A1 | 10 vs 10 | +20.08 | +0.40 to +49.52 | <0.0001 (exact) | no |
+| A3 - A1 | 10 vs 10 | +20.06 | +0.38 to +49.52 | <0.0001 (exact) | no |
 | A3 - A2 | 10 vs 10 | -0.01 | -0.05 to +0.02 | 0.7577 (exact) | yes |
 | A4 - A3 | 10 vs 10 | +0.00 | +0.00 to +0.00 | 1.0000 (exact) | yes |
 | A0 - A3 | 10 vs 10 | -5.43 | -6.02 to -4.73 | <0.0001 (exact) | no |
+
+### T1_nca: sensitivity by isolation regime
+
+Arms whose runs used more than one isolation regime, split by regime (user = user instructions loaded, as in T1 runs 1-3; isolated = none). Pre-specified before the runs it splits.
+
+| Arm | Regime | n | Mean | SD |
+|---|---|---|---|---|
+| A1 | isolated | 7 | 70.17 | 47.94 |
+| A1 | user | 3 | 98.18 | 0.18 |
+
+| Comparison | Split arm: regime | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
+|---|---|---|---|---|---|---|
+| A2 - A1 | A1: isolated | 10 vs 7 | +28.48 | +0.38 to +56.61 | <0.0001 (exact) | no |
+| A3 - A1 | A1: isolated | 10 vs 7 | +28.47 | +0.38 to +56.58 | <0.0001 (exact) | no |
+| A2 - A1 | A1: user | 10 vs 3 | +0.47 | +0.34 to +0.67 | 0.0035 (exact) | yes |
+| A3 - A1 | A1: user | 10 vs 3 | +0.46 | +0.35 to +0.67 | 0.0035 (exact) | yes |
+
+### T1_nca: post-hoc, without runs that had no scorable file
+
+**Post-hoc** (decided after seeing the scores; logs/deviations.md §17). Completed runs whose individual file could not be matched to any subject score 0 in the primary analysis above; here they are left out.
+
+| Arm | n | Dropped | Mean | SD |
+|---|---|---|---|---|
+| A0 | 10 | 0 | 93.21 | 1.13 |
+| A1 | 8 | 2 | 98.22 | 0.13 |
+| A2 | 10 | 0 | 98.65 | 0.06 |
+| A3 | 10 | 0 | 98.64 | 0.00 |
+| A4 | 10 | 0 | 98.64 | 0.00 |
+
+| Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
+|---|---|---|---|---|---|
+| A2 - A1 | 10 vs 8 | +0.43 | +0.35 to +0.52 | <0.0001 (exact) | yes |
+| A3 - A1 | 10 vs 8 | +0.42 | +0.35 to +0.51 | <0.0001 (exact) | yes |
+
+## T3d_oral
+
+| Arm | n | Mean | SD | Min | Max | Distinct value sets |
+|---|---|---|---|---|---|---|
+| A0 | 2 | 100.00 | 0.00 | 100.00 | 100.00 | n/a |
+| A1 | 1 | 100.00 | 0.00 | 100.00 | 100.00 | n/a |
+
+| Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
+|---|---|---|---|---|---|

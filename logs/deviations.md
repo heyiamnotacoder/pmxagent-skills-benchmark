@@ -186,3 +186,31 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
 - **Ledger.** New columns `permission_mode` and `permission_denials` (count) for every run; `run` prints a warning
   for a rep with any denial. Denials are recorded only; they are not an exclusion criterion (SPEC.md: the only
   exclusion rule is the usage limit).
+
+### §17 A1 never called PMxAgent on T1; two A1 runs unscorable; post-hoc sensitivity (2026-11-20, ~23:00–00:30 IST)
+- **Scored after the supplement was restored.** The supplement was re-downloaded and unpacked at the repo root.
+  `build_tasks.py` rebuilt every input unchanged except `T3a_messy/inputs/pk_raw.xlsx`: same 30 sheets with identical
+  cells, but in a different order, because R's `list.files()` sorts by locale and this shell had `LANG` unset. The
+  committed workbook was restored (no T3a run had started), and `build_tasks.py` now sorts sheets case-insensitively
+  with `method='radix'`, which reproduces the committed order under any locale. (The file's xlsx timestamps still change
+  on every rebuild; inputs are restored from git, not rebuilt, between runs.) `score_nca.py --calibrate`: max |diff| 0.00.
+- **T1 raw outputs restored from Zenodo.** The evidence archive (doi:10.5281/zenodo.23019418, sha256 matches
+  `results/evidence/provenance.json`) was unpacked into `results/raw/` without overwriting; all 1,298 raw-run files
+  match `results/evidence/MANIFEST.sha256`. Re-scoring them reproduced every committed T1 score exactly.
+- **Two A1 T1 runs scored 0.** `A1_T1_nca_r07_20261120-221734` and `A1_T1_nca_r11_20261120-223637` completed and wrote
+  `output/nca_individual.csv` (16,380 rows), but the `DRUG` column holds the drug name only (`abatacept`), not
+  `<drug>_<subject>`, so no row maps to a reference subject: "no scorable individual file", overall 0. The T1 prompt
+  (the paper's, verbatim) names the columns but not the subject identifier. Primary analysis unchanged: SPEC.md says
+  every completed run counts. The scorer now scores such a run as an empty table with the same metric, so every
+  parameter column is 0 as well as `overall` (before, only `overall` was 0 and the per-parameter cells were blank).
+- **No A1 run called PMxAgent.** Counting `mcp__pmxagent__*` tool calls in every A1 transcript (new `scores.csv`
+  column `pmxagent_tool_calls`): 0 in all 10 valid T1 runs (Sept and Nov) and in A1 T3d rep 1. The server was
+  `connected` with its 6 tools listed in every init event. In each run the agent loaded the NCA tool's definition via
+  `ToolSearch` and then wrote its own PKNCA script. The zeros are therefore not a PMxAgent code defect; they come from
+  the agent's own code. A1 measures "agent with PMxAgent offered", not PMxAgent's NCA endpoint. Reported in the preprint
+  as observed (SPEC.md C5 wording rule).
+- **Post-hoc sensitivity (decided after seeing the scores, labelled post hoc).** Requested by the author: each NCA task
+  with an unscorable run is also analysed without those runs (`scoring/stats.py` → `results/stats_posthoc.csv`,
+  section in `results/stats.md`; macros `...PostHoc` in `paper/tables/numbers.tex`). The primary analysis is unchanged.
+- **Reproducibility TODO closed.** With the raw outputs local, `stats.py` computes distinct parameter-value sets for T1;
+  the preprint now cites them through macros.
