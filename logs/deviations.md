@@ -159,3 +159,23 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   credentials from subprocess environments; the 3 valid A0 T2 reps ran without it, all later reps run with it.
   (b) `auc_method` was `mixed` instead of `none` for a T2 run where no dose could be compared (label only; both
   consistency values were already empty). (c) `preflight` takes an optional task, so the T2/T3 binary can be probed.
+
+### §16 Tool permissions made explicit: the §15 scrub silently denied every tool (2026-11-20, before any rep with it)
+- **Found in a preflight before the A1 T1 top-up.** With `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` (§15 (a)) Claude Code
+  ignores `--permission-mode bypassPermissions` and forces mode `default` (stderr: "Permission mode forced to default
+  — CLAUDE_CODE_SUBPROCESS_ENV_SCRUB is set … Declare allowedTools explicitly"). In a headless `-p` run that denies
+  every tool call. Reproduced on both pins (2.1.283 and 2.1.310): a one-line Bash write was denied with the scrub and
+  ran without it. The old preflight could not see this because its probe told the agent not to use tools.
+- **No benchmark rep is affected.** The scrub went in after the last reps (16 Nov); the only run with it before this
+  fix is the A1 T1 preflight of 20 Nov 15:49 IST (rep 0, never counted).
+- **Fix (harness only, credentials stay scrubbed).** `run_arm.py` now passes `--permission-mode default` and an
+  explicit `--allowedTools` list: the 27 built-in tools in the init event of the valid A0 T2 reps (2.1.310), plus
+  for A1 the `mcp__pmxagent` server and the three MCP resource tools. That is every tool the agent is shown, so the
+  agent can use exactly what it could under `bypassPermissions`; `--disallowedTools` (web, `git`, `gh`) still wins.
+  The permission mode changes nothing the agent sees (same tool list in the init event in both modes).
+- **Preflight is now a gate.** The probe makes one real Bash call and `preflight` exits non-zero on any permission
+  denial, the forced-mode warning, a missing probe file, or a tool shown but not allowed. Passed on 20 Nov for A1 on
+  the T1 pin and A0–A4 on the T2/T3 pin. Checked by hand as well: A1's `mcp__pmxagent__health` runs and
+  `git --version` is denied.
+- **Ledger.** New columns `permission_mode` and `permission_denials` (count) for every run. Denials are recorded
+  only; they are not an exclusion criterion (validity rules unchanged).
