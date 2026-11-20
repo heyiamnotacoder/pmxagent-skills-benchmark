@@ -6,6 +6,7 @@
 # pool (harness/tokens.py: one `claude setup-token` token per file ~/.config/pmxbench/tokens/acct<N>; the old single
 # oauth_token is ignored once any acct<N> exists, so move it to tokens/acct1), a 429 moves the arm to the next free
 # account; a lane stops only when every account is limited (`python3 harness/tokens.py status` / `next-free`).
+# harness/resume_lanes.sh re-runs this script after each reset until done; start that from a Terminal tab.
 #
 # Claude Code: one pinned version per task (env/versions.txt `claude-code-pin` lines; logs/deviations.md §15).
 # run_arm.py runs the pinned binary from ~/.local/share/pmxbench/claude/<version>/ and refuses any other version, so

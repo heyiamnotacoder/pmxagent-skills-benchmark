@@ -249,3 +249,10 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4โ€
   `auth_label` records the account per rep so this can be checked. Accuracy endpoints are unaffected.
 - **Exclusions unchanged.** Rate-limited reps (`failed_ratelimit*`) never count, whichever account ran them (ยง1).
 - Chosen over one account per lane because the lanes are uneven (A1 alone vs four arms).
+- **Launch (added 23:45 IST).** The first launch with the pool (23:39) was started by the Claude session that wrote
+  it. At the author's request the lanes were drained instead of killed: both accounts were marked limited, so each
+  arm finished its rep in flight and stopped before the next one (no worktree left behind; all 5 preflights and 5 reps
+  of that launch `ok` on `acct2` and kept; harness and isolation identical), then the real limits were restored.
+  From then on the lanes run from a clean Terminal tab via `harness/resume_lanes.sh`, which re-runs
+  `run_t2_t3_lanes.sh` after each usage-limit reset (earliest free account + 5 min) until a round ends without a
+  limit stop.
