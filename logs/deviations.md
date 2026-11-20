@@ -228,7 +228,7 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   `logs/blq_check.txt`. Decision, as pre-specified in #4: T3b runs as built (no prompt or reference change, no task
   rebuild); the T2/T3 lanes are started with `T3B_OK=1`.
 
-### §19 Runs on several subscription accounts (token pool) (2026-11-20, ~23:45 IST, before any rep with it)
+### §19 Runs on several subscription accounts (token pool) (2026-11-20, ~23:30 IST; first rep with it 23:39)
 - **Why.** One account's 5-hour usage limit stopped the T2/T3 lanes twice (§14; 20 Nov 22:48). The author asked to use
   a second account alongside the first.
 - **What.** `harness/tokens.py`: each account's `claude setup-token` token is a file
@@ -249,3 +249,16 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   `auth_label` records the account per rep so this can be checked. Accuracy endpoints are unaffected.
 - **Exclusions unchanged.** Rate-limited reps (`failed_ratelimit*`) never count, whichever account ran them (§1).
 - Chosen over one account per lane because the lanes are uneven (A1 alone vs four arms).
+- **Launch (added 23:45 IST).** The first launch with the pool (23:37, reps from 23:39) was the same wrapper,
+  `resume_lanes.sh`, started by the Claude session that wrote it. At the author's request it was moved to a Terminal
+  tab. The wrapper was killed (no rep runs inside it) and the lanes were drained rather than killed: both accounts
+  were marked limited with a placeholder reset in 2100, so each arm finished its rep in flight and stopped before
+  the next one. No worktree was left behind; all 5 preflights and 5 reps of that launch (`ok`, `acct2`) are kept.
+  The real limits were then restored (`acct1` until 03:10, `acct2` free).
+- **resume_lanes.sh (reviewed before use).** Exit codes are the contract: `run_arm.py` exits 75 when it stops on a
+  usage limit or API failure (also when a preflight probe itself hits a 429), `run_t2_t3_lanes.sh` waits for each lane
+  and exits 0 (all done), 75 (a lane stopped on a limit) or the broken lane's code. The wrapper re-runs the lanes on
+  75 (every account limited: earliest reset + 5 min, re-checked each minute; an account free: API failure, 30 min),
+  stops on 0, and stops on any other code (needs a human). It refuses to run inside a Claude Code session, holds a
+  lock so only one copy runs (§3: at most 2 sessions), and gives up after 30 limit windows. The A1 lane waits at most
+  30 min for the PMxAgent stack. From 23:5x the lanes run from a Terminal tab.

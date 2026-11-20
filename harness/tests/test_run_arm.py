@@ -109,6 +109,13 @@ class NextStep(unittest.TestCase):
             self.assertEqual(run_arm.next_step(self.row("timeout", False, 0.8), 0, 0, pool), ("go", 0, 0))
 
 
+class LimitStop(unittest.TestCase):
+    def test_usage_limit_stop_exits_75_so_the_wrapper_waits_instead_of_finishing(self):
+        with self.assertRaises(SystemExit) as cm:
+            run_arm.limit_stop("A0 T2_case: usage limit")
+        self.assertEqual(cm.exception.code, 75)
+
+
 class ToolPermissions(unittest.TestCase):
     """CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 forces Claude Code's permission mode to `default`, which ignores
     --permission-mode bypassPermissions and denies every tool in a headless run. Every arm must therefore carry an

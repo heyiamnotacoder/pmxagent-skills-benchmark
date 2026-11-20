@@ -7,6 +7,7 @@ tasks/*/reference/
 # bulky run artefacts; per-run summaries are committed under results/
 results/raw/
 logs/*.log
+logs/.resume_lanes.lock/
 .DS_Store
 .Rhistory
 __pycache__/

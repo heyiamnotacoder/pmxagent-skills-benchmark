@@ -6,6 +6,7 @@
 # pool (harness/tokens.py: one `claude setup-token` token per file ~/.config/pmxbench/tokens/acct<N>; the old single
 # oauth_token is ignored once any acct<N> exists, so move it to tokens/acct1), a 429 moves the arm to the next free
 # account; a lane stops only when every account is limited (`python3 harness/tokens.py status` / `next-free`).
+# harness/resume_lanes.sh re-runs this script after each reset until done; start that from a Terminal tab.
 #
 # Claude Code: one pinned version per task (env/versions.txt `claude-code-pin` lines; logs/deviations.md §15).
 # run_arm.py runs the pinned binary from ~/.local/share/pmxbench/claude/<version>/ and refuses any other version, so
@@ -33,7 +34,7 @@ lane() {   # lane <model> <arm>...
   local model=$1; shift
   for arm in "$@"; do
     for spec in $TASKS; do
-      python3 harness/run_arm.py run "$arm" "${spec%%:*}" "${spec##*:}" "$model" --until || return 1
+      python3 harness/run_arm.py run "$arm" "${spec%%:*}" "${spec##*:}" "$model" --until || return $?
     done
   done
 }
@@ -43,10 +44,20 @@ for arm in A0 A1 A2 A3 A4; do python3 harness/run_arm.py setup "$arm" || exit 1;
 # All lane tasks share one Claude Code pin, so one probe per arm on the first task covers them; A1 is probed in its
 # lane once the PMxAgent stack answers.
 probe=${TASKS%%:*}
-for arm in A0 A2 A3; do python3 harness/run_arm.py preflight "$arm" $S "$probe" || exit 1; done
-python3 harness/run_arm.py preflight A4 $H "$probe" || exit 1
-( until curl -sf -o /dev/null http://localhost:5762/__docs__/; do sleep 30; done   # PMxAgent stack answering
-  python3 harness/run_arm.py preflight A1 $S "$probe" && lane $S A1 ) >> logs/t2t3_lane_A1.log 2>&1 &
+for arm in A0 A2 A3; do python3 harness/run_arm.py preflight "$arm" $S "$probe" || exit $?; done
+python3 harness/run_arm.py preflight A4 $H "$probe" || exit $?
+stack_up() {   # PMxAgent stack answering, waiting at most 30 min
+  for _ in $(seq 60); do curl -sf -o /dev/null http://localhost:5762/__docs__/ && return 0; sleep 30; done
+  echo "PMxAgent stack not answering on :5762 after 30 min (bash harness/pmxagent.sh up)"; return 1
+}
+( stack_up && python3 harness/run_arm.py preflight A1 $S "$probe" && lane $S A1 ) >> logs/t2t3_lane_A1.log 2>&1 &
+p_a1=$!
 ( lane $S A0 A2 A3 && lane $H A4 ) >> logs/t2t3_lane_others.log 2>&1 &
-wait
-echo "T2/T3 lanes finished $(date) - next: python3 scoring/score_all.py && python3 scoring/summarize.py && python3 scoring/stats.py"
+p_others=$!
+wait $p_a1; s_a1=$?
+wait $p_others; s_others=$?
+echo "T2/T3 lanes ended $(date): A1 lane exit $s_a1, A0/A2/A3/A4 lane exit $s_others"
+# Exit codes as run_arm.py: 0 every lane done; 75 a lane stopped on a usage limit (re-run later); else broken.
+for s in $s_a1 $s_others; do [ "$s" -ne 0 ] && [ "$s" -ne 75 ] && exit "$s"; done
+[ "$s_a1" -eq 75 ] || [ "$s_others" -eq 75 ] && exit 75
+echo "all lanes done - next: python3 scoring/score_all.py && python3 scoring/summarize.py && python3 scoring/stats.py"
