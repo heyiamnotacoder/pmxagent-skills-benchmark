@@ -227,3 +227,20 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   rule (BLQ before Tmax = 0, after = missing) for 220/220, by `drop` for 208/220 and by `zero` for 82/220. Output:
   `logs/blq_check.txt`. Decision, as pre-specified in #4: T3b runs as built (no prompt or reference change, no task
   rebuild); the T2/T3 lanes are started with `T3B_OK=1`.
+
+### §19 Runs on several subscription accounts (token pool) (2026-11-20, ~23:45 IST, before any rep with it)
+- **Why.** One account's 5-hour usage limit stopped the T2/T3 lanes twice (§14; 20 Nov 22:48). The author asked to use
+  a second account alongside the first.
+- **What.** `harness/tokens.py`: each account's `claude setup-token` token is a file in `~/.config/pmxbench/tokens/`,
+  named by a label. `run_arm.py` gives each rep the first account (label order) not at its usage limit. A rep stopped
+  by HTTP 429 marks its account limited until the reset time the API reported (`~/.config/pmxbench/limits.json`,
+  labels and epochs only, file-locked so both lanes share it), and with `--until` the arm continues on the next free
+  account; it stops only when every account is limited. Without a tokens folder the old single `oauth_token` is the
+  pool (`default`), so earlier behaviour is unchanged.
+- **What stays the same.** Pinned model, pinned Claude Code version per task, prompts, Skills, isolated HOME per rep,
+  credential scrub, permissions, and at most 2 concurrent sessions in total (§3). The token is never logged.
+- **What can differ.** Prompt-cache hits are per account, so cache-read tokens and the list-price cost estimate of a
+  rep may depend on which account ran it (and on which account ran the previous reps). New ledger column
+  `auth_label` records the account per rep so this can be checked. Accuracy endpoints are unaffected.
+- **Exclusions unchanged.** Rate-limited reps (`failed_ratelimit*`) never count, whichever account ran them (§1).
+- Chosen over one account per lane because the lanes are uneven (A1 alone vs four arms).

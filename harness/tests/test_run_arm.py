@@ -49,10 +49,8 @@ class RepState(unittest.TestCase):
 class RunEnv(unittest.TestCase):
     def test_isolated_env_drops_host_session_variables(self):
         with tempfile.TemporaryDirectory() as d:
-            tok = os.path.join(d, "tok"); open(tok, "w").write("x\n")
-            run_arm.TOKEN_FILE = tok
             os.environ.update(ANTHROPIC_BASE_URL="http://host-proxy", CLAUDE_CODE_CHILD_SESSION="1")
-            env, mode = run_arm.run_env(os.path.join(d, "wt"))
+            env, mode = run_arm.run_env(os.path.join(d, "wt"), ("acct1", "x"))
         self.assertEqual(mode, "isolated")
         self.assertFalse([k for k in env if k.startswith("ANTHROPIC") or k == "CLAUDE_CODE_CHILD_SESSION"])
         self.assertEqual(env["HOME"], os.path.join(d, "wt.home"))
@@ -60,6 +58,33 @@ class RunEnv(unittest.TestCase):
         # the agent's own Bash/R/Python subprocesses must not inherit the token (it would reach published transcripts)
         self.assertEqual(env["CLAUDE_CODE_SUBPROCESS_ENV_SCRUB"], "1")
         self.assertIn("PATH", env)
+
+
+    def test_no_account_is_the_keychain_login_mode(self):
+        with tempfile.TemporaryDirectory() as d:
+            env, mode = run_arm.run_env(os.path.join(d, "wt"), None)
+        self.assertEqual(mode, "user")
+        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
+
+
+class AccountLimit(unittest.TestCase):
+    def test_usage_limit_marks_the_rep_account_until_its_reset(self):
+        with tempfile.TemporaryDirectory() as d:
+            tok = os.path.join(d, "tokens"); os.makedirs(tok)
+            for lab in ("acct1", "acct2"):
+                open(os.path.join(tok, lab), "w").write(lab)
+            pool = run_arm.tokens.Pool.load(tokens_dir=tok, single_file=os.path.join(d, "x"),
+                                            limits_file=os.path.join(d, "limits.json"))
+            tr = os.path.join(d, "transcript.jsonl"); open(tr, "w").write('{"resetsAt":2000}\n')
+            run_arm.note_account_limit(pool, "acct1", "failed_ratelimit_midrun", tr, now=100)
+            run_arm.note_account_limit(pool, "acct2", "ok", tr, now=100)          # not a 429: nothing marked
+            self.assertEqual(pool.pick(now=100), ("acct2", "acct2"))
+            open(tr, "w").write("{}\n")                                          # no reset time: one hour
+            run_arm.note_account_limit(pool, "acct2", "failed_ratelimit", tr, now=100)
+            self.assertEqual(pool.next_free(now=100), 2000)                     # acct1's reported reset
+            pool.mark_limited("acct1", 9000)
+            self.assertIsNone(pool.pick(now=3699))                               # acct2 limited until 100 + 3600
+            self.assertEqual(pool.pick(now=3700), ("acct2", "acct2"))
 
 
 class ToolPermissions(unittest.TestCase):

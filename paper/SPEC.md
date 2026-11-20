@@ -38,6 +38,9 @@ benchmark and open data; state what MCP gives that Skills do not.
 | 2026-11-17 | Run order: A1 T1 top-up alone (T1 pin) → lanes on the T2/T3 pin (T3d, T2, T3a, T3c, T3e) → T3b after the BLQ check (S2). Lanes started from a Terminal tab the user can watch | user |
 | 2026-11-20 | Two A1 T1 runs had no scorable file (drug without subject) and stay at 0 in the primary analysis; a **post-hoc** analysis without them is added and labelled as such. The preprint reports that A1's agent never called a PMxAgent tool on T1 (`logs/deviations.md` §17) | user |
 | 2026-11-20 | No A1 variant whose prompt tells the agent to use PMxAgent's tools: A1 keeps the shared prompt and is reported as observed (C5). The tool-use count (`pmxagent_tool_calls`) is reported for every A1 run | user |
+| 2026-11-20 | T2/T3 reps may run on **several subscription accounts** (token pool, `harness/tokens.py`): a rep uses the first account not at its usage limit; a 429 moves the arm to the next free account. Same pinned model, Claude Code version, prompts and isolation; still **at most 2 concurrent sessions in total** (§3). Ledger column `auth_label` records the account (label only). Rate-limited reps stay excluded whichever account ran them (`logs/deviations.md` §19) | user |
+| 2026-11-20 | **Token pool, not one account per lane**: the lanes are uneven (A1 alone vs A0/A2/A3/A4), so a fixed account per lane would leave one account mostly idle | user |
+| 2026-11-20 | T3b runs: the S2 BLQ check passed (prompt rule matches PKanalix for 220/220 subjects; #4, `logs/blq_check.txt`, deviations §18) | user |
 
 ## User stories
 1. As a pharmacometrician reading the preprint, I want to see which ingredient (instructions, fixed code, server
