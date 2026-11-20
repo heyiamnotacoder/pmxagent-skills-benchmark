@@ -220,3 +220,10 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   unscorable runs are in the `isolated` regime (A1 runs 4–10).
 - **Reproducibility TODO closed.** With the raw outputs local, `stats.py` computes distinct parameter-value sets for T1;
   the preprint now cites them through macros.
+
+### §18 T3b protocol check (S2, #4): reference follows the prompt's BLQ rule (2026-11-20, ~23:30 IST)
+- Protocol check, not a deviation. `scoring/check_blq_reference.py` (input data and PKanalix reference only, never
+  agent output) on the 220 subjects with a BLQ record after Tmax: PKanalix AUClast is matched within 1% by the prompt's
+  rule (BLQ before Tmax = 0, after = missing) for 220/220, by `drop` for 208/220 and by `zero` for 82/220. Output:
+  `logs/blq_check.txt`. Decision, as pre-specified in #4: T3b runs as built (no prompt or reference change, no task
+  rebuild); the T2/T3 lanes are started with `T3B_OK=1`.

@@ -1,0 +1,13 @@
+# scoring/check_blq_reference.py, 2026-11-20 23:25 IST, inputs from tasks/build_tasks.py on the restored supplement
+subjects with BLQ after Tmax (rules differ): 220
+  AUClast within 1% of PKanalix under rule 'zero': 82/220 (37.3%)
+  AUClast within 1% of PKanalix under rule 'prompt': 220/220 (100.0%)
+  AUClast within 1% of PKanalix under rule 'drop': 208/220 (94.5%)
+  e.g. adalimumab_1 {'zero': False, 'prompt': True, 'drop': True}
+  e.g. adalimumab_8 {'zero': False, 'prompt': True, 'drop': True}
+  e.g. adalimumab_9 {'zero': False, 'prompt': True, 'drop': True}
+  e.g. amatuximab_3 {'zero': False, 'prompt': True, 'drop': True}
+  e.g. anifrolumab_3 {'zero': False, 'prompt': True, 'drop': True}
+
+PKanalix reference is most consistent with rule 'prompt'.
+-> Reference follows the prompt's rule; T3b can run as built.
