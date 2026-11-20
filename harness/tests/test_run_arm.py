@@ -1,4 +1,5 @@
-"""Ledger writes must never misalign the committed results/runs.csv.  Run: python3 -m unittest discover -s harness/tests"""
+"""Harness unit tests: ledger writes, rep counting, isolation, tool permissions, preflight gate.
+Run: python3 -m unittest discover -s harness/tests"""
 import csv, json, os, sys, tempfile, unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -64,7 +65,7 @@ class RunEnv(unittest.TestCase):
 class ToolPermissions(unittest.TestCase):
     """CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 forces Claude Code's permission mode to `default`, which ignores
     --permission-mode bypassPermissions and denies every tool in a headless run. Every arm must therefore carry an
-    explicit allow-list that covers every tool the agent is shown (logs/deviations.md §16)."""
+    explicit allow-list (logs/deviations.md §16). The live check that it covers every tool shown is `preflight`."""
     INIT_TOOLS = ["Bash", "Edit", "Read", "Write", "Skill", "Task", "ToolSearch", "NotebookEdit"]
     MCP = ["ListMcpResourcesTool", "ReadMcpResourceTool", "ReadMcpResourceDirTool",
            "mcp__pmxagent__health", "mcp__pmxagent__r_Noncompartmental_analysis_NCA"]
@@ -83,7 +84,6 @@ class ToolPermissions(unittest.TestCase):
                 cmd = run_arm.claude_cmd(arm, "m", os.path.join(d, "wt"))
                 self.assertNotIn("bypassPermissions", cmd)
                 allowed = self.flag_values(cmd, "--allowedTools")
-                self.assertEqual(allowed, list(run_arm.allowed_tools(arm)))
                 self.assertEqual(run_arm.uncovered_tools(self.INIT_TOOLS, allowed), [])
                 self.assertEqual(self.flag_values(cmd, "--disallowedTools"),
                                  ["WebSearch", "WebFetch", "Bash(git:*)", "Bash(gh:*)"])
@@ -107,27 +107,42 @@ class ParseTranscript(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "t.jsonl")
             open(p, "w").write("\n".join(json.dumps(x) for x in lines) + "\nnot json\n")
-            t = run_arm.parse_transcript(p)
-        self.assertEqual((t["tool_calls"], t["tool_errors"], t["permission_denials"]), (1, 1, 1))
-        self.assertEqual(t["init"]["permissionMode"], "default")
-        self.assertEqual(t["result"]["is_error"], False)
+            tr = run_arm.parse_transcript(p)
+        self.assertEqual((tr.tool_calls, tr.tool_errors, tr.permission_denials), (1, 1, 1))
+        self.assertEqual(tr.denied, ["Bash"])
+        self.assertEqual(tr.init["permissionMode"], "default")
+        self.assertEqual(tr.result["is_error"], False)
 
 
 class PreflightGate(unittest.TestCase):
-    """A preflight must prove a tool actually runs, not only list what is in context."""
-    INIT = {"permissionMode": "default", "tools": ["Bash", "Read", "Write"]}
+    """A preflight must prove a tool runs and that the git deny rule still wins, not only list what is in context."""
+    INIT = {"type": "system", "subtype": "init", "permissionMode": "default", "tools": ["Bash", "Read", "Write"]}
+    GIT = {"tool_name": "Bash", "tool_input": {"command": "git --version"}}
+
+    def probe(self, d, init=INIT, denials=(GIT,), stderr="", probe_file=True):
+        """A raw preflight folder as run_once leaves it."""
+        os.makedirs(os.path.join(d, "output"), exist_ok=True)
+        if probe_file:
+            open(os.path.join(d, "output", run_arm.PREFLIGHT_FILE), "w").write("ok\n")
+        open(os.path.join(d, "stderr.txt"), "w").write(stderr)
+        events = ([init] if init else []) + [{"type": "result", "permission_denials": list(denials)}]
+        open(os.path.join(d, "transcript.jsonl"), "w").write("\n".join(json.dumps(e) for e in events))
+        return d
+
+    def problems(self, **kw):
+        with tempfile.TemporaryDirectory() as d:
+            return run_arm.preflight_problems("A0", self.probe(d, **kw))
 
     def test_clean_probe_passes(self):
-        self.assertEqual(run_arm.preflight_problems("A0", self.INIT, 0, "", True), [])
+        self.assertEqual(self.problems(), [])
 
     def test_each_failure_is_reported(self):
-        self.assertTrue(run_arm.preflight_problems("A0", self.INIT, 1, "", True))               # a denial
-        self.assertTrue(run_arm.preflight_problems("A0", self.INIT, 0, "", False))              # probe file missing
-        self.assertTrue(run_arm.preflight_problems(
-            "A0", self.INIT, 0, "⚠ Permission mode forced to default — CLAUDE_CODE_SUBPROCESS_ENV_SCRUB", True))
-        self.assertTrue(run_arm.preflight_problems(
-            "A0", {"tools": ["Bash", "mcp__pmxagent__health"]}, 0, "", True))                  # tool not allowed
-        self.assertTrue(run_arm.preflight_problems("A0", {}, 0, "", True))                      # no init event
+        self.assertTrue(self.problems(denials=(self.GIT, {"tool_name": "Write", "tool_input": {}})))  # other denial
+        self.assertTrue(self.problems(denials=()))                       # git ran: the deny rule no longer wins
+        self.assertTrue(self.problems(probe_file=False))                 # the Bash call did not run
+        self.assertTrue(self.problems(stderr="⚠ Permission mode forced to default — CLAUDE_CODE_SUBPROCESS_ENV_SCRUB"))
+        self.assertTrue(self.problems(init=dict(self.INIT, tools=["Bash", "mcp__pmxagent__health"])))  # not allowed
+        self.assertTrue(self.problems(init=None))                        # no init event
 
 
 class CheckRunRoot(unittest.TestCase):

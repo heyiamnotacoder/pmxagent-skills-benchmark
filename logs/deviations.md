@@ -170,12 +170,19 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   fix is the A1 T1 preflight of 20 Nov 15:49 IST (rep 0, never counted).
 - **Fix (harness only, credentials stay scrubbed).** `run_arm.py` now passes `--permission-mode default` and an
   explicit `--allowedTools` list: the 27 built-in tools in the init event of the valid A0 T2 reps (2.1.310), plus
-  for A1 the `mcp__pmxagent` server and the three MCP resource tools. That is every tool the agent is shown, so the
-  agent can use exactly what it could under `bypassPermissions`; `--disallowedTools` (web, `git`, `gh`) still wins.
-  The permission mode changes nothing the agent sees (same tool list in the init event in both modes).
-- **Preflight is now a gate.** The probe makes one real Bash call and `preflight` exits non-zero on any permission
-  denial, the forced-mode warning, a missing probe file, or a tool shown but not allowed. Passed on 20 Nov for A1 on
-  the T1 pin and A0–A4 on the T2/T3 pin. Checked by hand as well: A1's `mcp__pmxagent__health` runs and
-  `git --version` is denied.
-- **Ledger.** New columns `permission_mode` and `permission_denials` (count) for every run. Denials are recorded
-  only; they are not an exclusion criterion (validity rules unchanged).
+  for A1 the `mcp__pmxagent` server and the three MCP resource tools. That is every tool the agent is shown: the same
+  list as in the A1 T2 rep and the A1 preflights on 2.1.283 (the T1 pin; the valid T1 transcripts are on Zenodo, not
+  local). The permission mode changes nothing the agent sees (same init-event tool list in both modes), and
+  `--disallowedTools` (web, `git`, `gh`) still wins. Not equivalent in one respect: `default` mode may still refuse
+  actions Claude Code guards even under an allow rule (e.g. writes outside the working directory or to protected
+  paths), which `bypassPermissions` allowed; any such refusal shows up in the new `permission_denials` column.
+- **Preflight is now a gate.** The probe makes two Bash calls, one that must run (writes `output/preflight.txt`) and
+  `git --version`, which must be denied, so every preflight records that deny rules still beat the allow-list.
+  `preflight` exits non-zero on any other denial, git not denied, the forced-mode warning, a missing probe file, or a
+  tool shown but not allowed. `run_t2_t3_lanes.sh` now preflights every arm before any rep (A1 inside its lane, once
+  the stack answers), and the A1 T1 top-up command runs `preflight` first. Passed on 20 Nov (~16:30 IST) for A1 on the T1 pin
+  and A0–A4 on the T2/T3 pin (`results/raw/<arm>/_preflight/`). Also checked by hand on 20 Nov (transcript
+  not kept): A1's `mcp__pmxagent__health` runs.
+- **Ledger.** New columns `permission_mode` and `permission_denials` (count) for every run; `run` prints a warning
+  for a rep with any denial. Denials are recorded only; they are not an exclusion criterion (SPEC.md: the only
+  exclusion rule is the usage limit).
