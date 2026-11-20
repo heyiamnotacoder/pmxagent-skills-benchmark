@@ -24,16 +24,8 @@ RUNID = re.compile(r"A\d_T[0-9a-z]+_[a-z_]*?r\d\d_\d{8}-\d{6}")
 
 
 def tool_inputs(path):
-    for line in open(path, errors="replace"):
-        try:
-            ev = json.loads(line)
-        except ValueError:
-            continue
-        if ev.get("type") != "assistant":
-            continue
-        for c in ev.get("message", {}).get("content", []):
-            if c.get("type") == "tool_use":
-                yield json.dumps(c.get("input"))
+    for c in runstore.tool_uses(path):
+        yield json.dumps(c.get("input"))
 
 
 def main():

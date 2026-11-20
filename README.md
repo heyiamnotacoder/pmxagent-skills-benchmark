@@ -11,12 +11,17 @@ reference) and score with the paper's metric.
 | Arm | Setup | Model | Runs | Accuracy, mean (range) | Cost/run (USD) | Wall time (min) |
 |---|---|---|---|---|---|---|
 | A0 | No tools | claude-sonnet-4-6 | 10 | 93.21 (91.57–95.09) | 0.38 | 3.1 |
-| A1 | PMxAgent 1.0.0 (MCP) | claude-sonnet-4-6 | 3 | 98.18 (97.97–98.29) | 0.69 | 6.4 |
+| A1 | PMxAgent 1.0.0 (MCP) offered | claude-sonnet-4-6 | 10 | 78.58 (0.00–98.29)¹ | 0.73 | 5.2 |
 | A2 | Skills, knowledge only | claude-sonnet-4-6 | 10 | 98.65 (98.58–98.70) | 0.50 | 3.8 |
 | A3 | Skills + script | claude-sonnet-4-6 | 10 | 98.64 (98.64–98.64) | 0.20 | 1.2 |
 | A4 | Skills + script | claude-haiku-4-5 | 10 | 98.64 (98.64–98.64) | 0.09 | 1.1 |
 
-Full report: `results/T1_report.md`. Protocol deviations: `logs/deviations.md`.
+¹ The A1 agent called a PMxAgent tool in 0 of 10 runs; it wrote its own PKNCA code each time. Two runs wrote the drug
+name without the subject, so nothing could be matched and they score 0 (every completed run counts). Without them
+(post hoc) A1 is 98.22. Details: `results/stats.md`, `logs/deviations.md` §17.
+
+Full report of the first T1 round (A1 at 3 runs): `results/T1_report.md`. Current numbers: `results/summary.md`,
+`results/stats.md`. Protocol deviations: `logs/deviations.md`.
 
 ## Layout
 - `skills/` — Agent Skills (`SKILL.md` + `scripts/` + `tests/`). Frozen before the benchmark runs (`skills/FROZEN.sha256`).

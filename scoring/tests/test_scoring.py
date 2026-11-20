@@ -123,5 +123,42 @@ class ScoreCase(unittest.TestCase):
         self.assertIsNone(r["summary_consistent_pct"])
 
 
+class UnscorableNca(unittest.TestCase):
+    """A completed NCA run whose individual file has no subject keys scores 0 on every parameter (SPEC: every
+    completed run counts), not only on `overall` (logs/deviations.md §17)."""
+
+    def test_drug_only_ids_score_zero_on_every_parameter(self):
+        with tempfile.TemporaryDirectory() as d:
+            ref = {("abatacept_1", p): 10.0 for p in score_all.sn.PARAMS}
+            ref[("abatacept_1", "R2ADJ")], ref[("abatacept_1", "NPTS")] = 0.99, 3.0
+            run = os.path.join(d, "run"); os.makedirs(os.path.join(run, "output"))
+            write_csv(os.path.join(run, "output", "nca_individual.csv"),
+                      [{"DRUG": "abatacept", "PPTESTCD": "Cmax", "PPSTRESN": 10}])
+            r = score_all.score_nca_dir(run, ref)
+        self.assertEqual((r["scored_file"], r["coverage_pct"], r["overall"]), ("", 0.0, 0.0))
+        self.assertEqual(r["note"], "no scorable individual file")
+        for p in score_all.sn.PARAMS:
+            self.assertEqual(r[f"{p}_pct"], 0.0, p)
+
+
+class PmxagentToolCalls(unittest.TestCase):
+    def test_counts_only_pmxagent_mcp_tool_uses(self):
+        with tempfile.TemporaryDirectory() as run:
+            ev = [{"type": "system", "subtype": "init"},
+                  {"type": "assistant", "message": {"content": [
+                      {"type": "tool_use", "name": "ToolSearch", "input": {}},
+                      {"type": "tool_use", "name": "mcp__pmxagent__r_Noncompartmental_analysis_NCA", "input": {}},
+                      {"type": "text", "text": "mcp__pmxagent__health"}]}},
+                  {"type": "assistant", "message": {"content": [
+                      {"type": "tool_use", "name": "mcp__pmxagent__health", "input": {}},
+                      {"type": "tool_use", "name": "Bash", "input": {}}]}}]
+            open(os.path.join(run, "transcript.jsonl"), "w").write("\n".join(json.dumps(e) for e in ev) + "\nnot json\n")
+            self.assertEqual(score_all.pmxagent_tool_calls(run), 2)
+
+    def test_no_transcript_is_none(self):
+        with tempfile.TemporaryDirectory() as run:
+            self.assertIsNone(score_all.pmxagent_tool_calls(run))
+
+
 if __name__ == "__main__":
     unittest.main()
