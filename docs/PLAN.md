@@ -68,7 +68,9 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 - [x] Isolation blocker: T1 accepted the user-CLAUDE.md leak (equal in all arms; `logs/deviations.md`). T2 removes it: per-rep empty `CLAUDE_CONFIG_DIR` + `claude setup-token` subscription token (§11).
 - [x] **T1 complete (2026-09-28):** A0–A4, `results/T1_report.md`; evidence on Zenodo (doi:10.5281/zenodo.23019418). Scope decision: arms only, T1 first.
 - [x] Preprint branch merged into the T2 work (2026-11-17): `paper/SPEC.md`, stats/figures/tables pipeline, per-task Claude Code pin (`logs/deviations.md` §15)
-- [ ] A1 T1 top-up to 10 runs (T1 pin 2.1.283, isolated; sensitivity by isolation regime)
+- [x] A1 T1 top-up to 10 runs (T1 pin 2.1.283, isolated; sensitivity by isolation regime). The A1 agent called no PMxAgent tool in any T1 run; 2 runs unscorable (`logs/deviations.md` §17)
+- [x] S2 BLQ check passed; T3b runs as built (§18)
+- [x] Token pool: reps may run on several subscription accounts, `~/.config/pmxbench/tokens/acct<N>` (`harness/tokens.py`, §19)
 - [ ] **T2 (in progress):** case study ×10 per arm incl. A1; 3 valid A0 reps so far. Scorer `score_case_run` (primary = pre-specified lin-up/log-down consistency) → `results/T2_report.md`
 - [ ] T3 stress (T3a–e ×5): needs the supplement re-downloaded to rebuild `tasks/*/reference/`
 - Note: a first A0 probe accidentally ran the full T1 task (harness bug, fixed); it was quarantined in `results/raw/A0/_preflight/`, marked in the ledger, and is excluded.

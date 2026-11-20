@@ -50,7 +50,7 @@ class RunEnv(unittest.TestCase):
     def test_isolated_env_drops_host_session_variables(self):
         with tempfile.TemporaryDirectory() as d:
             os.environ.update(ANTHROPIC_BASE_URL="http://host-proxy", CLAUDE_CODE_CHILD_SESSION="1")
-            env, mode = run_arm.run_env(os.path.join(d, "wt"), ("acct1", "x"))
+            env, mode = run_arm.run_env(os.path.join(d, "wt"), run_arm.tokens.Account("acct1", "x"))
         self.assertEqual(mode, "isolated")
         self.assertFalse([k for k in env if k.startswith("ANTHROPIC") or k == "CLAUDE_CODE_CHILD_SESSION"])
         self.assertEqual(env["HOME"], os.path.join(d, "wt.home"))
@@ -67,24 +67,46 @@ class RunEnv(unittest.TestCase):
         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
 
 
-class AccountLimit(unittest.TestCase):
-    def test_usage_limit_marks_the_rep_account_until_its_reset(self):
+class NextStep(unittest.TestCase):
+    """--until after a rep: switch account on a 429 or bad token while another is free; never spin; else stop."""
+
+    def pool(self, d, limited=()):
+        tok = os.path.join(d, "tokens"); os.makedirs(tok, exist_ok=True)
+        for lab in ("acct1", "acct2"):
+            open(os.path.join(tok, lab), "w").write(lab)
+        p = run_arm.tokens.Pool.load(tokens_dir=tok, single_file=os.path.join(d, "x"),
+                                     limits_file=os.path.join(d, "limits.json"))
+        for lab in limited:
+            p.mark_limited(lab, 4e9)
+        return p
+
+    def row(self, status="ok", is_error=False, cost=0.5, api=None):
+        return {"status": status, "is_error": is_error, "cost_usd": cost, "api_error_status": api}
+
+    def test_valid_rep_resets_counters(self):
         with tempfile.TemporaryDirectory() as d:
-            tok = os.path.join(d, "tokens"); os.makedirs(tok)
-            for lab in ("acct1", "acct2"):
-                open(os.path.join(tok, lab), "w").write(lab)
-            pool = run_arm.tokens.Pool.load(tokens_dir=tok, single_file=os.path.join(d, "x"),
-                                            limits_file=os.path.join(d, "limits.json"))
-            tr = os.path.join(d, "transcript.jsonl"); open(tr, "w").write('{"resetsAt":2000}\n')
-            run_arm.note_account_limit(pool, "acct1", "failed_ratelimit_midrun", tr, now=100)
-            run_arm.note_account_limit(pool, "acct2", "ok", tr, now=100)          # not a 429: nothing marked
-            self.assertEqual(pool.pick(now=100), ("acct2", "acct2"))
-            open(tr, "w").write("{}\n")                                          # no reset time: one hour
-            run_arm.note_account_limit(pool, "acct2", "failed_ratelimit", tr, now=100)
-            self.assertEqual(pool.next_free(now=100), 2000)                     # acct1's reported reset
-            pool.mark_limited("acct1", 9000)
-            self.assertIsNone(pool.pick(now=3699))                               # acct2 limited until 100 + 3600
-            self.assertEqual(pool.pick(now=3700), ("acct2", "acct2"))
+            self.assertEqual(run_arm.next_step(self.row(), 1, 1, self.pool(d)), ("go", 0, 0))
+
+    def test_usage_limit_switches_while_another_account_is_free_then_stops(self):
+        with tempfile.TemporaryDirectory() as d:
+            hit = self.row("failed_ratelimit_midrun", True, 0.1, 429)
+            self.assertEqual(run_arm.next_step(hit, 0, 0, self.pool(d, ["acct1"])), ("switch", 1, 1))
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(run_arm.next_step(hit, 1, 1, self.pool(d, ["acct1", "acct2"]))[0], "stop")
+
+    def test_switches_are_bounded_by_pool_size(self):
+        with tempfile.TemporaryDirectory() as d:   # a stale reset time leaves an account "free": must not spin
+            hit = self.row("failed_ratelimit", True, None, 429)
+            self.assertEqual(run_arm.next_step(hit, 2, 2, self.pool(d))[0], "stop")
+
+    def test_bad_token_switches_and_other_failures_follow_the_old_rule(self):
+        with tempfile.TemporaryDirectory() as d:
+            pool = self.pool(d, ["acct1"])
+            self.assertEqual(run_arm.next_step(self.row("exit1", True, None, 401), 0, 0, pool)[0], "switch")
+            api = self.row("exit1", True, None, 500)                                  # instant API failure
+            self.assertEqual(run_arm.next_step(api, 0, 0, pool)[0], "go")
+            self.assertEqual(run_arm.next_step(api, 1, 0, pool)[0], "stop")
+            self.assertEqual(run_arm.next_step(self.row("timeout", False, 0.8), 0, 0, pool), ("go", 0, 0))
 
 
 class ToolPermissions(unittest.TestCase):

@@ -3,8 +3,9 @@
 #   lane 1 = A1 (PMxAgent; needs `bash harness/pmxagent.sh up`), lane 2 = A0, A2, A3 (Sonnet), then A4 (Haiku).
 # --until tops each arm x task up to the target number of valid reps and stops a lane on a usage-limit (429)
 # response, so re-running this script after the limit resets resumes where it stopped. With several accounts in the
-# pool (harness/tokens.py, ~/.config/pmxbench/tokens/<label>), a 429 moves the arm to the next free account; a lane
-# stops only when every account is limited (`python3 harness/tokens.py status` / `next-free`).
+# pool (harness/tokens.py: one `claude setup-token` token per file ~/.config/pmxbench/tokens/acct<N>; the old single
+# oauth_token is ignored once any acct<N> exists, so move it to tokens/acct1), a 429 moves the arm to the next free
+# account; a lane stops only when every account is limited (`python3 harness/tokens.py status` / `next-free`).
 #
 # Claude Code: one pinned version per task (env/versions.txt `claude-code-pin` lines; logs/deviations.md §15).
 # run_arm.py runs the pinned binary from ~/.local/share/pmxbench/claude/<version>/ and refuses any other version, so
