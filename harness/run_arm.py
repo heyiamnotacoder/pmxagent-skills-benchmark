@@ -15,7 +15,7 @@ Isolation
     --allowedTools list (allowed_tools; the scrub below forces permission mode `default`), git/web tools disallowed.
     `preflight` checks what actually leaks into context and that a tool really runs.
   - user config: `--setting-sources project` still loads ~/.claude/CLAUDE.md and ~/.claude/rules/. If a subscription
-    token from `claude setup-token` is saved in TOKEN_FILE, each rep instead gets its own empty HOME (with the Claude
+    token from `claude setup-token` is in the account pool (tokens.py), each rep instead gets its own empty HOME (with the Claude
     config dir inside it; archived with the rep): CLAUDE_CONFIG_DIR alone is not enough, user CLAUDE.md/rules are
     found via HOME. So no user instructions load and no earlier session files are reachable. PATH is inherited; R and
     Python libraries are system-wide (none under HOME).
@@ -24,6 +24,11 @@ Isolation
     base URL that injects the host session's instructions into child sessions; none of these reach a rep. The ledger's
     `claude_config` column records which mode a run used. The token is passed by environment only, never logged,
     and CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 keeps it out of the agent's own Bash/R/Python subprocesses.
+
+Accounts (tokens.py)
+  - a rep uses the first pool account not at its usage limit (ledger `auth_label`). A rep stopped by HTTP 429 marks its
+    account limited until the reported reset; with --until the arm goes on with the next free account and stops only
+    when every account is limited. Rate-limited reps never count (deviations §1), whichever account ran them.
 
 Usage
   run_arm.py setup   <arm>                      build/refresh the arm repo + ws branches
@@ -36,6 +41,9 @@ Arms: A0 plain | A1 PMxAgent MCP | A2 knowledge-only skills | A3 skills+scripts 
 import argparse, csv, fcntl, datetime, hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
 from typing import NamedTuple
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import tokens
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUNS = os.environ.get("PMXBENCH_RUNS", "/Users/Shared/pmxbench_runs")   # outside ~ (see Isolation)
 PMX = os.path.expanduser("~/pmxbench_runs/_pmxagent")   # under ~: colima only mounts the home folder
@@ -47,7 +55,6 @@ LEDGER = os.path.join(ROOT, "results", "runs.csv")
 VERSIONS = os.path.join(ROOT, "env", "versions.txt")   # pinned toolchain; `claude-code-pin <task>:` lines
 CLAUDE_DIR = os.path.expanduser(os.environ.get("PMXBENCH_CLAUDE_DIR", "~/.local/share/pmxbench/claude"))
 ARMS = {"A0": None, "A1": None, "A2": "knowledge", "A3": "scripts", "A4": "scripts"}
-TOKEN_FILE = os.path.expanduser(os.environ.get("PMXBENCH_OAUTH_TOKEN_FILE", "~/.config/pmxbench/oauth_token"))
 ENV_KEEP = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "TMPDIR", "USER", "LOGNAME", "SHELL")
 MCP_TOKEN = "pmxagent-ci-token"   # PMxAgent's documented CI token (docker-compose.yml MCP_TEST_TOKEN)
 # Tool permissions (see allowed_tools). BUILTIN_TOOLS = the init-event tool list of the valid T2 reps (2.1.310).
@@ -183,19 +190,20 @@ def check_run_root(root=None):
             return root
 
 
-def run_env(wt):
-    """Environment for one rep. Isolated mode (token file present): fresh HOME + config dir next to the worktree."""
+def run_env(wt, auth):
+    """Environment for one rep. auth = tokens.Account from the pool: isolated mode, fresh HOME + config dir next to
+    the worktree. auth None (no pool): keychain login, user mode."""
     env = {k: os.environ[k] for k in ENV_KEEP if k in os.environ}
     env["CLAUDE_CODE_DISABLE_AUTO_MEMORY"] = "1"
     env["DISABLE_AUTOUPDATER"] = "1"   # a rep must not update the pinned binary under itself
     env["CLAUDE_CODE_SUBPROCESS_ENV_SCRUB"] = "1"   # the agent's Bash/R/Python never see Anthropic credentials
-    if not os.path.isfile(TOKEN_FILE):
+    if auth is None:
         env["HOME"] = os.environ["HOME"]   # keychain login, user CLAUDE.md loads (T1 mode)
         return env, "user"
     home = wt + ".home"
     os.makedirs(os.path.join(home, ".claude"), mode=0o700)
     env.update(HOME=home, CLAUDE_CONFIG_DIR=os.path.join(home, ".claude"),
-               CLAUDE_CODE_OAUTH_TOKEN=open(TOKEN_FILE).read().strip())
+               CLAUDE_CODE_OAUTH_TOKEN=auth.token)
     return env, "isolated"
 
 
@@ -299,6 +307,11 @@ def rep_state(arm, task, ledger_rows, live_names):
     return sum(valid(r) for r in rows) + len(live_reps), max([int(r["rep"]) for r in rows] + live_reps or [0])
 
 
+def rate_limited(status):
+    """A usage-limit (HTTP 429) stop, mid-run or instant (ledger status labels, deviations §1)."""
+    return status.startswith("failed_ratelimit")
+
+
 def run_status(proc_status, res):
     """Ledger status: a usage-limit (HTTP 429) stop gets the deviations-§1 label, not the bare exit code."""
     if res.get("api_error_status") == 429:
@@ -306,7 +319,38 @@ def run_status(proc_status, res):
     return proc_status
 
 
-def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True, exe="claude"):
+class AccountsLimited(Exception):
+    """Every pool account is at its usage limit; the message says until when."""
+
+
+def pick_account(pool):
+    """tokens.Account for the next rep; None without a pool; AccountsLimited if every account is limited."""
+    if not pool:
+        return None
+    auth = pool.pick()
+    if auth is None:
+        raise AccountsLimited(f"every account is at its usage limit until {time.ctime(pool.next_free())}")
+    return auth
+
+
+def next_step(row, limited, switches, pool):
+    """--until after one rep -> (action, limited, switches). action: "go" (next rep), "switch" (this account is now
+    limited or unusable and another is free: next rep on it), "stop" (all limited, or two instant API failures).
+    switches is bounded by the pool size, so a stale reset time can never make the loop spin."""
+    if valid({k: str(v) for k, v in row.items()}):
+        return "go", 0, 0
+    hit = rate_limited(row["status"])
+    bad_account = row.get("api_error_status") in tokens.AUTH_FAIL_STATUS
+    if not (hit or bad_account or not row["cost_usd"]):   # timeout / crash after real work: not an account problem
+        return "go", limited, switches
+    limited += 1
+    if (hit or bad_account) and pool and pool.has_free() and switches < len(pool.paths):
+        return "switch", limited, switches + 1
+    return ("stop" if hit or bad_account or limited >= 2 else "go"), limited, switches
+
+
+def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True, exe="claude", pool=None):
+    auth = pick_account(pool)   # before any worktree exists, so an all-limited stop leaves nothing behind
     base = os.path.join(RUNS, arm, "base")
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     runid = f"{arm}_{task}_r{rep:02d}_{stamp}"
@@ -325,7 +369,7 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True, exe="claud
     raw = raw_dir(arm, task, runid, preflight=not suffix)
     os.makedirs(raw)
     open(os.path.join(raw, "prompt.txt"), "w").write(full_prompt)
-    env, config_mode = run_env(wt)
+    env, config_mode = run_env(wt, auth)
     t0 = time.time()
     status = "ok"
     with open(os.path.join(raw, "transcript.jsonl"), "w") as tr, open(os.path.join(raw, "stderr.txt"), "w") as er:
@@ -360,9 +404,13 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True, exe="claud
            "tool_calls": tr.tool_calls, "tool_errors": tr.tool_errors, "n_output_files": len(hashes),
            "ws_commit": head[:12], "claude_version": sh([exe, "--version"]).strip().split()[0],
            "claude_config": config_mode, "permission_mode": tr.init.get("permissionMode"),
-           "permission_denials": tr.permission_denials}
+           "permission_denials": tr.permission_denials, "auth_label": auth.label if auth else "",
+           "api_error_status": res.get("api_error_status")}
     append_ledger(row)
     archive(arm, runid)   # preflights too: a leftover worktree must not look like a rep in progress
+    if pool:
+        pool.after_rep(row["auth_label"], rate_limited(row["status"]), row["api_error_status"],
+                       os.path.join(raw, "transcript.jsonl"))
     print(json.dumps(row), flush=True)
     if tr.denied and suffix:   # recorded, never an exclusion (SPEC.md); a run of these means the permissions broke
         print(f"WARNING {runid}: {tr.permission_denials} permission denial(s): {tr.denied}", file=sys.stderr, flush=True)
@@ -437,7 +485,7 @@ def preflight(arm, model, task, exe):
               "Then, without using any other tool, list as short bullet lists: (1) every skill available to you, "
               "(2) every MCP server and MCP tool available, (3) any CLAUDE.md, rules or memory instructions in "
               "your context (quote their first line), (4) your exact model id.")
-    row = run_once(arm, task, 0, model, prompt, 5, suffix=False, exe=exe)
+    row = run_once(arm, task, 0, model, prompt, 5, suffix=False, exe=exe, pool=tokens.Pool.load())
     if problems := preflight_problems(arm, raw_dir(arm, task, row["runid"], preflight=True)):
         sys.exit(f"PREFLIGHT FAILED {row['runid']}:\n  " + "\n  ".join(problems))
     print(f"preflight ok: {arm} on Claude Code {row['claude_version']}: a tool ran, only `{PREFLIGHT_DENIED}` was "
@@ -469,29 +517,41 @@ def main():
     if a.arm == "A1" and not pmx_healthy():
         sys.exit("PMxAgent stack not reachable on :5762 - start it (see harness/pmxagent.sh up)")
     if a.cmd == "preflight":
-        return preflight(a.arm, a.rest[0], probe_task, exe)
+        try:
+            return preflight(a.arm, a.rest[0], probe_task, exe)
+        except AccountsLimited as e:
+            sys.exit(f"preflight {a.arm}: usage limit - {e}")
     task, reps, model = a.rest[0], int(a.rest[1]), a.rest[2]
     prompt = open(os.path.join(TASKS, task, "prompt.md")).read().strip()
+    pool = tokens.Pool.load()
+    if not pool:
+        print("WARNING: no account token (harness/tokens.py): reps use the keychain login and load user instructions",
+              file=sys.stderr, flush=True)
     if not a.until:
-        for rep in range(1, reps + 1):
-            run_once(a.arm, task, rep, model, prompt, a.timeout_min, exe=exe)
+        try:
+            for rep in range(1, reps + 1):
+                run_once(a.arm, task, rep, model, prompt, a.timeout_min, exe=exe, pool=pool)
+        except AccountsLimited as e:
+            sys.exit(f"{a.arm} {task}: usage limit / API failure - {e}")
         return
     def state():   # re-read each time: another session may be topping up the same arm
         live_dir = os.path.join(RUNS, a.arm, "runs")
         return rep_state(a.arm, task, list(csv.DictReader(open(LEDGER))),
                          os.listdir(live_dir) if os.path.isdir(live_dir) else [])
-    limited = 0
+    limited = switches = 0
     have, rep = state()
     print(f"{a.arm} {task}: {have} valid or in-progress reps, target {reps}", flush=True)
     while have < reps:
-        row = run_once(a.arm, task, rep + 1, model, prompt, a.timeout_min, exe=exe)
+        try:
+            row = run_once(a.arm, task, rep + 1, model, prompt, a.timeout_min, exe=exe, pool=pool)
+        except AccountsLimited as e:
+            sys.exit(f"{a.arm} {task}: usage limit / API failure - stopping at {have}/{reps} valid reps; {e}")
         have, rep = state()
-        if valid({k: str(v) for k, v in row.items()}):
-            limited = 0
-        elif (hit := row["status"].startswith("failed_ratelimit")) or not row["cost_usd"]:   # 429 or instant API failure
-            limited += 1
-            if hit or limited >= 2:
-                sys.exit(f"{a.arm} {task}: usage limit / API failure - stopping at {have}/{reps} valid reps")
+        step, limited, switches = next_step(row, limited, switches, pool)
+        if step == "switch":
+            print(f"{a.arm} {task}: account {row['auth_label']} limited or unusable - switching account", flush=True)
+        elif step == "stop":
+            sys.exit(f"{a.arm} {task}: usage limit / API failure - stopping at {have}/{reps} valid reps")
 
 
 if __name__ == "__main__":
