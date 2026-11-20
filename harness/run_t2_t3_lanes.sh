@@ -11,7 +11,8 @@
 # A run on another version needs `run_arm.py ... --allow-version-drift` by hand, plus an entry in logs/deviations.md.
 #
 # The A1 T1 top-up (T1 pin) runs BEFORE this script, alone (paper/SPEC.md decisions 2026-11-17):
-#   bash harness/pmxagent.sh up && python3 harness/run_arm.py run A1 T1_nca 10 claude-sonnet-4-6 --until
+#   bash harness/pmxagent.sh up && python3 harness/run_arm.py preflight A1 claude-sonnet-4-6 T1_nca \
+#     && python3 harness/run_arm.py run A1 T1_nca 10 claude-sonnet-4-6 --until
 #
 # T3b runs only after the BLQ protocol check (scoring/check_blq_reference.py, paper/SPEC.md, slice S2):
 #   T3B_OK=1 bash harness/run_t2_t3_lanes.sh
@@ -35,8 +36,14 @@ lane() {   # lane <model> <arm>...
 }
 
 for arm in A0 A1 A2 A3 A4; do python3 harness/run_arm.py setup "$arm" || exit 1; done
+# every arm must pass the preflight gate (a tool runs, git stays denied; logs/deviations.md §16) before any rep.
+# All lane tasks share one Claude Code pin, so one probe per arm on the first task covers them; A1 is probed in its
+# lane once the PMxAgent stack answers.
+probe=${TASKS%%:*}
+for arm in A0 A2 A3; do python3 harness/run_arm.py preflight "$arm" $S "$probe" || exit 1; done
+python3 harness/run_arm.py preflight A4 $H "$probe" || exit 1
 ( until curl -sf -o /dev/null http://localhost:5762/__docs__/; do sleep 30; done   # PMxAgent stack answering
-  lane $S A1 ) >> logs/t2t3_lane_A1.log 2>&1 &
+  python3 harness/run_arm.py preflight A1 $S "$probe" && lane $S A1 ) >> logs/t2t3_lane_A1.log 2>&1 &
 ( lane $S A0 A2 A3 && lane $H A4 ) >> logs/t2t3_lane_others.log 2>&1 &
 wait
 echo "T2/T3 lanes finished $(date) - next: python3 scoring/score_all.py && python3 scoring/summarize.py && python3 scoring/stats.py"

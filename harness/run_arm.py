@@ -11,8 +11,9 @@ Isolation
     results/raw/ here and never committed to the arm repo, so later reps cannot see earlier ones.
   - finished reps are moved (git worktree move) to ~/pmxbench_archive/<arm>/ (dirs mode 0300: not listable), and
     A1's /data/<runid> host folder with them, so a running agent has no sibling run folders to browse.
-  - claude flags: --setting-sources project (no user settings/plugins/hooks), --strict-mcp-config,
-    git/web tools disallowed. `preflight` checks what actually leaks into context.
+  - claude flags: --setting-sources project (no user settings/plugins/hooks), --strict-mcp-config, an explicit
+    --allowedTools list (allowed_tools; the scrub below forces permission mode `default`), git/web tools disallowed.
+    `preflight` checks what actually leaks into context and that a tool really runs.
   - user config: `--setting-sources project` still loads ~/.claude/CLAUDE.md and ~/.claude/rules/. If a subscription
     token from `claude setup-token` is saved in TOKEN_FILE, each rep instead gets its own empty HOME (with the Claude
     config dir inside it; archived with the rep): CLAUDE_CONFIG_DIR alone is not enough, user CLAUDE.md/rules are
@@ -28,10 +29,12 @@ Usage
   run_arm.py setup   <arm>                      build/refresh the arm repo + ws branches
   run_arm.py run     <arm> <task> <reps> <model> [--timeout-min 90] [--until] [--allow-version-drift]
   run_arm.py preflight <arm> <model> [<task>]   one cheap probe run on <task>'s pinned Claude Code (default T1_nca):
-                                                lists skills/MCP/instructions seen
+                                                lists skills/MCP/instructions seen; exits non-zero unless one Bash
+                                                call ran, nothing was denied and every tool shown is allowed
 Arms: A0 plain | A1 PMxAgent MCP | A2 knowledge-only skills | A3 skills+scripts | A4 = A3 (small model)
 """
 import argparse, csv, fcntl, datetime, hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
+from typing import NamedTuple
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUNS = os.environ.get("PMXBENCH_RUNS", "/Users/Shared/pmxbench_runs")   # outside ~ (see Isolation)
@@ -47,6 +50,16 @@ ARMS = {"A0": None, "A1": None, "A2": "knowledge", "A3": "scripts", "A4": "scrip
 TOKEN_FILE = os.path.expanduser(os.environ.get("PMXBENCH_OAUTH_TOKEN_FILE", "~/.config/pmxbench/oauth_token"))
 ENV_KEEP = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "TMPDIR", "USER", "LOGNAME", "SHELL")
 MCP_TOKEN = "pmxagent-ci-token"   # PMxAgent's documented CI token (docker-compose.yml MCP_TEST_TOKEN)
+# Tool permissions (see allowed_tools). BUILTIN_TOOLS = the init-event tool list of the valid T2 reps (2.1.310).
+BUILTIN_TOOLS = ("Bash", "CronCreate", "CronDelete", "CronList", "DesignSync", "Edit", "EnterWorktree", "ExitWorktree",
+                 "ListAgents", "Monitor", "NotebookEdit", "PushNotification", "Read", "RemoteTrigger", "ReportFindings",
+                 "ScheduleWakeup", "SendMessage", "Skill", "Task", "TaskCreate", "TaskGet", "TaskList", "TaskStop",
+                 "TaskUpdate", "ToolSearch", "Workflow", "Write")
+MCP_TOOLS = ("mcp__pmxagent", "ListMcpResourcesTool", "ReadMcpResourceTool", "ReadMcpResourceDirTool")
+DISALLOWED = ("WebSearch", "WebFetch", "Bash(git:*)", "Bash(gh:*)")
+PREFLIGHT_FILE = "preflight.txt"
+PREFLIGHT_DENIED = "git --version"   # must be denied by DISALLOWED, proving deny rules beat the allow-list
+FORCED_MODE_WARNING = "Permission mode forced"
 
 SUFFIX = ("\n\n---\nWork autonomously in the current directory and do not ask questions. "
           "Input files are in `inputs/`. Save all output files in `output/`.")
@@ -119,11 +132,28 @@ def pmx_healthy():
         return False
 
 
+def allowed_tools(arm):
+    """Explicit allow-list for one arm: every built-in tool plus, for A1, the PMxAgent MCP server.
+
+    CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 (run_env) forces the permission mode to `default`, so bypassPermissions is
+    ignored and a headless run denies every tool that is not allowed here (logs/deviations.md §16). The list is the
+    tool set the valid reps so far were shown (init event, 2.1.310), so allowing all of it keeps the earlier
+    bypassPermissions behaviour; DISALLOWED still wins. `preflight` fails if the agent is shown a tool not covered."""
+    return BUILTIN_TOOLS + (MCP_TOOLS if arm == "A1" else ())
+
+
+def uncovered_tools(tools, allowed):
+    """Tools the agent is shown that no allow rule covers (an `mcp__<server>` rule covers that server's tools)."""
+    return [t for t in tools if t not in allowed and not any(t.startswith(a + "__") for a in allowed
+                                                             if a.startswith("mcp__"))]
+
+
 def claude_cmd(arm, model, wt, exe="claude"):
     cmd = [exe, "-p", "--model", model, "--output-format", "stream-json", "--verbose",
            "--setting-sources", "project", "--strict-mcp-config", "--no-chrome",
-           "--permission-mode", "bypassPermissions",
-           "--disallowedTools", "WebSearch", "WebFetch", "Bash(git:*)", "Bash(gh:*)"]
+           "--permission-mode", "default",   # what the scrub forces anyway; stated so the command says what runs
+           "--allowedTools", *allowed_tools(arm),
+           "--disallowedTools", *DISALLOWED]
     if arm == "A1":
         cfg = os.path.join(wt, "..", f"{os.path.basename(wt)}.mcp.json")
         json.dump({"mcpServers": {"pmxagent": {"type": "http", "url": "http://localhost:8000/mcp",
@@ -292,7 +322,7 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True, exe="claud
         else:   # task without input files (git does not track the empty dir)
             os.makedirs(host)
         full_prompt += SUFFIX_A1.format(runid=runid, host=host)
-    raw = os.path.join(RAW, arm, task if suffix else "_preflight", runid)
+    raw = raw_dir(arm, task, runid, preflight=not suffix)
     os.makedirs(raw)
     open(os.path.join(raw, "prompt.txt"), "w").write(full_prompt)
     env, config_mode = run_env(wt)
@@ -312,19 +342,8 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True, exe="claud
         shutil.copytree(os.path.join(PMX, "data", runid), os.path.join(raw, "pmxagent_data"), dirs_exist_ok=True)
     hashes = sha_dir(os.path.join(raw, "output"))
     json.dump(hashes, open(os.path.join(raw, "output_sha256.json"), "w"), indent=1)
-    res, tools, tool_err = {}, 0, 0
-    for line in open(os.path.join(raw, "transcript.jsonl")):
-        try:
-            ev = json.loads(line)
-        except ValueError:
-            continue
-        if ev.get("type") == "result":
-            res = ev
-        if ev.get("type") == "assistant":
-            tools += sum(1 for c in ev.get("message", {}).get("content", []) if c.get("type") == "tool_use")
-        if ev.get("type") == "user":
-            c = ev.get("message", {}).get("content", [])
-            tool_err += sum(1 for x in c if isinstance(x, dict) and x.get("type") == "tool_result" and x.get("is_error"))
+    tr = parse_transcript(os.path.join(raw, "transcript.jsonl"))
+    res = tr.result
     u = res.get("usage", {})
     row = {"runid": runid, "arm": arm, "task": task, "rep": rep, "model": model,
            "model_seen": ",".join(sorted((res.get("modelUsage") or {}).keys())), "status": run_status(status, res),
@@ -338,12 +357,91 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True, exe="claud
            "model_usage_json": json.dumps({m: {k: v.get(k) for k in ("inputTokens", "outputTokens", "cacheReadInputTokens",
                                                "cacheCreationInputTokens", "costUSD")}
                                            for m, v in (res.get("modelUsage") or {}).items()}, separators=(",", ":")),
-           "tool_calls": tools, "tool_errors": tool_err, "n_output_files": len(hashes), "ws_commit": head[:12],
-           "claude_version": sh([exe, "--version"]).strip().split()[0], "claude_config": config_mode}
+           "tool_calls": tr.tool_calls, "tool_errors": tr.tool_errors, "n_output_files": len(hashes),
+           "ws_commit": head[:12], "claude_version": sh([exe, "--version"]).strip().split()[0],
+           "claude_config": config_mode, "permission_mode": tr.init.get("permissionMode"),
+           "permission_denials": tr.permission_denials}
     append_ledger(row)
     archive(arm, runid)   # preflights too: a leftover worktree must not look like a rep in progress
     print(json.dumps(row), flush=True)
+    if tr.denied and suffix:   # recorded, never an exclusion (SPEC.md); a run of these means the permissions broke
+        print(f"WARNING {runid}: {tr.permission_denials} permission denial(s): {tr.denied}", file=sys.stderr, flush=True)
     return row
+
+
+def raw_dir(arm, task, runid, preflight=False):
+    """Where a run's transcript, stderr and output copies live (preflights apart, so they never look like reps)."""
+    return os.path.join(RAW, arm, "_preflight" if preflight else task, runid)
+
+
+class Transcript(NamedTuple):
+    init: dict                # the system/init event: tools shown, permissionMode, ...
+    result: dict              # the final result event: usage, cost, is_error, ...
+    tool_calls: int
+    tool_errors: int
+    denied: list              # one entry per permission denial: the Bash command, else the tool name
+
+    @property
+    def permission_denials(self):
+        return len(self.denied)
+
+
+def parse_transcript(path):
+    """Counts and the init/result events of one stream-json transcript (unparseable lines are skipped)."""
+    init, result, calls, errors = {}, {}, 0, 0
+    for line in open(path):
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        if ev.get("type") == "system" and ev.get("subtype") == "init":
+            init = ev
+        if ev.get("type") == "result":
+            result = ev
+        if ev.get("type") == "assistant":
+            calls += sum(1 for c in ev.get("message", {}).get("content", []) if c.get("type") == "tool_use")
+        if ev.get("type") == "user":
+            c = ev.get("message", {}).get("content", [])
+            errors += sum(1 for x in c if isinstance(x, dict) and x.get("type") == "tool_result" and x.get("is_error"))
+    denied = [(d.get("tool_name") == "Bash" and (d.get("tool_input") or {}).get("command")) or d.get("tool_name")
+              for d in result.get("permission_denials") or []]
+    return Transcript(init, result, calls, errors, denied)
+
+
+def preflight_problems(arm, raw):
+    """Why the preflight probe in folder `raw` shows the arm cannot run its tools (empty list = fine)."""
+    tr = parse_transcript(os.path.join(raw, "transcript.jsonl"))
+    stderr = open(os.path.join(raw, "stderr.txt")).read()
+    problems = []
+    if not tr.init:
+        problems.append("no init event in the transcript")
+    if missing := uncovered_tools(tr.init.get("tools", []), allowed_tools(arm)):
+        problems.append(f"tools shown to the agent but not allowed: {missing} (update BUILTIN_TOOLS and log it)")
+    if unexpected := [d for d in tr.denied if d != PREFLIGHT_DENIED]:
+        problems.append(f"permission denied: {unexpected}")
+    if PREFLIGHT_DENIED not in tr.denied:
+        problems.append(f"`{PREFLIGHT_DENIED}` was not denied: the --disallowedTools git rule no longer wins")
+    if FORCED_MODE_WARNING in stderr:   # Claude Code's wording; the denial and probe-file checks do not depend on it
+        problems.append("stderr: " + next(l for l in stderr.splitlines() if FORCED_MODE_WARNING in l).strip())
+    if not os.path.isfile(os.path.join(raw, "output", PREFLIGHT_FILE)):
+        problems.append(f"probe file output/{PREFLIGHT_FILE} was not written")
+    return problems
+
+
+def preflight(arm, model, task, exe):
+    """One cheap probe on `task`'s pinned binary: a Bash call that must run, one that must be denied (git), then
+    what the agent sees in context. Exits non-zero unless the first ran, only the git call was denied and every tool
+    shown is allowed."""
+    prompt = (f"Use the Bash tool twice, once for each command: (a) mkdir -p output && echo ok > output/{PREFLIGHT_FILE}"
+              f"  (b) {PREFLIGHT_DENIED}\n"
+              "Then, without using any other tool, list as short bullet lists: (1) every skill available to you, "
+              "(2) every MCP server and MCP tool available, (3) any CLAUDE.md, rules or memory instructions in "
+              "your context (quote their first line), (4) your exact model id.")
+    row = run_once(arm, task, 0, model, prompt, 5, suffix=False, exe=exe)
+    if problems := preflight_problems(arm, raw_dir(arm, task, row["runid"], preflight=True)):
+        sys.exit(f"PREFLIGHT FAILED {row['runid']}:\n  " + "\n  ".join(problems))
+    print(f"preflight ok: {arm} on Claude Code {row['claude_version']}: a tool ran, only `{PREFLIGHT_DENIED}` was "
+          f"denied, every tool shown is allowed")
 
 
 def main():
@@ -371,11 +469,7 @@ def main():
     if a.arm == "A1" and not pmx_healthy():
         sys.exit("PMxAgent stack not reachable on :5762 - start it (see harness/pmxagent.sh up)")
     if a.cmd == "preflight":
-        model = a.rest[0]
-        prompt = ("Do not use any tools. List, as short bullet lists: (1) every skill available to you, (2) every MCP "
-                  "server and MCP tool available, (3) any CLAUDE.md, rules or memory instructions in your context "
-                  "(quote their first line), (4) your exact model id.")
-        return run_once(a.arm, probe_task, 0, model, prompt, 5, suffix=False, exe=exe)
+        return preflight(a.arm, a.rest[0], probe_task, exe)
     task, reps, model = a.rest[0], int(a.rest[1]), a.rest[2]
     prompt = open(os.path.join(TASKS, task, "prompt.md")).read().strip()
     if not a.until:
