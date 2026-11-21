@@ -57,7 +57,7 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 - Component verdict table: Docker, Plumber, OpenAPI→MCP, OAuth, file exchange, approval gates, audit trail → *necessary* / *replaceable* / *enterprise-only*.
 - Honest concessions: MCP is client-agnostic (Cursor/ChatGPT); typed input validation; locked multi-user GxP deployment.
 
-## Status (updated 2026-11-17)
+## Status (updated 2026-11-21)
 - [x] PLAN.md + CLAUDE.md · model = **claude-sonnet-4-6** for all arms · A1 T1 baseline = published outputs, plus live A1 runs for cost + T3
 - [x] Phase 0: R stack (`env/versions.txt`), scorer calibrated: reproduces 98.3/98.2/95.6/94.5/91.6 exactly (`logs/calibration.txt`)
   - Finding: PMxAgent raw 10-run output (identical SHA ×10) scores 98.35. Their standardized single-run file scores 98.27, so their standardization dropped a few λz values.
@@ -71,6 +71,7 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 - [x] A1 T1 top-up to 10 runs (T1 pin 2.1.283, isolated; sensitivity by isolation regime). The A1 agent called no PMxAgent tool in any T1 run; 2 runs unscorable (`logs/deviations.md` §17)
 - [x] S2 BLQ check passed; T3b runs as built (§18)
 - [x] Token pool: reps may run on several subscription accounts, `~/.config/pmxbench/tokens/acct<N>` (`harness/tokens.py`, §19)
-- [ ] **T2 (in progress):** case study ×10 per arm incl. A1; 3 valid A0 reps so far. Scorer `score_case_run` (primary = pre-specified lin-up/log-down consistency) → `results/T2_report.md`
-- [ ] T3 stress (T3a–e ×5): needs the supplement re-downloaded to rebuild `tasks/*/reference/`
+- [ ] **T2 (in progress):** case study ×10 per arm incl. A1; A0 10/10 valid, A1 re-running from zero (§20), A2–A4 not started. Scorer `score_case_run` (primary = pre-specified lin-up/log-down consistency) → `results/T2_report.md`
+- [ ] **T3 stress (in progress):** T3a–e ×5 per arm; references built (`tasks/*/reference/`). A0: T3a, T3d done, T3c/T3e under way; A1 re-running from zero (§20); A2–A4 not started
+- [x] A1 shared PMxAgent output folders (§20): each A1 rep now starts with them emptied (`harness/pmx_root.py`); all earlier A1 T2/T3 reps excluded (`results/exclusions.csv`, one valid-run rule in `harness/ledger.py`)
 - Note: a first A0 probe accidentally ran the full T1 task (harness bug, fixed); it was quarantined in `results/raw/A0/_preflight/`, marked in the ledger, and is excluded.

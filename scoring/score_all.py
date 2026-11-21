@@ -16,6 +16,8 @@ from collections import defaultdict
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import runstore
 import score_nca as sn
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "harness"))
+import ledger   # the valid-run rule shared with the harness (results/exclusions.csv)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = os.path.join(ROOT, "results", "raw")
@@ -274,16 +276,17 @@ def main():
     ap.add_argument("--arm"); ap.add_argument("--task")
     ap.add_argument("--out", default=os.path.join(ROOT, "results", "scores.csv"))
     a = ap.parse_args()
-    ledger = {r["runid"]: r for r in csv.DictReader(open(os.path.join(ROOT, "results", "runs.csv")))}
+    runs = {r["runid"]: r for r in csv.DictReader(open(os.path.join(ROOT, "results", "runs.csv")))}
+    excluded = ledger.exclusions()
     rows, rescanned = [], set()
     for run_dir in sorted(glob.glob(os.path.join(RAW, "*", "*", "*"))):
         arm, task, runid = run_dir.split(os.sep)[-3:]
         if task.startswith("_") or (a.arm and arm != a.arm) or (a.task and task != a.task):
             continue
-        if runid not in ledger:   # still running
+        if runid not in runs:   # still running
             continue
         rescanned.add(runid)
-        if ledger[runid]["status"] != "ok" or ledger[runid]["is_error"] == "True":   # usage-limit / crashed runs
+        if not ledger.valid(runs[runid], excluded):   # usage-limit / crashed / excluded runs are not scored
             continue
         if task in NCA_TASKS:
             r = score_nca_run(run_dir, task)
@@ -293,7 +296,7 @@ def main():
             r = score_oral_run(run_dir)
         else:
             continue
-        rows.append({"runid": runid, "arm": arm, "task": task, "status": ledger[runid]["status"], **r,
+        rows.append({"runid": runid, "arm": arm, "task": task, "status": runs[runid]["status"], **r,
                      "pmxagent_tool_calls": pmxagent_tool_calls(run_dir) if arm == "A1" else None})
     kept = len(runstore.merge_rows(a.out, rows, rescanned)) - len(rows)
     print(f"{len(rows)} runs scored, {kept} rows kept for runs not on this machine -> {a.out}")

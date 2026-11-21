@@ -262,3 +262,34 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   stops on 0, and stops on any other code (needs a human). It refuses to run inside a Claude Code session, holds a
   lock so only one copy runs (§3: at most 2 sessions), and gives up after 30 limit windows. The A1 lane waits at most
   30 min for the PMxAgent stack. From 23:5x the lanes run from a Terminal tab.
+
+### §20 A1 reps shared PMxAgent's output folders; all A1 T2/T3 reps so far excluded and re-run (2026-11-21, ~12:10 IST)
+- **Found by** `scoring/audit_isolation.py`, run on the T2/T3 ledger snapshot of 21 Nov (12:0x IST), before any A1
+  T2/T3 accuracy was looked at. 11 A1 runs flagged (`run_area`), against none in the last committed audit.
+- **Cause.** The harness gives each A1 rep its own `/data/<runid>/` folder (prompt suffix, archived per rep), but
+  PMxAgent's tools write their outputs to the **top** of its `/data/` and `/figures/` mounts. On this machine those are
+  one pair of folders (`~/pmxbench_runs/_pmxagent/{data,figures}/`) shared by every A1 rep and never emptied. In every
+  flagged T2 run the agent listed that folder and copied the newest `pk_simulation_*.csv`; A1 reps run one at a time,
+  so that file was most likely its own, but earlier reps' outputs were visible. In T3a, `A1_T3a_messy_r07` wrote ~35
+  processed `*_nca_ready.csv` files there, visible to the next rep. (`A1_T3d_oral_r04`'s `claude_state` hit was its own
+  per-rep HOME's tool-result file: a false positive, now not counted.) T1 is unaffected: no valid A1 T1 run called a
+  PMxAgent tool (§17), and the audit flags none of them.
+- **Decision (author, 21 Nov).** Every A1 T2/T3 rep recorded so far is excluded and the A1 lane re-runs all of them.
+  The exclusion depends only on when a run was made (before the fix), not on any score: all 41 A1 T2/T3 ledger rows
+  with rep >= 1 are listed in the new `results/exclusions.csv` (16 had completed: T2 ×10, T3d ×5, T3a ×1; the other
+  25 were already invalid). The A1 lane was stopped at ~12:10 IST mid-rep (`A1_T3a_messy_r08`: no ledger row,
+  archived as usual). The A0/A2/A3/A4 lane was not touched.
+- **Fix.** `harness/pmx_root.py`, used by `run_arm.py` for every A1 rep and preflight: the rep holds a lock (one A1
+  rep at a time); before the agent starts, anything at the top of the shared folders is moved to
+  `~/pmxbench_archive/A1/_stray/<runid>/`; after it ends, what its tools wrote there is moved into its own data folder
+  (`_pmx_root/`, copied to `results/raw/.../pmxagent_data/` and archived with it); `results/raw/.../pmx_root.json`
+  records both. Nothing is deleted or overwritten. The 42 files left from the excluded reps were moved to
+  `~/pmxbench_archive/A1/_stray/pre-fix-20261121/`. Prompts, model, Claude Code pin, PMxAgent image and every other
+  arm are unchanged.
+- **Valid-run rule in one place.** `harness/ledger.py`: valid = completed (status ok, no error) and not in
+  `results/exclusions.csv`; used by `run_arm.py --until`, `score_all.py` and `summarize.py` (new column
+  `n_protocol_excluded`). `runs.csv` stays append-only; excluded rows keep their rep numbers, so new A1 reps continue
+  the numbering (T2 from r14).
+- **Audit.** For a run with `pmx_root.json`, the shared PMxAgent `data/` and `figures/` folders count as the run's own
+  (reading them is how it fetches its tools' outputs); every other pattern is unchanged, and a rep's own HOME is no
+  longer a `claude_state` hit.
