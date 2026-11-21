@@ -16,11 +16,11 @@ import matplotlib.pyplot as plt
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = os.path.join(ROOT, "results")
 OUT = os.path.join(ROOT, "paper", "figures")
-ARMS = ["A0", "A1", "A2", "A3", "A4"]
-LABEL = {"A0": "A0 no tools", "A1": "A1 PMxAgent (MCP)", "A2": "A2 Skills, knowledge only",
-         "A3": "A3 Skills + script", "A4": "A4 Skills + script, Haiku"}
-COLOR = {"A0": "#2a78d6", "A1": "#eb6834", "A2": "#1baf7a", "A3": "#eda100", "A4": "#e87ba4"}
-MARK = {"A0": "o", "A1": "s", "A2": "D", "A3": "^", "A4": "v"}
+ARMS = ["A0", "A1", "A1b", "A2", "A3", "A4"]
+LABEL = {"A0": "A0 no tools", "A1": "A1 PMxAgent (MCP)", "A1b": "A1b PMxAgent (MCP + CLAUDE.md)",
+         "A2": "A2 Skills, knowledge only", "A3": "A3 Skills + script", "A4": "A4 Skills + script, Haiku"}
+COLOR = {"A0": "#2a78d6", "A1": "#eb6834", "A1b": "#7a5195", "A2": "#1baf7a", "A3": "#eda100", "A4": "#e87ba4"}
+MARK = {"A0": "o", "A1": "s", "A1b": "P", "A2": "D", "A3": "^", "A4": "v"}
 PARAMS = [("Cmax", "Cmax"), ("Tmax", "Tmax"), ("AUClast", "AUClast"), ("AUCINF_obs", "AUCINF,obs"),
           ("HL", "t½"), ("CL", "CL(/F)"), ("Vz", "Vz(/F)")]
 INK, INK2, GRID, SURF = "#0b0b0b", "#52514e", "#e6e5e1", "#ffffff"
@@ -80,7 +80,7 @@ def fig_cost(scores, runs, task):
         sy = st.stdev(acc) if len(acc) > 1 else 0
         ax.errorbar(mx, my, xerr=sx, yerr=sy, fmt="none", ecolor=COLOR[a], elinewidth=1.0, capsize=0, zorder=2)
         ax.scatter(mx, my, s=34, marker=MARK[a], color=COLOR[a], edgecolor=SURF, linewidth=0.8, zorder=3)
-        above = a in ("A0", "A2", "A4")   # alternate label side so neighbours never collide
+        above = a in ("A0", "A1b", "A2", "A4")   # alternate label side so neighbours never collide
         ax.annotate(f"{a} (n={len(acc)})", (mx, my), xytext=(0, 8 if above else -13), textcoords="offset points",
                     ha="center", fontsize=7, color=INK)
     ax.set_xlabel("Cost per run (USD, list-price estimate)")

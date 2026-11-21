@@ -23,6 +23,7 @@ import score_all
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = os.path.join(ROOT, "results")
 PAIRS = [("A2", "A1"), ("A3", "A1"), ("A3", "A2"), ("A4", "A3"), ("A0", "A3")]
+SECONDARY_PAIRS = [("A1b", "A1"), ("A2", "A1b"), ("A3", "A1b"), ("A4", "A1b")]   # pre-specified secondary arm (§21)
 MARGIN = 1.0
 EXACT_MAX = 200_000
 
@@ -152,6 +153,17 @@ def fmt(x, nd=2):
     return "" if x is None else f"{x:.{nd}f}"
 
 
+def compare_pairs(by_arm, task, pairs, b, seed, suffix=""):
+    """Compare each (xa, ya) in `pairs` where both arms have runs in `by_arm`."""
+    out = []
+    for xa, ya in pairs:
+        if xa not in by_arm or ya not in by_arm:
+            continue
+        rng = random.Random(f"{seed}-{task}-{xa}-{ya}{suffix}")
+        out.append({"task": task, "comparison": f"{xa} - {ya}", **compare(by_arm[xa], by_arm[ya], b, rng)})
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--b", type=int, default=10_000)
@@ -177,23 +189,20 @@ def main():
                 vsets[r["task"]][r["arm"]].add(h)
                 have_raw[r["task"]][r["arm"]] = True
 
-    out_arm, out_pair = [], []
+    out_arm, out_pair, out_sec = [], [], []
     for task in sorted(acc):
         for arm in sorted(acc[task]):
             x = acc[task][arm]
             out_arm.append({"task": task, "arm": arm, "n": len(x), "mean": mean(x),
                             "sd": st.stdev(x) if len(x) > 1 else 0.0, "min": min(x), "max": max(x),
                             "distinct_value_sets": len(vsets[task][arm]) if have_raw[task][arm] else "n/a"})
-        for xa, ya in PAIRS:
-            if xa not in acc[task] or ya not in acc[task]:
-                continue
-            rng = random.Random(f"{a.seed}-{task}-{xa}-{ya}")
-            out_pair.append({"task": task, "comparison": f"{xa} - {ya}",
-                             **compare(acc[task][xa], acc[task][ya], a.b, rng)})
+        out_pair += compare_pairs(acc[task], task, PAIRS, a.b, a.seed)
+        out_sec += compare_pairs(acc[task], task, SECONDARY_PAIRS, a.b, a.seed, suffix="-secondary")
     sens_arm, sens_pair = sensitivity(by_regime, PAIRS, a.b, a.seed)
     ph_arm, ph_pair = posthoc_unscorable(rows, PAIRS, a.b, a.seed)
 
     write_csv("stats.csv", out_pair, ["task"])
+    write_csv("stats_secondary.csv", out_sec, ["task", "comparison"])
     write_csv("stats_arms.csv", out_arm, ["task", "arm"])
     write_csv("stats_sensitivity.csv", sens_pair, ["task", "comparison", "split_arm", "regime"])
     write_csv("stats_sensitivity_arms.csv", sens_arm, ["task", "arm", "regime", "n", "mean", "sd"])
@@ -211,6 +220,13 @@ def main():
         md += ["", "| Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |", "|---|---|---|---|---|---|"]
         md += [md_pair(r) for r in out_pair if r["task"] == task]
         md.append("")
+        if any(r["task"] == task for r in out_sec):
+            md += [f"### {task}: secondary arm A1b (PMxAgent MCP + shipped CLAUDE.md)", "",
+                   "Pre-specified before any A1b run (paper/SPEC.md; logs/deviations.md §21). Reported alongside "
+                   "primary A1, never instead of it.", "",
+                   "| Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |", "|---|---|---|---|---|---|"]
+            md += [md_pair(r) for r in out_sec if r["task"] == task]
+            md.append("")
         if any(r["task"] == task for r in sens_arm):
             md += [f"### {task}: sensitivity by isolation regime", "",
                    "Arms whose runs used more than one isolation regime, split by regime (user = user instructions "

@@ -42,6 +42,8 @@ benchmark and open data; state what MCP gives that Skills do not.
 | 2026-11-20 | **Token pool, not one account per lane**: the lanes are uneven (A1 alone vs A0/A2/A3/A4), so a fixed account per lane would leave one account mostly idle | user |
 | 2026-11-20 | T3b runs: the S2 BLQ check passed (prompt rule matches PKanalix for 220/220 subjects; #4, `logs/blq_check.txt`, deviations §18) | user |
 | 2026-11-20 | Runs are started from a **clean Terminal tab** (`caffeinate -is bash harness/resume_lanes.sh`), never from inside a Claude session; `resume_lanes.sh` re-runs the lanes after every usage-limit reset until every lane is done, and stops on any other failure (exit codes: 0 done, 75 limit, else broken; §19) | user |
+| 2026-11-21 | **Secondary arm `A1b` on `T1_nca` (10 reps, T1 pin `2.1.283`, isolated):** PMxAgent 1.0.0 MCP **plus PMxAgent's shipped `v1.0.0` `CLAUDE.md`** (pinned SHA-256 `1ebc55d4…`), using the **exact same task prompt** (no prompt change). Motivated by finding that PMxAgent's multi-drug `/NCA` support is documented only in its repo `CLAUDE.md` and absent from `openapi.json`. Primary `A1` (bare MCP, 10 reps) stays unchanged; `A1b` is reported alongside it (`results/stats_secondary.csv`, `logs/deviations.md` §21). Also log direct Plumber HTTP calls (`pmxagent_http_calls`) alongside MCP calls (`pmxagent_tool_calls`) | user |
+| 2026-11-21 | **Crash/timeout vs HTTP 429 reporting & isolation audit clarity:** separate `n_crash_timeout` from `n_invalid_excluded` (HTTP 429) in `results/summary.{csv,md}` (`harness/ledger.py`, `scoring/summarize.py`), and mark protocol-excluded runs in `results/isolation_audit.csv` so valid vs excluded flagged counts are shown distinctly (§21) | user |
 
 ## User stories
 1. As a pharmacometrician reading the preprint, I want to see which ingredient (instructions, fixed code, server
@@ -85,6 +87,15 @@ in `logs/deviations.md` with the reason.
 - **Effort:** cost/run, wall time, turns, tool calls, tool errors (mean ± SD).
 - **Reps:** T1 = 10 per arm (A1 currently 3, see R0), T2 = 10 per arm (A1 included), T3a–e = 5 per arm.
 
+Added 2026-11-21, **pre-specified before any `A1b` run** (`logs/deviations.md` §21):
+- **Secondary arm `A1b` on `T1_nca` (10 reps, `claude-sonnet-4-6`, T1 pin `2.1.283`, isolated):** PMxAgent 1.0.0 MCP
+  plus PMxAgent's verbatim shipped `v1.0.0` `CLAUDE.md` (SHA-256 `1ebc55d43c4a3142ed50b2c78efcea22c67bed522f3bc4d81a6bf379e295be8c`)
+  in the workspace, with the **same verbatim T1 task prompt** (and same `SUFFIX` + `SUFFIX_A1` as `A1`). Reported
+  alongside primary `A1`, never instead of it. Secondary comparisons (`results/stats_secondary.csv`, same 10,000-resample
+  percentile bootstrap CI and exact/MC permutation p-value, ±1.0 pp margin): `A1b − A1`, `A2 − A1b`, `A3 − A1b`,
+  `A4 − A1b`. Both MCP calls (`pmxagent_tool_calls`) and direct Plumber HTTP calls (`pmxagent_http_calls`, `:5762`) are
+  reported per run.
+
 Added 2026-11-20, **post hoc** (after seeing the T1 scores; `logs/deviations.md` §17), at the author's request:
 - **Unscorable-run sensitivity (post-hoc, labelled as such):** in each NCA task where a completed run had no
   scorable individual file (scored 0 above), per-arm stats and the pairs involving an arm that lost runs, repeated
@@ -121,7 +132,7 @@ Added 2026-11-17, before any T2 score was computed and before A1 T1 runs 4–10 
 - Skills: `bash harness/test_all.sh` passes and `skills/FROZEN.sha256` verifies (the runner checks this).
 - Analysis code: each new generator is run on the committed `results/` and its output inspected; the manuscript
   compiles with zero undefined references and zero overfull boxes.
-- Isolation: `scoring/audit_isolation.py` flags 0 transcripts after the new runs.
+- Isolation: `scoring/audit_isolation.py` flags 0 **valid** transcripts after the new runs (protocol-excluded pre-§20 A1 transcripts are marked `excluded=True` and reported separately).
 
 ## Out of scope
 - Changing the frozen Skills (any change → `logs/skill_changes.md`, re-freeze, re-run affected arms).
@@ -138,6 +149,7 @@ Claude subscription, or an account action); AFK = an agent can do it in this rep
 | S1 | #3 | Harness: refuse runs on a different Claude Code version | AFK | — |
 | S2 | #4 | BLQ reference check for T3b | HITL | — |
 | S3 | #5 | A1 T1 top-up to 10 runs, end to end | HITL | S1 (#3) |
+| S3b | — | A1b T1 secondary arm (PMxAgent MCP + shipped `CLAUDE.md`), 10 reps (§21) | HITL | S1 (#3) |
 | S4 | #6 | T3d oral 1-CM, end to end | HITL | S1 (#3) |
 | S5 | #7 | T2 case study, end to end | HITL | S1 (#3) |
 | S6 | #8 | T3a / T3c / T3e NCA stress tasks, end to end | HITL | S1 (#3) |
@@ -158,5 +170,5 @@ written with Claude from package docs · A1 containers under Rosetta (wall time)
 effect near 98.6% (remaining errors mostly λz point selection) · T1 comparisons specified after the T1 runs · A1 T1
 runs 4–10 made about seven weeks after runs 1–3 (same pinned Claude Code, models and images) · T2/T3 on a later
 Claude Code version than T1 (2.1.310 vs 2.1.283; within-task comparisons unaffected) · A1's agent never called a
-PMxAgent tool on T1 (0/10 runs; it wrote its own PKNCA code), so A1 is "PMxAgent offered", not its NCA endpoint; two A1
-T1 runs unscorable (drug without subject), analysis without them is post hoc (§17).
+PMxAgent tool on T1 (0/10 runs; it wrote its own PKNCA code because `openapi.json` omits `/NCA`'s multi-drug/mixed-route docs that live in `pmxagent-main/CLAUDE.md`), so primary A1 is "bare PMxAgent MCP offered" (primed to host R/PKNCA vs A0/A2 Python); secondary arm `A1b` adds PMxAgent's shipped `v1.0.0` `CLAUDE.md` with the same prompt (§21); two A1
+T1 runs unscorable (drug without subject), analysis without them is post hoc (§17) · minor within-arm drift in A0 T2 (`r11–r13` ran under `bypassPermissions` without env scrub; `r15–r21` under `default` + `--allowedTools` + scrub; §21).

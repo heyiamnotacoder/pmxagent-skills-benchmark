@@ -53,12 +53,48 @@ Arms whose runs used more than one isolation regime, split by regime (user = use
 | A2 - A1 | 10 vs 8 | +0.43 | +0.35 to +0.52 | <0.0001 (exact) | yes |
 | A3 - A1 | 10 vs 8 | +0.42 | +0.35 to +0.51 | <0.0001 (exact) | yes |
 
+## T3a_messy
+
+| Arm | n | Mean | SD | Min | Max | Distinct value sets |
+|---|---|---|---|---|---|---|
+| A0 | 5 | 92.93 | 1.60 | 91.36 | 94.84 | 4 |
+
+| Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
+|---|---|---|---|---|---|
+
+## T3b_blq
+
+| Arm | n | Mean | SD | Min | Max | Distinct value sets |
+|---|---|---|---|---|---|---|
+| A0 | 3 | 95.76 | 0.00 | 95.76 | 95.76 | 3 |
+
+| Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
+|---|---|---|---|---|---|
+
+## T3c_units
+
+| Arm | n | Mean | SD | Min | Max | Distinct value sets |
+|---|---|---|---|---|---|---|
+| A0 | 5 | 93.63 | 2.64 | 91.36 | 98.20 | 3 |
+
+| Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
+|---|---|---|---|---|---|
+
 ## T3d_oral
 
 | Arm | n | Mean | SD | Min | Max | Distinct value sets |
 |---|---|---|---|---|---|---|
-| A0 | 2 | 100.00 | 0.00 | 100.00 | 100.00 | n/a |
-| A1 | 1 | 100.00 | 0.00 | 100.00 | 100.00 | n/a |
+| A0 | 5 | 100.00 | 0.00 | 100.00 | 100.00 | n/a |
+| A1 | 5 | 93.33 | 14.91 | 66.67 | 100.00 | n/a |
+
+| Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
+|---|---|---|---|---|---|
+
+## T3e_large
+
+| Arm | n | Mean | SD | Min | Max | Distinct value sets |
+|---|---|---|---|---|---|---|
+| A0 | 5 | 93.21 | 1.05 | 92.74 | 95.09 | 4 |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|

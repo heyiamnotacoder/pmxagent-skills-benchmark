@@ -9,6 +9,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 import runstore
 import score_all
+import summarize
 
 
 def write_csv(path, rows):
@@ -158,6 +159,38 @@ class PmxagentToolCalls(unittest.TestCase):
     def test_no_transcript_is_none(self):
         with tempfile.TemporaryDirectory() as run:
             self.assertIsNone(score_all.pmxagent_tool_calls(run))
+            self.assertIsNone(score_all.pmxagent_http_calls(run))
+
+    def test_counts_direct_plumber_http_endpoint_calls_only(self):
+        with tempfile.TemporaryDirectory() as run:
+            ev = [{"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "name": "Bash",
+                 "input": {"command": "curl -X POST http://localhost:5762/NCA -d data_file=x.csv"}},
+                {"type": "tool_use", "name": "Bash",
+                 "input": {"command": "curl http://127.0.0.1:5762/PK -d dose=10"}},
+                {"type": "tool_use", "name": "Write",
+                 "input": {"file_path": "run.py", "content": "requests.post('http://localhost:5762/NCA')"}},
+                {"type": "tool_use", "name": "Bash",
+                 "input": {"command": "grep localhost:5762/NCA CLAUDE.md"}},
+                {"type": "tool_use", "name": "Bash",
+                 "input": {"command": "curl http://localhost:5762/__docs__/"}},
+                {"type": "text", "text": "http://localhost:5762/NCA"}]}}]
+            open(os.path.join(run, "transcript.jsonl"), "w").write("\n".join(json.dumps(e) for e in ev))
+            self.assertEqual(score_all.pmxagent_http_calls(run), 3)
+
+
+class SummarizeOutcomes(unittest.TestCase):
+    def test_separates_ratelimit_crash_and_protocol_exclusions(self):
+        rows = [
+            {"runid": "r1", "arm": "A1", "task": "T3a_messy", "status": "ok", "is_error": "False"},
+            {"runid": "r2", "arm": "A1", "task": "T3a_messy", "status": "failed_ratelimit", "is_error": "True"},
+            {"runid": "r3", "arm": "A1", "task": "T3a_messy", "status": "exit1", "is_error": "False"},
+            {"runid": "r4", "arm": "A1", "task": "T3a_messy", "status": "timeout", "is_error": "False"},
+            {"runid": "r5", "arm": "A1", "task": "T3a_messy", "status": "ok", "is_error": "False"},
+        ]
+        n_rl, n_crash, n_excl = summarize.count_outcomes(rows, excluded={"r5"})
+        k = ("A1", "T3a_messy")
+        self.assertEqual((n_rl[k], n_crash[k], n_excl[k]), (1, 2, 1))
 
 
 if __name__ == "__main__":

@@ -31,16 +31,25 @@ def f(x):
         return None
 
 
+def count_outcomes(allruns, excluded):
+    """Per (arm, task) counts of (n_invalid_excluded [HTTP 429], n_crash_timeout, n_protocol_excluded)."""
+    n_invalid, n_crash, n_excl = defaultdict(int), defaultdict(int), defaultdict(int)
+    for r in allruns:
+        key = (r["arm"], r["task"])
+        if ledger.rate_limited(r):
+            n_invalid[key] += 1
+        elif ledger.crash_or_timeout(r):
+            n_crash[key] += 1
+        elif r["runid"] in excluded:
+            n_excl[key] += 1
+    return n_invalid, n_crash, n_excl
+
+
 def main():
     allruns = [r for r in csv.DictReader(open(os.path.join(RES, "runs.csv"))) if r["rep"] != "0"]
     excluded = ledger.exclusions()
     runs = [r for r in allruns if ledger.valid(r, excluded)]   # valid runs only
-    n_invalid, n_excl = defaultdict(int), defaultdict(int)
-    for r in allruns:
-        if not ledger.completed(r):
-            n_invalid[(r["arm"], r["task"])] += 1
-        elif r["runid"] in excluded:
-            n_excl[(r["arm"], r["task"])] += 1
+    n_invalid, n_crash, n_excl = count_outcomes(allruns, excluded)
     scores = {r["runid"]: r for r in csv.DictReader(open(os.path.join(RES, "scores.csv")))} \
         if os.path.exists(os.path.join(RES, "scores.csv")) else {}
     g = defaultdict(list)
@@ -56,7 +65,8 @@ def main():
         sc = [scores.get(r["runid"], {}) for r in rs]
         acc = [f(s.get("overall")) for s in sc]
         row = {"arm": arm, "task": task, "model": rs[0]["model"], "n_runs": len(rs),
-               "n_invalid_excluded": n_invalid[(arm, task)], "n_protocol_excluded": n_excl[(arm, task)],
+               "n_invalid_excluded": n_invalid[(arm, task)], "n_crash_timeout": n_crash[(arm, task)],
+               "n_protocol_excluded": n_excl[(arm, task)],
                "accuracy_overall": ms(acc), "accuracy_min": min([a for a in acc if a is not None], default=""),
                "n_distinct_outputs": "",
                "cost_usd_per_run": ms([f(r["cost_usd"]) for r in rs], 3),
@@ -79,12 +89,14 @@ def main():
         cols += [k for k in r if k not in cols]
     with open(os.path.join(RES, "summary.csv"), "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=cols); w.writeheader(); w.writerows(rows)
-    show = ["arm", "task", "model", "n_runs", "n_invalid_excluded", "n_protocol_excluded", "accuracy_overall", "accuracy_min", "n_distinct_outputs",
+    show = ["arm", "task", "model", "n_runs", "n_invalid_excluded", "n_crash_timeout", "n_protocol_excluded",
+            "accuracy_overall", "accuracy_min", "n_distinct_outputs",
             "cost_usd_per_run", "wall_min_per_run", "turns_per_run", "tool_calls_per_run", "tool_errors_per_run"]
     md = ["# Benchmark summary", "", "accuracy = paper metric (% of subject-parameters within 1% of PKanalix; mean of 7) "
           "for NCA tasks; % of 3 typical values within 1% of analytical truth for T3d; T2 see columns in summary.csv.",
           "cost_usd = Claude Code list-price estimate from token usage (runs used a subscription).",
           "n_runs = valid runs only; n_invalid_excluded = runs cut off by the subscription usage limit (HTTP 429), not scored; "
+          "n_crash_timeout = non-429 crashes or timeouts, not scored (deviations §21); "
           "n_protocol_excluded = completed runs listed in results/exclusions.csv (reason + deviation there), not scored.", "",
           "| " + " | ".join(show) + " |", "|" + "---|" * len(show)]
     md += ["| " + " | ".join(str(r.get(c, "")) for c in show) + " |" for r in rows]

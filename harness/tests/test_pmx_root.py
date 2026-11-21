@@ -81,10 +81,19 @@ class ExclusiveLock(unittest.TestCase):
 class LedgerValidity(unittest.TestCase):
     def test_excluded_runs_are_not_valid_but_still_completed(self):
         ok = {"runid": "A1_T2_case_r03_x", "status": "ok", "is_error": "False"}
+        rl = {"runid": "y", "status": "failed_ratelimit_midrun", "is_error": "True"}
+        crash = {"runid": "z", "status": "exit1", "is_error": "False"}
+        to = {"runid": "w", "status": "timeout", "is_error": "False"}
         self.assertTrue(ledger.completed(ok))
         self.assertTrue(ledger.valid(ok, frozenset()))
         self.assertFalse(ledger.valid(ok, {"A1_T2_case_r03_x"}))
-        self.assertFalse(ledger.valid({"runid": "y", "status": "failed_ratelimit_midrun", "is_error": "True"}, set()))
+        self.assertFalse(ledger.valid(rl, set()))
+        self.assertTrue(ledger.rate_limited(rl))
+        self.assertFalse(ledger.crash_or_timeout(rl))
+        self.assertFalse(ledger.rate_limited(crash))
+        self.assertTrue(ledger.crash_or_timeout(crash))
+        self.assertTrue(ledger.crash_or_timeout(to))
+        self.assertFalse(ledger.crash_or_timeout(ok))
 
     def test_exclusions_file_is_read_and_a_missing_file_excludes_nothing(self):
         with tempfile.TemporaryDirectory() as d:

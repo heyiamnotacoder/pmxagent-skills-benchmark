@@ -1,4 +1,6 @@
-# Task 1 (NCA benchmark) — arm comparison
+# Task 1 (NCA benchmark) — arm comparison (first-round snapshot)
+
+> **Historical snapshot (2026-09-28, A1 at n = 3).** A1 was later topped up to n = 10 (`logs/deviations.md` §15, §17) and secondary arm `A1b` (PMxAgent MCP + shipped `CLAUDE.md`) was added (§21). For current numbers see `results/summary.md`, `results/stats.md`, and `paper/tables/`.
 
 Completed 2026-09-28. Task: the paper's single-run NCA benchmark (1,820 subjects), same prompt for every arm.
 Metric: the paper's — % of subject-parameters within 1% of PKanalix (Cmax/Tmax/AUClast all subjects; λz-dependent

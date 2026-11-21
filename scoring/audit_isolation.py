@@ -12,7 +12,7 @@ import csv, glob, json, os, re, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import runstore
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "harness"))
-import pmx_root
+import ledger, pmx_root
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = os.path.join(ROOT, "results", "raw")
@@ -23,8 +23,8 @@ PATTERNS = {
     "claude_state": re.compile(r"\.claude/(projects|todos|memory)|\.claude\.json"),
     "project_repo": re.compile(r"projects/(cptpaper|pmxagent)\b|psp470325|pkanalix_individual"),
 }
-RUN_AREA = re.compile(r"pmxbench_runs/A\d/(runs|base)|pmxbench_runs/?[\"'\s]|pmxbench_runs/_pmxagent|pmxbench_archive")
-RUNID = re.compile(r"A\d_T[0-9a-z]+_[a-z_]*?r\d\d_\d{8}-\d{6}")
+RUN_AREA = re.compile(r"pmxbench_runs/A\d[a-z]?/(runs|base)|pmxbench_runs/?[\"'\s]|pmxbench_runs/_pmxagent|pmxbench_archive")
+RUNID = re.compile(r"A\d[a-z]?_T[0-9a-z]+_[a-z_]*?r\d\d_\d{8}-\d{6}")
 
 
 def tool_inputs(path):
@@ -49,18 +49,51 @@ def audit_run(transcript, runid):
     return hits
 
 
+def classify_flagged(rows, runs_by_id, excluded):
+    """Split flagged rows into (valid_flagged, excl_flagged, other_flagged) using the one ledger.valid rule."""
+    valid_flagged, excl_flagged, other_flagged = [], [], []
+    for r in rows:
+        if not (r["flagged"] is True or r["flagged"] == "True"):
+            continue
+        rid = r["runid"]
+        if rid in excluded:
+            excl_flagged.append(r)
+        elif rid in runs_by_id and runs_by_id[rid].get("rep") != "0" and ledger.valid(runs_by_id[rid], excluded):
+            valid_flagged.append(r)
+        else:
+            other_flagged.append(r)
+    return valid_flagged, excl_flagged, other_flagged
+
+
 def main():
+    excluded = ledger.exclusions()
+    runs_by_id = {r["runid"]: r for r in csv.DictReader(open(ledger.LEDGER, newline=""))} \
+        if os.path.exists(ledger.LEDGER) else {}
     rows = []   # runs whose transcripts are not on this machine keep their committed rows
     for tr in sorted(glob.glob(os.path.join(RAW, "*", "*", "*", "transcript.jsonl"))):
         arm, task, runid = tr.split(os.sep)[-4:-1]
         hits = audit_run(tr, runid)
-        rows.append({"runid": runid, "arm": arm, "task": task, **hits, "flagged": any(hits.values())})
+        rows.append({"runid": runid, "arm": arm, "task": task, **hits, "flagged": any(hits.values()),
+                     "excluded": runid in excluded})
     out = os.path.join(ROOT, "results", "isolation_audit.csv")
     allrows = runstore.merge_rows(out, rows, {r["runid"] for r in rows})
-    flagged = [r for r in rows if r["flagged"]]
-    print(f"{len(rows)} transcripts audited here, {len(flagged)} flagged; {len(allrows)} rows in {out}")
-    for r in flagged:
-        print(r)
+    # Keep `excluded` in sync for preserved offloaded rows too, in case results/exclusions.csv changed
+    changed = False
+    for r in allrows:
+        want = str(r["runid"] in excluded)
+        if str(r.get("excluded")) != want:
+            r["excluded"] = want
+            changed = True
+    if changed:
+        with open(out, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=list(allrows[0]))
+            w.writeheader(); w.writerows(allrows)
+    valid_flagged, excl_flagged, other_flagged = classify_flagged(allrows, runs_by_id, excluded)
+    print(f"{len(rows)} transcripts audited here, {len(valid_flagged)} valid flagged "
+          f"({len(excl_flagged)} excluded flagged, {len(other_flagged)} other non-valid flagged); "
+          f"{len(allrows)} rows in {out}")
+    for r in valid_flagged:
+        print("VALID FLAGGED:", r)
 
 
 if __name__ == "__main__":

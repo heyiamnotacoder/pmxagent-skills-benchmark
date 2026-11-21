@@ -1,6 +1,7 @@
 """Harness unit tests: ledger writes, rep counting, isolation, tool permissions, preflight gate.
 Run: python3 -m unittest discover -s harness/tests"""
-import csv, json, os, sys, tempfile, unittest
+import csv, hashlib, json, os, sys, tempfile, unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import run_arm
@@ -142,9 +143,22 @@ class ToolPermissions(unittest.TestCase):
                 self.assertEqual(self.flag_values(cmd, "--disallowedTools"),
                                  ["WebSearch", "WebFetch", "Bash(git:*)", "Bash(gh:*)"])
 
-    def test_mcp_tools_allowed_only_for_A1(self):
-        self.assertEqual(run_arm.uncovered_tools(self.INIT_TOOLS + self.MCP, run_arm.allowed_tools("A1")), [])
+    def test_mcp_tools_allowed_only_for_pmx_arms(self):
+        for arm in ("A1", "A1b"):
+            self.assertEqual(run_arm.uncovered_tools(self.INIT_TOOLS + self.MCP, run_arm.allowed_tools(arm)), [])
         self.assertEqual(run_arm.uncovered_tools(self.MCP, run_arm.allowed_tools("A0")), self.MCP)
+
+    def test_a1b_verifies_pmx_claude_md_sha256(self):
+        with tempfile.TemporaryDirectory() as d:
+            good = os.path.join(d, "CLAUDE.md")
+            open(good, "w").write("# PMxAgent CLAUDE.md fixture\n")
+            digest = hashlib.sha256(open(good, "rb").read()).hexdigest()
+            with mock.patch.object(run_arm, "PMX_CLAUDE_MD_SHA256", digest):
+                self.assertEqual(run_arm.verify_pmx_claude_md(good), good)
+            bad = os.path.join(d, "CLAUDE_bad.md")
+            open(bad, "w").write("tampered\n")
+            with self.assertRaises(SystemExit):
+                run_arm.verify_pmx_claude_md(bad)
 
     def test_uncovered_tools_matches_names_and_server_prefixes_exactly(self):
         allowed = ("Bash", "mcp__pmxagent")

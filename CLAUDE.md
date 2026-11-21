@@ -3,7 +3,7 @@
 Goal: test how much of PMxAgent's architecture (Docker + R Plumber + FastMCP) is needed versus plain Claude Code with Skills. Full plan and status: `docs/PLAN.md`. Public summary + T1 result table: `README.md`.
 
 ## Arms and tasks
-- Arms: `A0` plain Claude Code · `A1` PMxAgent 1.0.0 via MCP · `A2` knowledge-only skills · `A3` skills + bundled scripts · `A4` = A3 on a small model. Models: `claude-sonnet-4-6` (A0–A3), `claude-haiku-4-5-20251001` (A4).
+- Arms: `A0` plain Claude Code · `A1` PMxAgent 1.0.0 via bare MCP · `A1b` secondary arm (T1 only, §21): PMxAgent 1.0.0 MCP + shipped `v1.0.0` `CLAUDE.md` (SHA-256 pinned) · `A2` knowledge-only skills · `A3` skills + bundled scripts · `A4` = A3 on a small model. Models: `claude-sonnet-4-6` (A0–A3, A1b), `claude-haiku-4-5-20251001` (A4).
 - Tasks (`tasks/<T>/prompt.md`): `T1_nca` (paper's NCA benchmark, done; `results/T1_report.md`), `T2_case` (simulation case study), `T3a_messy` (Excel workbook), `T3b_blq`, `T3c_units`, `T3d_oral` (oral 1-CM vs analytical truth), `T3e_large`.
 
 ## Layout
@@ -37,7 +37,7 @@ Goal: test how much of PMxAgent's architecture (Docker + R Plumber + FastMCP) is
 - Summarize + audit: `python3 scoring/summarize.py` · `python3 scoring/audit_isolation.py`
 - Build arm repos: `python3 harness/run_arm.py setup <arm>` · probe isolation: `python3 harness/run_arm.py preflight <arm> claude-sonnet-4-6`
 - Paper pipeline: `python3 scoring/stats.py && python3 scoring/figures.py && python3 paper/tables.py && (cd paper && latexmk -pdf main.tex)`
-- Run an arm: `bash harness/run_arm.sh <A0|A1|A2|A3|A4> <task> <reps> claude-sonnet-4-6` (A1 needs `bash harness/pmxagent.sh up`)
+- Run an arm: `bash harness/run_arm.sh <A0|A1|A1b|A2|A3|A4> <task> <reps> claude-sonnet-4-6` (A1/A1b need `bash harness/pmxagent.sh up`)
 - Evidence bundle: `python3 harness/make_evidence.py`
 
 ## Agent skills

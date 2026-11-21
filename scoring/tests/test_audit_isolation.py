@@ -39,6 +39,38 @@ class SharedPmxFolder(unittest.TestCase):
             self.assertEqual(ai.audit_run(transcript(d, own), RID)["claude_state"], 0)
             self.assertEqual(ai.audit_run(transcript(d, "ls ~/.claude/projects/"), RID)["claude_state"], 1)
 
+    def test_a1b_runid_and_run_area_are_matched_like_a1(self):
+        rid = "A1b_T1_nca_r01_20261121-150000"
+        other = "A1b_T1_nca_r02_20261121-151000"
+        with tempfile.TemporaryDirectory() as d:
+            json.dump({"emptied_before_start": True}, open(os.path.join(d, "pmx_root.json"), "w"))
+            own_cmd = f"ls /Users/Shared/pmxbench_runs/A1b/runs/{rid}/inputs/ && ls {PMX}/data/{rid}/"
+            sib_cmd = f"ls /Users/Shared/pmxbench_runs/A1b/runs/{other}/"
+            self.assertEqual(ai.audit_run(transcript(d, own_cmd), rid)["run_area"], 0)
+            hits = ai.audit_run(transcript(d, sib_cmd), rid)
+            self.assertEqual((hits["other_run_id"], hits["run_area"]), (1, 1))
+
+
+class ClassifyFlagged(unittest.TestCase):
+    def test_uses_single_ledger_valid_rule_for_valid_vs_excluded_vs_other(self):
+        rows = [
+            {"runid": "v1", "flagged": True},
+            {"runid": "ex1", "flagged": True},
+            {"runid": "rl1", "flagged": True},
+            {"runid": "pre0", "flagged": True},
+            {"runid": "clean", "flagged": False},
+        ]
+        runs = {
+            "v1": {"runid": "v1", "rep": "1", "status": "ok", "is_error": "False"},
+            "ex1": {"runid": "ex1", "rep": "2", "status": "ok", "is_error": "False"},
+            "rl1": {"runid": "rl1", "rep": "3", "status": "failed_ratelimit_midrun", "is_error": "True"},
+            "pre0": {"runid": "pre0", "rep": "0", "status": "ok", "is_error": "False"},
+        }
+        vf, ef, of = ai.classify_flagged(rows, runs, excluded={"ex1"})
+        self.assertEqual([r["runid"] for r in vf], ["v1"])
+        self.assertEqual([r["runid"] for r in ef], ["ex1"])
+        self.assertEqual([r["runid"] for r in of], ["rl1", "pre0"])
+
 
 if __name__ == "__main__":
     unittest.main()
