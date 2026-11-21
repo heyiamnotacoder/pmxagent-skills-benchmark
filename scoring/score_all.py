@@ -278,14 +278,14 @@ def score_case_run(run_dir):
 
 
 def score_oral_run(run_dir):
-    truth = json.load(open(os.path.join(ROOT, "tasks", "T3d_oral", "reference", "truth.json")))
     rj = glob.glob(os.path.join(run_dir, "output", "**", "results.json"), recursive=True)
-    if not rj:
-        return {"completed": False, "note": "no results.json"}
+    if not rj:   # a valid run that left nothing scores 0 of 3, like an unscorable NCA run (§22)
+        return {"completed": False, "note": "no results.json", "overall": 0.0}
     try:
         j = json.load(open(rj[0]))
     except ValueError:
-        return {"completed": False, "note": "results.json unparseable"}
+        return {"completed": False, "note": "results.json unparseable", "overall": 0.0}
+    truth = json.load(open(os.path.join(ROOT, "tasks", "T3d_oral", "reference", "truth.json")))
     out = {"completed": True, "model_used": j.get("model_used")}
     ok = 0
     for k in ("typical_cmax_mg_per_L", "typical_tmax_h", "typical_auc_inf_mg_h_per_L"):
@@ -314,7 +314,7 @@ def main():
         if runid not in runs:   # still running
             continue
         rescanned.add(runid)
-        if not ledger.valid(runs[runid], excluded):   # usage-limit / crashed / excluded runs are not scored
+        if not ledger.valid(runs[runid], excluded):   # usage-limit / infra-failed / excluded runs are not scored (§22)
             continue
         if task in NCA_TASKS:
             r = score_nca_run(run_dir, task)

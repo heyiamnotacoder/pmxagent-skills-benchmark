@@ -41,7 +41,7 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 |---|---|
 | A0 | Plain Claude Code (no skills, no MCP) |
 | A1 | PMxAgent 1.0.0 run live via bare MCP (Docker, digest-pinned; no repo `CLAUDE.md`): T1 10 runs (3 + top-up), T2 10, T3 5 per task. Their published outputs are used for scorer calibration only |
-| A1b | Secondary arm (T1 only, 10 reps, pre-specified in `paper/SPEC.md`, §21): PMxAgent 1.0.0 via MCP **plus** PMxAgent's verbatim shipped `v1.0.0` `CLAUDE.md` (pinned SHA-256), same task prompt |
+| A1b | Secondary arm (T1 only, 10 reps, **post hoc**: specified after the A0–A4 T1 results were known, before any A1b run; `paper/SPEC.md`, §21, §22): PMxAgent 1.0.0 via MCP **plus** PMxAgent's verbatim shipped `v1.0.0` `CLAUDE.md` (pinned SHA-256), same task prompt |
 | A2 | Claude Code + knowledge-only skills (no scripts) |
 | A3 | Claude Code + skills with scripts ← main contender |
 | A4 | A3 on a small model (Haiku 4.5) — optional |

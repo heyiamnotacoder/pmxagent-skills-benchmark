@@ -44,6 +44,7 @@ benchmark and open data; state what MCP gives that Skills do not.
 | 2026-11-20 | Runs are started from a **clean Terminal tab** (`caffeinate -is bash harness/resume_lanes.sh`), never from inside a Claude session; `resume_lanes.sh` re-runs the lanes after every usage-limit reset until every lane is done, and stops on any other failure (exit codes: 0 done, 75 limit, else broken; §19) | user |
 | 2026-11-21 | **Secondary arm `A1b` on `T1_nca` (10 reps, T1 pin `2.1.283`, isolated):** PMxAgent 1.0.0 MCP **plus PMxAgent's shipped `v1.0.0` `CLAUDE.md`** (pinned SHA-256 `1ebc55d4…`), using the **exact same task prompt** (no prompt change). Motivated by finding that PMxAgent's multi-drug `/NCA` support is documented only in its repo `CLAUDE.md` and absent from `openapi.json`. Primary `A1` (bare MCP, 10 reps) stays unchanged; `A1b` is reported alongside it (`results/stats_secondary.csv`, `logs/deviations.md` §21). Also log direct Plumber HTTP calls (`pmxagent_http_calls`) alongside MCP calls (`pmxagent_tool_calls`) | user |
 | 2026-11-21 | **Crash/timeout vs HTTP 429 reporting & isolation audit clarity:** separate `n_crash_timeout` from `n_invalid_excluded` (HTTP 429) in `results/summary.{csv,md}` (`harness/ledger.py`, `scoring/summarize.py`), and mark protocol-excluded runs in `results/isolation_audit.csv` so valid vs excluded flagged counts are shown distinctly (§21) | user |
+| 2026-11-21 | **Arm failures count, infrastructure failures repeat:** a rep that did real work and then crashed / timed out / ended in error (no API/auth error) is a valid run scored on what it left; API/auth errors, no-work reps and harness-bug statuses are repeated. Replaces the "relabel only" split of §21, which still re-ran every crash. No valid run changes (the only such rep so far, `A1_T3a_messy_r07`, is already excluded under §20). Also: `A1b` relabelled **post hoc** (specified after A0–A4 T1 results were known), with the doc-authorship and timing disclosures (§22) | user |
 
 ## User stories
 1. As a pharmacometrician reading the preprint, I want to see which ingredient (instructions, fixed code, server
@@ -73,6 +74,13 @@ Analysis plan fixed in commit `08ea7b3` (2026-11-16). Nothing below may be chang
 in `logs/deviations.md` with the reason.
 - **Unit of analysis:** one run. Valid run = ledger `status == ok` and not `is_error`. Only exclusion rule: HTTP 429 /
   usage limit (as for T1). Every completed run counts, whatever its score.
+  *Amended 2026-11-21 (`logs/deviations.md` §22), before any run the amendment could change:* a rep in which the
+  agent did real work (cost or tool calls > 0) and then crashed, hit the time limit or ended in error, with no API/auth
+  error behind it, is an **arm failure**: it is a valid run, scored on whatever it left (no scorable output → 0), and
+  is not repeated. A rep that ended on an API/auth error, did no work, or carries a harness-bug status is an
+  **infrastructure failure**: not scored and repeated, like a usage-limit stop. A harness bug that only shows after
+  real work is excluded through `results/exclusions.csv` with its deviation, decided from the setup, never the score.
+  Rule in `harness/ledger.py` (`arm_failure`, `infra_failure`, `valid`).
 - **Primary endpoint (NCA tasks T1, T3a, T3b, T3c, T3e):** the paper's overall accuracy (`scoring/score_nca.py`).
 - **T3d:** % of 3 typical values (Cmax, Tmax, AUCinf) within 1% of the analytical solution, plus completion.
 - **T2:** completion (results.json with 3 dose groups), internal consistency (group means recomputed lin-up/log-down from the
@@ -87,7 +95,9 @@ in `logs/deviations.md` with the reason.
 - **Effort:** cost/run, wall time, turns, tool calls, tool errors (mean ± SD).
 - **Reps:** T1 = 10 per arm (A1 currently 3, see R0), T2 = 10 per arm (A1 included), T3a–e = 5 per arm.
 
-Added 2026-11-21, **pre-specified before any `A1b` run** (`logs/deviations.md` §21):
+Added 2026-11-21, **post hoc** (`logs/deviations.md` §21, relabelled in §22): motivated by A1's observed behaviour on
+T1 (0/10 runs called a PMxAgent tool), not by any score, but specified after the T1 results of A0–A4 were known;
+fixed before any `A1b` run. Report `A1b` and its comparisons as post hoc:
 - **Secondary arm `A1b` on `T1_nca` (10 reps, `claude-sonnet-4-6`, T1 pin `2.1.283`, isolated):** PMxAgent 1.0.0 MCP
   plus PMxAgent's verbatim shipped `v1.0.0` `CLAUDE.md` (SHA-256 `1ebc55d43c4a3142ed50b2c78efcea22c67bed522f3bc4d81a6bf379e295be8c`)
   in the workspace, with the **same verbatim T1 task prompt** (and same `SUFFIX` + `SUFFIX_A1` as `A1`). Reported
@@ -170,5 +180,5 @@ written with Claude from package docs · A1 containers under Rosetta (wall time)
 effect near 98.6% (remaining errors mostly λz point selection) · T1 comparisons specified after the T1 runs · A1 T1
 runs 4–10 made about seven weeks after runs 1–3 (same pinned Claude Code, models and images) · T2/T3 on a later
 Claude Code version than T1 (2.1.310 vs 2.1.283; within-task comparisons unaffected) · A1's agent never called a
-PMxAgent tool on T1 (0/10 runs; it wrote its own PKNCA code because `openapi.json` omits `/NCA`'s multi-drug/mixed-route docs that live in `pmxagent-main/CLAUDE.md`), so primary A1 is "bare PMxAgent MCP offered" (primed to host R/PKNCA vs A0/A2 Python); secondary arm `A1b` adds PMxAgent's shipped `v1.0.0` `CLAUDE.md` with the same prompt (§21); two A1
+PMxAgent tool on T1 (0/10 runs; it wrote its own R PKNCA code instead), so primary A1 is "bare PMxAgent MCP offered". `openapi.json` omits `/NCA`'s multi-drug/mixed-route support, which is documented only in `pmxagent-main/CLAUDE.md` (checked); that this gap is *why* the agents wrote their own code is a hypothesis, not an observation, and post-hoc secondary arm `A1b` tests it by adding that shipped `v1.0.0` `CLAUDE.md` with the same prompt (§21, §22). That document was written by PMxAgent's authors (who also built the 182-drug benchmark) and describes this dataset's `/LIBRARY` benchmark → `/NCA` workflow (dataset-specific guidance, no reference values). `A1b` runs about 8 weeks after the A0/A2–A4 T1 runs (28 Sep) and one day after A1 runs 6–12 (same pinned Claude Code, model ID and images); two A1
 T1 runs unscorable (drug without subject), analysis without them is post hoc (§17) · minor within-arm drift in A0 T2 (`r11–r13` ran under `bypassPermissions` without env scrub; `r15–r21` under `default` + `--allowedTools` + scrub; §21).

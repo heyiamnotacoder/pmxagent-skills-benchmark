@@ -109,6 +109,11 @@ class NextStep(unittest.TestCase):
             self.assertEqual(run_arm.next_step(api, 1, 0, pool)[0], "stop")
             self.assertEqual(run_arm.next_step(self.row("timeout", False, 0.8), 0, 0, pool), ("go", 0, 0))
 
+    def test_timeout_after_real_work_is_an_arm_failure_not_an_account_problem(self):
+        with tempfile.TemporaryDirectory() as d:   # a killed rep reports no cost; its tool calls show it did work (§22)
+            to = {**self.row("timeout", None, None), "tool_calls": 40}
+            self.assertEqual(run_arm.next_step(to, 1, 1, self.pool(d)), ("go", 0, 0))
+
 
 class LimitStop(unittest.TestCase):
     def test_usage_limit_stop_exits_75_so_the_wrapper_waits_instead_of_finishing(self):

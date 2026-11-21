@@ -1,6 +1,8 @@
 """Which ledger rows (results/runs.csv) count as valid runs: the one rule the harness (--until) and scoring share.
 
-A run is valid if it completed (status ok, no error) and is not listed in results/exclusions.csv. Exclusions are
+A run is valid if it completed (status ok, no error) or failed by the arm itself (crash / timeout / error after real
+work, deviations §22), and is not listed in results/exclusions.csv. Usage-limit (HTTP 429) stops and infrastructure
+failures (API/auth error, no work done) are not valid and are re-run. Exclusions are
 decided from how a run was set up, never from its accuracy (CLAUDE.md, logs/deviations.md); each row names the
 deviation that explains it. The ledger itself is append-only and is never rewritten. Stdlib only.
 """
@@ -21,9 +23,36 @@ def rate_limited(r):
     return str(r.get("status", "")).startswith("failed_ratelimit")
 
 
-def crash_or_timeout(r):
-    """Non-completed rep that was NOT a usage-limit stop (e.g. crash exit1 or timeout; deviations §21)."""
-    return not completed(r) and not rate_limited(r)
+def _api_error(r):
+    """The API/auth error status Claude Code reported, or "" (ledger rows hold "", run_arm.next_step passes "None")."""
+    s = str(r.get("api_error_status") or "")
+    return "" if s == "None" else s
+
+
+def _did_work(r):
+    """The agent used tokens or tools before the rep ended (a timeout leaves no cost: Claude Code never reported)."""
+    def num(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):   # "", None, "None"
+            return 0.0
+    return num(r.get("cost_usd")) > 0 or num(r.get("tool_calls")) > 0
+
+
+def arm_failure(r):
+    """The agent did real work, then crashed, hit the time limit or ended in error, with no API/auth error behind it.
+    That is the arm's own failure: it counts as a run, scored on whatever it left (no scorable output -> 0;
+    deviations §22, SPEC.md "Pre-specified analysis")."""
+    if completed(r) or rate_limited(r) or _api_error(r):
+        return False
+    s = str(r.get("status", ""))
+    return (s == "timeout" or s.startswith("exit") or s == "ok") and _did_work(r)
+
+
+def infra_failure(r):
+    """Ended outside the arm's control and not by a usage limit: an API/auth error, no work done, or a status the
+    harness gave for its own bug (e.g. preflight_bug_*). Not counted; --until re-runs it (deviations §22)."""
+    return not completed(r) and not rate_limited(r) and not arm_failure(r)
 
 
 def exclusions(path=EXCLUSIONS):
@@ -35,5 +64,5 @@ def exclusions(path=EXCLUSIONS):
 
 
 def valid(r, excluded):
-    """Counts toward --until targets and is scored."""
-    return completed(r) and r.get("runid") not in excluded
+    """Counts toward --until targets and is scored: completed, or failed by the arm itself (§22); never excluded."""
+    return (completed(r) or arm_failure(r)) and r.get("runid") not in excluded

@@ -179,18 +179,32 @@ class PmxagentToolCalls(unittest.TestCase):
             self.assertEqual(score_all.pmxagent_http_calls(run), 3)
 
 
+class OralNoOutput(unittest.TestCase):
+    def test_t3d_run_without_results_json_scores_zero_not_missing(self):
+        """§22: an arm failure that left nothing scores 0 on T3d too, so it is not dropped from the accuracy stats."""
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, "output"))
+            r = score_all.score_oral_run(d)
+            self.assertEqual((r["completed"], r["overall"]), (False, 0.0))
+            open(os.path.join(d, "output", "results.json"), "w").write("{not json")
+            self.assertEqual(score_all.score_oral_run(d)["overall"], 0.0)
+
+
 class SummarizeOutcomes(unittest.TestCase):
-    def test_separates_ratelimit_crash_and_protocol_exclusions(self):
+    def test_separates_ratelimit_infra_arm_failures_and_protocol_exclusions(self):
+        base = {"arm": "A1", "task": "T3a_messy", "is_error": "False", "cost_usd": "1.0", "tool_calls": "9"}
         rows = [
-            {"runid": "r1", "arm": "A1", "task": "T3a_messy", "status": "ok", "is_error": "False"},
-            {"runid": "r2", "arm": "A1", "task": "T3a_messy", "status": "failed_ratelimit", "is_error": "True"},
-            {"runid": "r3", "arm": "A1", "task": "T3a_messy", "status": "exit1", "is_error": "False"},
-            {"runid": "r4", "arm": "A1", "task": "T3a_messy", "status": "timeout", "is_error": "False"},
-            {"runid": "r5", "arm": "A1", "task": "T3a_messy", "status": "ok", "is_error": "False"},
+            {**base, "runid": "r1", "status": "ok"},
+            {**base, "runid": "r2", "status": "failed_ratelimit", "is_error": "True"},
+            {**base, "runid": "r3", "status": "exit1"},                                   # arm failure, counted
+            {**base, "runid": "r4", "status": "timeout", "cost_usd": ""},                 # arm failure, counted
+            {**base, "runid": "r5", "status": "ok"},                                      # protocol-excluded
+            {**base, "runid": "r6", "status": "exit1", "cost_usd": "", "tool_calls": "0"},  # infra: no work done
+            {**base, "runid": "r7", "status": "exit1"},                                   # arm failure but excluded
         ]
-        n_rl, n_crash, n_excl = summarize.count_outcomes(rows, excluded={"r5"})
+        c = summarize.count_outcomes(rows, excluded={"r5", "r7"})
         k = ("A1", "T3a_messy")
-        self.assertEqual((n_rl[k], n_crash[k], n_excl[k]), (1, 2, 1))
+        self.assertEqual((c["n_invalid_excluded"][k], c["n_infra_failed"][k], c["n_protocol_excluded"][k], c["n_arm_failed"][k]), (1, 1, 2, 2))
 
 
 if __name__ == "__main__":

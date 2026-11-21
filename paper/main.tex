@@ -139,8 +139,10 @@ which ran with no user instructions.
 
 The planned number of runs was 10 per arm. A1 first had 3 runs because of cost and time and was later topped up to 10
 under the stricter isolation; A1 is therefore also reported per isolation regime (pre-specified before the top-up). Runs used a Claude subscription; the only
-exclusion rule was that a run stopped by the subscription's usage limit (HTTP 429) was not scored and was repeated.
-Every completed run was scored, whatever its result. Cost is Claude Code's list-price estimate from token counts.
+runs not scored, and repeated, were those stopped by the subscription's usage limit (HTTP 429) or by an
+infrastructure failure (an API or authentication error, or a run that did no work). A run in which the agent worked
+and then crashed or reached the time limit counted as a run and was scored on what it left.
+Every counted run was scored, whatever its result. Cost is Claude Code's list-price estimate from token counts.
 
 \subsection{Statistics}
 For each pre-specified pair of arms we report the difference in mean overall accuracy with a 95\% percentile bootstrap
