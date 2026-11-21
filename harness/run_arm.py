@@ -374,6 +374,8 @@ def run_rep(arm, task, rep, model, prompt, timeout_min, suffix, exe, pool):
     runid = f"{arm}_{task}_r{rep:02d}_{stamp}"
     if arm == "A1":   # before the agent can see anything: an earlier rep's PMxAgent outputs go out of reach
         stray = pmx_root.move_leftovers(PMX, runid, os.path.join(ARCHIVE, arm, "_stray", runid))
+        if stray:
+            os.chmod(os.path.join(ARCHIVE, arm, "_stray"), 0o300)   # like the archive: enter/write but not list
     wt = os.path.join(RUNS, arm, "runs", runid)
     os.makedirs(os.path.dirname(wt), exist_ok=True)
     sh(["git", "-C", base, "worktree", "add", "-q", "--detach", wt, f"ws/{task}"])
