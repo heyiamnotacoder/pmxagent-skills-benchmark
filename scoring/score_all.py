@@ -22,6 +22,8 @@ import ledger   # the valid-run rule shared with the harness (results/exclusions
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = os.path.join(ROOT, "results", "raw")
 NCA_TASKS = {"T1_nca", "T3a_messy", "T3b_blq", "T3c_units", "T3e_large"}
+PMX_ARMS = {"A1", "A1b"}
+PMX_HTTP_ENDPOINT = re.compile(r"(?:localhost|127\.0\.0\.1):5762/(?:NCA|ER|PK|DATA|LIBRARY)\b", re.I)
 SUBJ_COLS = ["drug_subject", "drug", "subject", "usubjid", "id"]
 
 
@@ -96,11 +98,26 @@ def score_nca_dir(run_dir, ref):
 
 def pmxagent_tool_calls(run_dir):
     """Number of PMxAgent MCP tool calls (`mcp__pmxagent__*`) in the run's transcript; None without one.
-    Shows whether A1 used the tool stack at all or did the work with its own code."""
+    Shows whether A1/A1b used the MCP tool stack at all or did the work with its own code."""
     p = os.path.join(run_dir, "transcript.jsonl")
     if not os.path.exists(p):
         return None
     return sum(str(c.get("name", "")).startswith("mcp__pmxagent__") for c in runstore.tool_uses(p))
+
+
+def pmxagent_http_calls(run_dir):
+    """Number of Bash calls targeting PMxAgent's R Plumber HTTP endpoints (:5762/{NCA,ER,PK,DATA,LIBRARY}); None
+    without a transcript. Distinguishes MCP calls from direct curl/HTTP calls (relevant for A1b, deviations §21)."""
+    p = os.path.join(run_dir, "transcript.jsonl")
+    if not os.path.exists(p):
+        return None
+    n = 0
+    for c in runstore.tool_uses(p):
+        if c.get("name") == "Bash":
+            cmd = str((c.get("input") or {}).get("command", ""))
+            if PMX_HTTP_ENDPOINT.search(cmd):
+                n += 1
+    return n
 
 
 def auclast_lulog(t, c):
@@ -297,7 +314,8 @@ def main():
         else:
             continue
         rows.append({"runid": runid, "arm": arm, "task": task, "status": runs[runid]["status"], **r,
-                     "pmxagent_tool_calls": pmxagent_tool_calls(run_dir) if arm == "A1" else None})
+                     "pmxagent_tool_calls": pmxagent_tool_calls(run_dir) if arm in PMX_ARMS else None,
+                     "pmxagent_http_calls": pmxagent_http_calls(run_dir) if arm in PMX_ARMS else None})
     kept = len(runstore.merge_rows(a.out, rows, rescanned)) - len(rows)
     print(f"{len(rows)} runs scored, {kept} rows kept for runs not on this machine -> {a.out}")
 

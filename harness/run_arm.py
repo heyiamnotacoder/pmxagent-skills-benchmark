@@ -41,7 +41,7 @@ Usage
                                                 lists skills/MCP/instructions seen; exits non-zero unless one Bash
                                                 call ran, nothing was denied and every tool shown is allowed
 Exit codes: 0 done · 75 (EXIT_LIMIT) stopped on a usage limit / API failure, re-run later · other: broken, needs a human
-Arms: A0 plain | A1 PMxAgent MCP | A2 knowledge-only skills | A3 skills+scripts | A4 = A3 (small model)
+Arms: A0 plain | A1 PMxAgent MCP | A1b PMxAgent MCP + shipped CLAUDE.md (§21) | A2 knowledge-only skills | A3 skills+scripts | A4 = A3 (small model)
 """
 import argparse, csv, fcntl, datetime, hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
 from typing import NamedTuple
@@ -59,7 +59,9 @@ RAW = os.path.join(ROOT, "results", "raw")
 LEDGER = os.path.join(ROOT, "results", "runs.csv")
 VERSIONS = os.path.join(ROOT, "env", "versions.txt")   # pinned toolchain; `claude-code-pin <task>:` lines
 CLAUDE_DIR = os.path.expanduser(os.environ.get("PMXBENCH_CLAUDE_DIR", "~/.local/share/pmxbench/claude"))
-ARMS = {"A0": None, "A1": None, "A2": "knowledge", "A3": "scripts", "A4": "scripts"}
+ARMS = {"A0": None, "A1": None, "A1b": "pmx_docs", "A2": "knowledge", "A3": "scripts", "A4": "scripts"}
+PMX_ARMS = frozenset({"A1", "A1b"})   # arms wired to the live PMxAgent MCP server and its shared /data/+/figures/
+PMX_CLAUDE_MD_SHA256 = "1ebc55d43c4a3142ed50b2c78efcea22c67bed522f3bc4d81a6bf379e295be8c"   # PMxAgent v1.0.0 CLAUDE.md
 ENV_KEEP = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "TMPDIR", "USER", "LOGNAME", "SHELL")
 MCP_TOKEN = "pmxagent-ci-token"   # PMxAgent's documented CI token (docker-compose.yml MCP_TEST_TOKEN)
 # Tool permissions (see allowed_tools). BUILTIN_TOOLS = the init-event tool list of the valid T2 reps (2.1.310).
@@ -101,12 +103,30 @@ def skill_tree(kind, dest):
         open(os.path.join(out, "SKILL.md"), "w").write(md)
 
 
+def pmx_claude_md_path():
+    """Path to PMxAgent v1.0.0's shipped CLAUDE.md (used by secondary arm A1b, deviations §21)."""
+    for p in (os.path.join(PMX, "CLAUDE.md"), os.path.join(ROOT, "pmxagent-main", "CLAUDE.md")):
+        if os.path.isfile(p):
+            return p
+    sys.exit(f"PMxAgent CLAUDE.md not found under {PMX} or {os.path.join(ROOT, 'pmxagent-main')}")
+
+
+def verify_pmx_claude_md(path=None):
+    """Verify PMxAgent's shipped CLAUDE.md matches the pinned v1.0.0 SHA-256; return its path."""
+    p = path or pmx_claude_md_path()
+    have = hashlib.sha256(open(p, "rb").read()).hexdigest()
+    if have != PMX_CLAUDE_MD_SHA256:
+        sys.exit(f"PMxAgent CLAUDE.md SHA-256 mismatch at {p}: got {have}, expected {PMX_CLAUDE_MD_SHA256}")
+    return p
+
+
 def setup(arm):
     base = os.path.join(RUNS, arm, "base")
     os.makedirs(base, exist_ok=True)
     if not os.path.isdir(os.path.join(base, ".git")):
         sh(["git", "init", "-q", "-b", "empty", base])
         sh(["git", "-C", base, "commit", "-q", "--allow-empty", "-m", "empty"])
+    pmx_doc = verify_pmx_claude_md() if ARMS[arm] == "pmx_docs" else None
     for task in sorted(os.listdir(TASKS)):
         tdir = os.path.join(TASKS, task)
         if not os.path.isfile(os.path.join(tdir, "prompt.md")):
@@ -121,8 +141,10 @@ def setup(arm):
             shutil.copytree(os.path.join(tdir, "inputs"), os.path.join(base, "inputs"))
         os.makedirs(os.path.join(base, "output"))
         open(os.path.join(base, "output", ".gitkeep"), "w").close()
-        if ARMS[arm]:
+        if ARMS[arm] in ("knowledge", "scripts"):
             skill_tree(ARMS[arm], base)
+        elif pmx_doc:
+            shutil.copyfile(pmx_doc, os.path.join(base, "CLAUDE.md"))
         sh(["git", "-C", base, "add", "-A"])
         sh(["git", "-C", base, "-c", "user.name=pmxbench", "-c", "user.email=pmxbench@local", "commit", "-q",
             "-m", f"{arm} workspace for {task}"])
@@ -145,13 +167,13 @@ def pmx_healthy():
 
 
 def allowed_tools(arm):
-    """Explicit allow-list for one arm: every built-in tool plus, for A1, the PMxAgent MCP server.
+    """Explicit allow-list for one arm: every built-in tool plus, for PMxAgent arms (A1/A1b), the PMxAgent MCP server.
 
     CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 (run_env) forces the permission mode to `default`, so bypassPermissions is
     ignored and a headless run denies every tool that is not allowed here (logs/deviations.md §16). The list is the
     tool set the valid reps so far were shown (init event, 2.1.310), so allowing all of it keeps the earlier
     bypassPermissions behaviour; DISALLOWED still wins. `preflight` fails if the agent is shown a tool not covered."""
-    return BUILTIN_TOOLS + (MCP_TOOLS if arm == "A1" else ())
+    return BUILTIN_TOOLS + (MCP_TOOLS if arm in PMX_ARMS else ())
 
 
 def uncovered_tools(tools, allowed):
@@ -166,7 +188,7 @@ def claude_cmd(arm, model, wt, exe="claude"):
            "--permission-mode", "default",   # what the scrub forces anyway; stated so the command says what runs
            "--allowedTools", *allowed_tools(arm),
            "--disallowedTools", *DISALLOWED]
-    if arm == "A1":
+    if arm in PMX_ARMS:
         cfg = os.path.join(wt, "..", f"{os.path.basename(wt)}.mcp.json")
         json.dump({"mcpServers": {"pmxagent": {"type": "http", "url": "http://localhost:8000/mcp",
                                                "headers": {"Authorization": f"Bearer {MCP_TOKEN}"}}}},
@@ -361,9 +383,9 @@ def next_step(row, limited, switches, pool):
 
 
 def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True, exe="claude", pool=None):
-    if arm != "A1":
+    if arm not in PMX_ARMS:
         return run_rep(arm, task, rep, model, prompt, timeout_min, suffix, exe, pool)
-    with pmx_root.exclusive(PMX):   # the shared PMxAgent folders belong to one A1 rep at a time (§20)
+    with pmx_root.exclusive(PMX):   # the shared PMxAgent folders belong to one PMxAgent rep at a time (§20)
         return run_rep(arm, task, rep, model, prompt, timeout_min, suffix, exe, pool)
 
 
@@ -372,7 +394,7 @@ def run_rep(arm, task, rep, model, prompt, timeout_min, suffix, exe, pool):
     base = os.path.join(RUNS, arm, "base")
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     runid = f"{arm}_{task}_r{rep:02d}_{stamp}"
-    if arm == "A1":   # before the agent can see anything: an earlier rep's PMxAgent outputs go out of reach
+    if arm in PMX_ARMS:   # before the agent can see anything: an earlier rep's PMxAgent outputs go out of reach
         stray = pmx_root.move_leftovers(PMX, runid, os.path.join(ARCHIVE, arm, "_stray", runid))
         if stray:
             os.chmod(os.path.join(ARCHIVE, arm, "_stray"), 0o300)   # like the archive: enter/write but not list
@@ -381,7 +403,7 @@ def run_rep(arm, task, rep, model, prompt, timeout_min, suffix, exe, pool):
     sh(["git", "-C", base, "worktree", "add", "-q", "--detach", wt, f"ws/{task}"])
     head = sh(["git", "-C", wt, "rev-parse", "HEAD"]).strip()
     full_prompt = prompt + (SUFFIX if suffix else "")
-    if arm == "A1" and suffix:
+    if arm in PMX_ARMS and suffix:
         host = os.path.join(PMX, "data", runid)
         if os.path.isdir(os.path.join(wt, "inputs")):
             shutil.copytree(os.path.join(wt, "inputs"), host)
@@ -404,7 +426,7 @@ def run_rep(arm, task, rep, model, prompt, timeout_min, suffix, exe, pool):
             status = "timeout"
     wall = time.time() - t0
     shutil.copytree(os.path.join(wt, "output"), os.path.join(raw, "output"), dirs_exist_ok=True)
-    if arm == "A1":   # what the tools wrote at the shared top level joins the rep's own data folder
+    if arm in PMX_ARMS:   # what the tools wrote at the shared top level joins the rep's own data folder
         collected = pmx_root.move_leftovers(PMX, runid, os.path.join(PMX, "data", runid, "_pmx_root"))
         pmx_root.write_record(raw, stray, collected)
         if os.path.isdir(os.path.join(PMX, "data", runid)):
@@ -541,7 +563,9 @@ def main():
         chk = subprocess.run(["shasum", "-a", "256", "-c", frozen], cwd=SKILLS, capture_output=True, text=True)
         if chk.returncode != 0:
             sys.exit("skills changed since freeze (skills/FROZEN.sha256) - log in logs/skill_changes.md and re-freeze")
-    if a.arm == "A1" and not pmx_healthy():
+    if a.arm == "A1b":
+        verify_pmx_claude_md()
+    if a.arm in PMX_ARMS and not pmx_healthy():
         sys.exit("PMxAgent stack not reachable on :5762 - start it (see harness/pmxagent.sh up)")
     if a.cmd == "preflight":
         try:

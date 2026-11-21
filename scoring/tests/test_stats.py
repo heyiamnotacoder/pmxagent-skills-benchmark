@@ -45,5 +45,11 @@ class PostHocUnscorable(unittest.TestCase):
         self.assertEqual(stats.posthoc_unscorable(rows, [("A2", "A1")], b=200, seed=1), ([], []))
 
 
+class SecondaryPairs(unittest.TestCase):
+    def test_a1b_secondary_pairs_are_defined(self):
+        self.assertIn(("A1b", "A1"), stats.SECONDARY_PAIRS)
+        self.assertIn(("A3", "A1b"), stats.SECONDARY_PAIRS)
+
+
 if __name__ == "__main__":
     unittest.main()

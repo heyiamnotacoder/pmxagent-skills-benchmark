@@ -16,7 +16,7 @@ from collections import defaultdict
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = os.path.join(ROOT, "results")
 OUT = os.path.join(ROOT, "paper", "tables")
-ARMS = ["A0", "A1", "A2", "A3", "A4"]
+ARMS = ["A0", "A1", "A1b", "A2", "A3", "A4"]
 PARAMS = [("Cmax", "$C_\\mathrm{max}$"), ("Tmax", "$t_\\mathrm{max}$"), ("AUClast", "AUC$_\\mathrm{last}$"),
           ("AUCINF_obs", "AUC$_{\\infty,\\mathrm{obs}}$"), ("HL", "$t_{1/2}$"), ("CL", "CL"), ("Vz", "$V_z$")]
 NCA = {"T1_nca", "T3a_messy", "T3b_blq", "T3c_units", "T3e_large"}
@@ -104,6 +104,9 @@ def main():
             pmx = [int(f(r["pmxagent_tool_calls"])) for r in rs if f(r.get("pmxagent_tool_calls")) is not None]
             if pmx:
                 vals["PmxRuns"], vals["PmxKnown"] = str(sum(n > 0 for n in pmx)), str(len(pmx))
+            http = [int(f(r["pmxagent_http_calls"])) for r in rs if f(r.get("pmxagent_http_calls")) is not None]
+            if http:
+                vals["PmxHttpRuns"] = str(sum(n > 0 for n in http))
             nums += [f"\\newcommand{{{macro(task, a, k)}}}{{{v}}}" for k, v in vals.items()]
         if task in NCA:
             L = ["\\begin{tabular}{l r " + "r" * len(PARAMS) + " r r}", "\\toprule",
@@ -142,6 +145,8 @@ def main():
             write(f"tab_stats_{task}.tex", L)
             for r in rows:
                 nums += pair_macros(task, r["comparison"], "", r)
+    for r in read("stats_secondary.csv"):   # secondary arm A1b (§21): \\numToneAonebVsAoneSecondaryDiff
+        nums += pair_macros(r["task"], r["comparison"], "Secondary", r)
     for r in read("stats_posthoc.csv"):   # post hoc (logs/deviations.md §17): \\numToneAtwoVsAonePostHocDiff
         nums += pair_macros(r["task"], r["comparison"], "PostHoc", r)
     for r in read("stats_sensitivity_arms.csv"):   # isolation regime (§15): \\numToneAoneAccIsolated, ...NUser

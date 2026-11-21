@@ -158,6 +158,20 @@ class PmxagentToolCalls(unittest.TestCase):
     def test_no_transcript_is_none(self):
         with tempfile.TemporaryDirectory() as run:
             self.assertIsNone(score_all.pmxagent_tool_calls(run))
+            self.assertIsNone(score_all.pmxagent_http_calls(run))
+
+    def test_counts_direct_plumber_http_endpoint_calls_only(self):
+        with tempfile.TemporaryDirectory() as run:
+            ev = [{"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "name": "Bash",
+                 "input": {"command": "curl -X POST http://localhost:5762/NCA -d data_file=x.csv"}},
+                {"type": "tool_use", "name": "Bash",
+                 "input": {"command": "curl http://127.0.0.1:5762/PK -d dose=10"}},
+                {"type": "tool_use", "name": "Bash",
+                 "input": {"command": "curl http://localhost:5762/__docs__/"}},
+                {"type": "text", "text": "http://localhost:5762/NCA"}]}}]
+            open(os.path.join(run, "transcript.jsonl"), "w").write("\n".join(json.dumps(e) for e in ev))
+            self.assertEqual(score_all.pmxagent_http_calls(run), 2)
 
 
 if __name__ == "__main__":

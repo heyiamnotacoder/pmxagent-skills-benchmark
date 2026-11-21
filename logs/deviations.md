@@ -293,3 +293,44 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
 - **Audit.** For a run with `pmx_root.json`, the shared PMxAgent `data/` and `figures/` folders count as the run's own
   (reading them is how it fetches its tools' outputs); every other pattern is unchanged, and a rep's own HOME is no
   longer a `claude_state` hit.
+
+### §21 Secondary arm `A1b` on T1 (PMxAgent MCP + shipped `CLAUDE.md`), non-429 failure separation, and A0 T2 drift disclosure (2026-11-21)
+- **Root cause of §17 (why bare `A1` never called PMxAgent on T1).** Inspection of `pmxagent-main/` (tag `v1.0.0`),
+  the live OpenAPI spec (`http://localhost:5762/openapi.json`), and all T1 transcripts showed:
+  1. `pmxagent-main/README.md` instructs Claude Code users to run `claude` from the PMxAgent repo root, where `.mcp.json`
+     sits next to a 41 KB `CLAUDE.md` (`pmxagent-main/CLAUDE.md`). That `CLAUDE.md` explicitly documents `/NCA`'s
+     multi-drug `DRUG` column, per-subject numeric `ROUTE` (`1`/`2`/`3`), per-subject `AVALU`, and gives the exact
+     `data_file=nca_benchmark.csv` example (lines 184–221, 602–603).
+  2. `server.py` creates `FastMCP` with no `instructions=` and exposes tools purely from Plumber's `openapi.json`, where
+     `/NCA` has `description: null` and `data_file` mentions only single-study ADPC files from `/DATA` (no mention of
+     `DRUG`, numeric routes, or multi-drug batching).
+  3. Because primary `A1` ran with `.mcp.json` only (no `pmxagent-main/CLAUDE.md`), every T1 `A1` agent ran `ToolSearch`
+     on `r_Noncompartmental_analysis_NCA`, saw no multi-drug/mixed-route support in the schema, and pivoted to writing
+     local R `PKNCA` scripts (10/10 runs used host R `PKNCA`, vs 0/10 in `A0` and `A2`, which wrote Python). By contrast,
+     on `T2_case` (single-drug 2-CM IV simulation matching `/PK` by name), bare `A1` called PMxAgent MCP tools in 100%
+     of runs (16/16 total, including 2/2 clean post-§20 reps).
+- **Decision (author, 2026-11-21): add pre-specified secondary arm `A1b` on `T1_nca` (10 reps), keep `A1` unchanged.**
+  - `A1` stays untouched as the primary bare-MCP arm (no prompt change, no existing T1 run discarded or re-run).
+  - `A1b` uses the **exact same verbatim T1 prompt** (and same `SUFFIX` + `SUFFIX_A1`), same PMxAgent 1.0.0 container
+    digests, same model (`claude-sonnet-4-6`), same T1 Claude Code pin (`2.1.283`), isolated mode, and `pmx_root.py`
+    folder-emptying + exclusive lock, **plus** PMxAgent's verbatim shipped `v1.0.0` `CLAUDE.md` copied into the arm
+    workspace (`harness/run_arm.py` verifies its SHA-256 `1ebc55d43c4a3142ed50b2c78efcea22c67bed522f3bc4d81a6bf379e295be8c`
+    before setup and before every `A1b` run/preflight).
+  - Pre-specified secondary comparisons (`scoring/stats.py` → `results/stats_secondary.csv`): `A1b − A1`, `A2 − A1b`,
+    `A3 − A1b`, `A4 − A1b`, reported alongside primary `A1`, never instead of it.
+  - Because `pmxagent-main/CLAUDE.md` also includes `curl http://localhost:5762/NCA` examples, `scoring/score_all.py` now
+    records `pmxagent_http_calls` (Bash calls to `:5762/{NCA,ER,PK,DATA,LIBRARY}`) alongside `pmxagent_tool_calls` (MCP
+    calls) for both `A1` and `A1b`.
+- **Non-429 crash/timeout accounting (`harness/ledger.py`, `scoring/summarize.py`).** Previously `summarize.py` counted
+  every non-completed run under `n_invalid_excluded` and described that column as HTTP 429 usage-limit stops. `ledger.py`
+  now separates `rate_limited(r)` (`failed_ratelimit*`) from `crash_or_timeout(r)` (`exit*` / `timeout`), and
+  `summarize.py` reports them in separate columns (`n_invalid_excluded` vs `n_crash_timeout`). Zero valid runs were
+  affected (the only non-429 non-ok row in the ledger so far is `A1_T3a_messy_r07`, already excluded under §20).
+- **Isolation audit (`scoring/audit_isolation.py`).** Rows in `results/isolation_audit.csv` now carry `excluded`
+  (`True` if in `results/exclusions.csv`) and stdout reports valid flagged vs excluded flagged counts separately; arm-ID
+  regexes now match `A1b` as well as `A0`–`A4`.
+- **A0 `T2_case` within-arm harness drift (disclosure only, no exclusion).** The first 3 valid `A0` `T2_case` reps
+  (`r11–r13`, 2026-11-16) ran under `bypassPermissions` without `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` and with the single
+  token (`permission_mode` / `auth_label` empty), whereas `r15–r21` (2026-11-20/21) ran under `default` + explicit
+  `--allowedTools` + scrub (§16) + token pool `acct2` (§19). Both sets ran `isolated` on Claude Code `2.1.310` with 0
+  permission denials; all 10 count as valid.

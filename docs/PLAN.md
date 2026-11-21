@@ -40,7 +40,8 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 | Arm | Setup |
 |---|---|
 | A0 | Plain Claude Code (no skills, no MCP) |
-| A1 | PMxAgent 1.0.0 run live via MCP (Docker, digest-pinned): T1 10 runs (3 + top-up), T2 10, T3 5 per task. Their published outputs are used for scorer calibration only |
+| A1 | PMxAgent 1.0.0 run live via bare MCP (Docker, digest-pinned; no repo `CLAUDE.md`): T1 10 runs (3 + top-up), T2 10, T3 5 per task. Their published outputs are used for scorer calibration only |
+| A1b | Secondary arm (T1 only, 10 reps, pre-specified in `paper/SPEC.md`, §21): PMxAgent 1.0.0 via MCP **plus** PMxAgent's verbatim shipped `v1.0.0` `CLAUDE.md` (pinned SHA-256), same task prompt |
 | A2 | Claude Code + knowledge-only skills (no scripts) |
 | A3 | Claude Code + skills with scripts ← main contender |
 | A4 | A3 on a small model (Haiku 4.5) — optional |
@@ -58,7 +59,7 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 - Honest concessions: MCP is client-agnostic (Cursor/ChatGPT); typed input validation; locked multi-user GxP deployment.
 
 ## Status (updated 2026-11-21)
-- [x] PLAN.md + CLAUDE.md · model = **claude-sonnet-4-6** for all arms · A1 T1 baseline = published outputs, plus live A1 runs for cost + T3
+- [x] PLAN.md + CLAUDE.md · model = **claude-sonnet-4-6** for all arms (Haiku 4.5 for A4) · all arms run live in Claude Code; PMxAgent's published outputs are used for scorer calibration only (`paper/SPEC.md` wins on conflict)
 - [x] Phase 0: R stack (`env/versions.txt`), scorer calibrated: reproduces 98.3/98.2/95.6/94.5/91.6 exactly (`logs/calibration.txt`)
   - Finding: PMxAgent raw 10-run output (identical SHA ×10) scores 98.35. Their standardized single-run file scores 98.27, so their standardization dropped a few λz values.
 - [x] Phase 1: five skills written from package docs, testthat vs analytical solutions (all pass: `bash harness/test_all.sh`), frozen v1 (`skills/FROZEN.sha256`, `logs/skill_changes.md`). Not scored on PKanalix before freeze.
@@ -73,5 +74,6 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 - [x] Token pool: reps may run on several subscription accounts, `~/.config/pmxbench/tokens/acct<N>` (`harness/tokens.py`, §19)
 - [ ] **T2 (in progress):** case study ×10 per arm incl. A1; A0 10/10 valid, A1 re-running from zero (§20), A2–A4 not started. Scorer `score_case_run` (primary = pre-specified lin-up/log-down consistency) → `results/T2_report.md`
 - [ ] **T3 stress (in progress):** T3a–e ×5 per arm; references built (`tasks/*/reference/`). A0: T3a, T3d done, T3c/T3e under way; A1 re-running from zero (§20); A2–A4 not started
-- [x] A1 shared PMxAgent output folders (§20): each A1 rep now starts with them emptied (`harness/pmx_root.py`); all earlier A1 T2/T3 reps excluded (`results/exclusions.csv`, one valid-run rule in `harness/ledger.py`)
+- [x] A1 shared PMxAgent output folders (§20): each A1/A1b rep now starts with them emptied (`harness/pmx_root.py`); all earlier A1 T2/T3 reps excluded (`results/exclusions.csv`, one valid-run rule in `harness/ledger.py`)
+- [ ] **A1b T1 secondary arm (ready to run, §21):** PMxAgent 1.0.0 MCP + verbatim shipped `v1.0.0` `CLAUDE.md` (SHA-256 pinned), 10 reps on `T1_nca` (T1 pin `2.1.283`, isolated), same task prompt; reported alongside primary A1 (`results/stats_secondary.csv`)
 - Note: a first A0 probe accidentally ran the full T1 task (harness bug, fixed); it was quarantined in `results/raw/A0/_preflight/`, marked in the ledger, and is excluded.

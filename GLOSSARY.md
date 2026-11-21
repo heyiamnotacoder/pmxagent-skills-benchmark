@@ -6,8 +6,7 @@ AI agent accurate and reproducible pharmacometric results.
 ## Benchmark design
 
 **Arm**:
-One fixed agent setup compared in the benchmark: A0 plain client, A1 PMxAgent over MCP, A2 knowledge-only skills,
-A3 skills with bundled scripts, A4 = A3 on a small model.
+One fixed agent setup compared in the benchmark: A0 plain client, A1 PMxAgent over bare MCP, A1b (secondary arm, T1) PMxAgent over MCP + PMxAgent's shipped `v1.0.0` `CLAUDE.md`, A2 knowledge-only skills, A3 skills with bundled scripts, A4 = A3 on a small model.
 _Avoid_: condition, configuration, agent
 
 **Task**:
@@ -28,7 +27,7 @@ A rep that finished without error and is scored. Every valid run counts, whateve
 _Avoid_: successful run, good run
 
 **Usage-limit stop**:
-A rep ended by the subscription's usage limit (HTTP 429). The only reason a rep is excluded from scoring.
+A rep ended by the subscription's usage limit (HTTP 429). Excluded from scoring (`n_invalid_excluded`); distinct from non-429 crashes/timeouts (`n_crash_timeout`) and setup/protocol exclusions (`results/exclusions.csv`).
 _Avoid_: failure, crash, rate-limit error
 
 **Preflight**:

@@ -142,9 +142,20 @@ class ToolPermissions(unittest.TestCase):
                 self.assertEqual(self.flag_values(cmd, "--disallowedTools"),
                                  ["WebSearch", "WebFetch", "Bash(git:*)", "Bash(gh:*)"])
 
-    def test_mcp_tools_allowed_only_for_A1(self):
-        self.assertEqual(run_arm.uncovered_tools(self.INIT_TOOLS + self.MCP, run_arm.allowed_tools("A1")), [])
+    def test_mcp_tools_allowed_only_for_pmx_arms(self):
+        for arm in ("A1", "A1b"):
+            self.assertEqual(run_arm.uncovered_tools(self.INIT_TOOLS + self.MCP, run_arm.allowed_tools(arm)), [])
         self.assertEqual(run_arm.uncovered_tools(self.MCP, run_arm.allowed_tools("A0")), self.MCP)
+
+    def test_a1b_verifies_pmx_claude_md_sha256(self):
+        with tempfile.TemporaryDirectory() as d:
+            bad = os.path.join(d, "CLAUDE.md")
+            open(bad, "w").write("tampered\n")
+            with self.assertRaises(SystemExit):
+                run_arm.verify_pmx_claude_md(bad)
+        # real repo / deployed copy must match the pinned v1.0.0 SHA-256
+        p = run_arm.verify_pmx_claude_md()
+        self.assertTrue(os.path.isfile(p))
 
     def test_uncovered_tools_matches_names_and_server_prefixes_exactly(self):
         allowed = ("Bash", "mcp__pmxagent")

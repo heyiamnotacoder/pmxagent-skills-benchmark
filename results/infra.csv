@@ -14,4 +14,19 @@ Skills,pmx-nca/tests,code.r,1,89
 Skills,pmx-pksim,text.md,1,51
 Skills,pmx-pksim/scripts,code.r,1,115
 Skills,pmx-pksim/tests,code.r,1,63
+PMxAgent,(root),code.py,1,370
+PMxAgent,(root),container,2,123
+PMxAgent,(root),text.json,1,8
+PMxAgent,(root),text.md,4,1068
+PMxAgent,(root),text.txt,2,24
+PMxAgent,.github/workflows,text.yml,2,392
+PMxAgent,apis,code.r,1,52
+PMxAgent,apis/endpoints,code.r,5,1868
+PMxAgent,apis/models,code.r,3,750
+PMxAgent,apis/tests,code.r,3,674
+PMxAgent,apis/utils,code.r,8,1246
+PMxAgent,docker,container,2,160
+PMxAgent,docker,text.txt,1,6
+PMxAgent,tests,code.py,5,1008
+PMxAgent,docker-compose services,services,2,mcp;rapi
 Skills,runtime services,services,0,

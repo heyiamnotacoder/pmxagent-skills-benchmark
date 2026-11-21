@@ -16,6 +16,16 @@ def completed(r):
     return r["status"] == "ok" and r["is_error"] != "True"
 
 
+def rate_limited(r):
+    """A usage-limit (HTTP 429) stop, mid-run or instant (deviations §1, §14, §21)."""
+    return str(r.get("status", "")).startswith("failed_ratelimit")
+
+
+def crash_or_timeout(r):
+    """Non-completed run that was NOT a usage-limit stop (e.g. crash exit1 or timeout; deviations §21)."""
+    return not completed(r) and not rate_limited(r)
+
+
 def exclusions(path=EXCLUSIONS):
     """Run IDs excluded for a protocol reason (columns runid, reason, deviation); none if the file is absent."""
     if not os.path.exists(path):
