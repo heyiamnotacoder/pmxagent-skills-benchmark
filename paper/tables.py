@@ -145,7 +145,20 @@ def main():
             write(f"tab_stats_{task}.tex", L)
             for r in rows:
                 nums += pair_macros(task, r["comparison"], "", r)
-    for r in read("stats_secondary.csv"):   # secondary arm A1b (§21): \\numToneAonebVsAoneSecondaryDiff
+    sec_stats = read("stats_secondary.csv")
+    for task in sorted({r["task"] for r in sec_stats}):
+        rows = [r for r in sec_stats if r["task"] == task]
+        L = ["\\begin{tabular}{l c r c r c}", "\\toprule",
+             "Comparison & $n$ & Difference (pp) & 95\\% CI & $p$ (perm.) & Within $\\pm$1 pp \\\\", "\\midrule"]
+        for r in rows:
+            p = float(r["p_perm"])
+            ps = "$<$0.0001" if p < 1e-4 else f"{p:.4f}"
+            L.append(f"{r['comparison'].replace('-', '$-$')} & {r['n_x']} vs {r['n_y']} & {sg(float(r['diff']))} & "
+                     f"{sg(float(r['ci_lo']))} to {sg(float(r['ci_hi']))} & {ps} & "
+                     f"{'yes' if r['equivalent_1pp'] == 'True' else 'no'} \\\\")
+        L += ["\\bottomrule", "\\end{tabular}"]
+        write(f"tab_stats_secondary_{task}.tex", L)
+    for r in sec_stats:   # secondary arm A1b (§21): \\numToneAonebVsAoneSecondaryDiff
         nums += pair_macros(r["task"], r["comparison"], "Secondary", r)
     for r in read("stats_posthoc.csv"):   # post hoc (logs/deviations.md §17): \\numToneAtwoVsAonePostHocDiff
         nums += pair_macros(r["task"], r["comparison"], "PostHoc", r)

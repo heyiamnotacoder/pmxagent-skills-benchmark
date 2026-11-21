@@ -31,19 +31,25 @@ def f(x):
         return None
 
 
+def count_outcomes(allruns, excluded):
+    """Per (arm, task) counts of (n_invalid_excluded [HTTP 429], n_crash_timeout, n_protocol_excluded)."""
+    n_invalid, n_crash, n_excl = defaultdict(int), defaultdict(int), defaultdict(int)
+    for r in allruns:
+        key = (r["arm"], r["task"])
+        if ledger.rate_limited(r):
+            n_invalid[key] += 1
+        elif ledger.crash_or_timeout(r):
+            n_crash[key] += 1
+        elif r["runid"] in excluded:
+            n_excl[key] += 1
+    return n_invalid, n_crash, n_excl
+
+
 def main():
     allruns = [r for r in csv.DictReader(open(os.path.join(RES, "runs.csv"))) if r["rep"] != "0"]
     excluded = ledger.exclusions()
     runs = [r for r in allruns if ledger.valid(r, excluded)]   # valid runs only
-    n_invalid, n_crash, n_excl = defaultdict(int), defaultdict(int), defaultdict(int)
-    for r in allruns:
-        if not ledger.completed(r):
-            if ledger.rate_limited(r):
-                n_invalid[(r["arm"], r["task"])] += 1
-            else:
-                n_crash[(r["arm"], r["task"])] += 1
-        elif r["runid"] in excluded:
-            n_excl[(r["arm"], r["task"])] += 1
+    n_invalid, n_crash, n_excl = count_outcomes(allruns, excluded)
     scores = {r["runid"]: r for r in csv.DictReader(open(os.path.join(RES, "scores.csv")))} \
         if os.path.exists(os.path.join(RES, "scores.csv")) else {}
     g = defaultdict(list)

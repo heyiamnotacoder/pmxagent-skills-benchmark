@@ -22,7 +22,7 @@ def rate_limited(r):
 
 
 def crash_or_timeout(r):
-    """Non-completed run that was NOT a usage-limit stop (e.g. crash exit1 or timeout; deviations §21)."""
+    """Non-completed rep that was NOT a usage-limit stop (e.g. crash exit1 or timeout; deviations §21)."""
     return not completed(r) and not rate_limited(r)
 
 

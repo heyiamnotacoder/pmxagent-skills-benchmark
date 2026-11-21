@@ -1,6 +1,7 @@
 """Harness unit tests: ledger writes, rep counting, isolation, tool permissions, preflight gate.
 Run: python3 -m unittest discover -s harness/tests"""
-import csv, json, os, sys, tempfile, unittest
+import csv, hashlib, json, os, sys, tempfile, unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import run_arm
@@ -149,13 +150,15 @@ class ToolPermissions(unittest.TestCase):
 
     def test_a1b_verifies_pmx_claude_md_sha256(self):
         with tempfile.TemporaryDirectory() as d:
-            bad = os.path.join(d, "CLAUDE.md")
+            good = os.path.join(d, "CLAUDE.md")
+            open(good, "w").write("# PMxAgent CLAUDE.md fixture\n")
+            digest = hashlib.sha256(open(good, "rb").read()).hexdigest()
+            with mock.patch.object(run_arm, "PMX_CLAUDE_MD_SHA256", digest):
+                self.assertEqual(run_arm.verify_pmx_claude_md(good), good)
+            bad = os.path.join(d, "CLAUDE_bad.md")
             open(bad, "w").write("tampered\n")
             with self.assertRaises(SystemExit):
                 run_arm.verify_pmx_claude_md(bad)
-        # real repo / deployed copy must match the pinned v1.0.0 SHA-256
-        p = run_arm.verify_pmx_claude_md()
-        self.assertTrue(os.path.isfile(p))
 
     def test_uncovered_tools_matches_names_and_server_prefixes_exactly(self):
         allowed = ("Bash", "mcp__pmxagent")

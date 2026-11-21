@@ -333,7 +333,7 @@ def rep_state(arm, task, ledger_rows, live_names, excluded=frozenset()):
 
 def rate_limited(status):
     """A usage-limit (HTTP 429) stop, mid-run or instant (ledger status labels, deviations §1)."""
-    return status.startswith("failed_ratelimit")
+    return ledger.rate_limited({"status": status})
 
 
 def run_status(proc_status, res):
@@ -563,7 +563,7 @@ def main():
         chk = subprocess.run(["shasum", "-a", "256", "-c", frozen], cwd=SKILLS, capture_output=True, text=True)
         if chk.returncode != 0:
             sys.exit("skills changed since freeze (skills/FROZEN.sha256) - log in logs/skill_changes.md and re-freeze")
-    if a.arm == "A1b":
+    if ARMS[a.arm] == "pmx_docs":
         verify_pmx_claude_md()
     if a.arm in PMX_ARMS and not pmx_healthy():
         sys.exit("PMxAgent stack not reachable on :5762 - start it (see harness/pmxagent.sh up)")

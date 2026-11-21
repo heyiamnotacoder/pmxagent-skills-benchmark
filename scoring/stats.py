@@ -153,6 +153,17 @@ def fmt(x, nd=2):
     return "" if x is None else f"{x:.{nd}f}"
 
 
+def compare_pairs(by_arm, task, pairs, b, seed, suffix=""):
+    """Compare each (xa, ya) in `pairs` where both arms have runs in `by_arm`."""
+    out = []
+    for xa, ya in pairs:
+        if xa not in by_arm or ya not in by_arm:
+            continue
+        rng = random.Random(f"{seed}-{task}-{xa}-{ya}{suffix}")
+        out.append({"task": task, "comparison": f"{xa} - {ya}", **compare(by_arm[xa], by_arm[ya], b, rng)})
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--b", type=int, default=10_000)
@@ -185,18 +196,8 @@ def main():
             out_arm.append({"task": task, "arm": arm, "n": len(x), "mean": mean(x),
                             "sd": st.stdev(x) if len(x) > 1 else 0.0, "min": min(x), "max": max(x),
                             "distinct_value_sets": len(vsets[task][arm]) if have_raw[task][arm] else "n/a"})
-        for xa, ya in PAIRS:
-            if xa not in acc[task] or ya not in acc[task]:
-                continue
-            rng = random.Random(f"{a.seed}-{task}-{xa}-{ya}")
-            out_pair.append({"task": task, "comparison": f"{xa} - {ya}",
-                             **compare(acc[task][xa], acc[task][ya], a.b, rng)})
-        for xa, ya in SECONDARY_PAIRS:
-            if xa not in acc[task] or ya not in acc[task]:
-                continue
-            rng = random.Random(f"{a.seed}-{task}-{xa}-{ya}-secondary")
-            out_sec.append({"task": task, "comparison": f"{xa} - {ya}",
-                            **compare(acc[task][xa], acc[task][ya], a.b, rng)})
+        out_pair += compare_pairs(acc[task], task, PAIRS, a.b, a.seed)
+        out_sec += compare_pairs(acc[task], task, SECONDARY_PAIRS, a.b, a.seed, suffix="-secondary")
     sens_arm, sens_pair = sensitivity(by_regime, PAIRS, a.b, a.seed)
     ph_arm, ph_pair = posthoc_unscorable(rows, PAIRS, a.b, a.seed)
 

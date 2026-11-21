@@ -49,8 +49,26 @@ def audit_run(transcript, runid):
     return hits
 
 
+def classify_flagged(rows, runs_by_id, excluded):
+    """Split flagged rows into (valid_flagged, excl_flagged, other_flagged) using the one ledger.valid rule."""
+    valid_flagged, excl_flagged, other_flagged = [], [], []
+    for r in rows:
+        if not (r["flagged"] is True or r["flagged"] == "True"):
+            continue
+        rid = r["runid"]
+        if rid in excluded:
+            excl_flagged.append(r)
+        elif rid in runs_by_id and runs_by_id[rid].get("rep") != "0" and ledger.valid(runs_by_id[rid], excluded):
+            valid_flagged.append(r)
+        else:
+            other_flagged.append(r)
+    return valid_flagged, excl_flagged, other_flagged
+
+
 def main():
     excluded = ledger.exclusions()
+    runs_by_id = {r["runid"]: r for r in csv.DictReader(open(ledger.LEDGER, newline=""))} \
+        if os.path.exists(ledger.LEDGER) else {}
     rows = []   # runs whose transcripts are not on this machine keep their committed rows
     for tr in sorted(glob.glob(os.path.join(RAW, "*", "*", "*", "transcript.jsonl"))):
         arm, task, runid = tr.split(os.sep)[-4:-1]
@@ -59,10 +77,21 @@ def main():
                      "excluded": runid in excluded})
     out = os.path.join(ROOT, "results", "isolation_audit.csv")
     allrows = runstore.merge_rows(out, rows, {r["runid"] for r in rows})
-    valid_flagged = [r for r in rows if r["flagged"] and not r["excluded"]]
-    excl_flagged = [r for r in rows if r["flagged"] and r["excluded"]]
+    # Keep `excluded` in sync for preserved offloaded rows too, in case results/exclusions.csv changed
+    changed = False
+    for r in allrows:
+        want = str(r["runid"] in excluded)
+        if str(r.get("excluded")) != want:
+            r["excluded"] = want
+            changed = True
+    if changed:
+        with open(out, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=list(allrows[0]))
+            w.writeheader(); w.writerows(allrows)
+    valid_flagged, excl_flagged, other_flagged = classify_flagged(allrows, runs_by_id, excluded)
     print(f"{len(rows)} transcripts audited here, {len(valid_flagged)} valid flagged "
-          f"({len(excl_flagged)} excluded flagged); {len(allrows)} rows in {out}")
+          f"({len(excl_flagged)} excluded flagged, {len(other_flagged)} other non-valid flagged); "
+          f"{len(allrows)} rows in {out}")
     for r in valid_flagged:
         print("VALID FLAGGED:", r)
 

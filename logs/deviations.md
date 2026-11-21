@@ -319,16 +319,17 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   - Pre-specified secondary comparisons (`scoring/stats.py` → `results/stats_secondary.csv`): `A1b − A1`, `A2 − A1b`,
     `A3 − A1b`, `A4 − A1b`, reported alongside primary `A1`, never instead of it.
   - Because `pmxagent-main/CLAUDE.md` also includes `curl http://localhost:5762/NCA` examples, `scoring/score_all.py` now
-    records `pmxagent_http_calls` (Bash calls to `:5762/{NCA,ER,PK,DATA,LIBRARY}`) alongside `pmxagent_tool_calls` (MCP
-    calls) for both `A1` and `A1b`.
+    records `pmxagent_http_calls` (non-read-only Bash calls and Write/Edit scripts targeting
+    `:5762/{NCA,ER,PK,DATA,LIBRARY}`) alongside `pmxagent_tool_calls` (MCP calls) for both `A1` and `A1b`.
 - **Non-429 crash/timeout accounting (`harness/ledger.py`, `scoring/summarize.py`).** Previously `summarize.py` counted
-  every non-completed run under `n_invalid_excluded` and described that column as HTTP 429 usage-limit stops. `ledger.py`
+  every non-completed rep under `n_invalid_excluded` and described that column as HTTP 429 usage-limit stops. `ledger.py`
   now separates `rate_limited(r)` (`failed_ratelimit*`) from `crash_or_timeout(r)` (`exit*` / `timeout`), and
   `summarize.py` reports them in separate columns (`n_invalid_excluded` vs `n_crash_timeout`). Zero valid runs were
   affected (the only non-429 non-ok row in the ledger so far is `A1_T3a_messy_r07`, already excluded under §20).
 - **Isolation audit (`scoring/audit_isolation.py`).** Rows in `results/isolation_audit.csv` now carry `excluded`
-  (`True` if in `results/exclusions.csv`) and stdout reports valid flagged vs excluded flagged counts separately; arm-ID
-  regexes now match `A1b` as well as `A0`–`A4`.
+  (`True` if in `results/exclusions.csv`, refreshed for preserved rows too) and stdout classifies flagged rows via the
+  one `ledger.valid(...)` rule (valid flagged vs excluded flagged vs other non-valid flagged); arm-ID regexes now match
+  `A1b` as well as `A0`–`A4`.
 - **A0 `T2_case` within-arm harness drift (disclosure only, no exclusion).** The first 3 valid `A0` `T2_case` reps
   (`r11–r13`, 2026-11-16) ran under `bypassPermissions` without `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` and with the single
   token (`permission_mode` / `auth_label` empty), whereas `r15–r21` (2026-11-20/21) ran under `default` + explicit

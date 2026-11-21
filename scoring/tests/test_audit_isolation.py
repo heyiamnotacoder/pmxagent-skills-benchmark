@@ -51,5 +51,26 @@ class SharedPmxFolder(unittest.TestCase):
             self.assertEqual((hits["other_run_id"], hits["run_area"]), (1, 1))
 
 
+class ClassifyFlagged(unittest.TestCase):
+    def test_uses_single_ledger_valid_rule_for_valid_vs_excluded_vs_other(self):
+        rows = [
+            {"runid": "v1", "flagged": True},
+            {"runid": "ex1", "flagged": True},
+            {"runid": "rl1", "flagged": True},
+            {"runid": "pre0", "flagged": True},
+            {"runid": "clean", "flagged": False},
+        ]
+        runs = {
+            "v1": {"runid": "v1", "rep": "1", "status": "ok", "is_error": "False"},
+            "ex1": {"runid": "ex1", "rep": "2", "status": "ok", "is_error": "False"},
+            "rl1": {"runid": "rl1", "rep": "3", "status": "failed_ratelimit_midrun", "is_error": "True"},
+            "pre0": {"runid": "pre0", "rep": "0", "status": "ok", "is_error": "False"},
+        }
+        vf, ef, of = ai.classify_flagged(rows, runs, excluded={"ex1"})
+        self.assertEqual([r["runid"] for r in vf], ["v1"])
+        self.assertEqual([r["runid"] for r in ef], ["ex1"])
+        self.assertEqual([r["runid"] for r in of], ["rl1", "pre0"])
+
+
 if __name__ == "__main__":
     unittest.main()

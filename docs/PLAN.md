@@ -45,7 +45,7 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 | A2 | Claude Code + knowledge-only skills (no scripts) |
 | A3 | Claude Code + skills with scripts ← main contender |
 | A4 | A3 on a small model (Haiku 4.5) — optional |
-- Model: **Sonnet 4.6 for all arms (decided 2026-09-28)** — matches the model behind PMxAgent's published results.
+- Model: **Sonnet 4.6 for A0–A3 and A1b (decided 2026-09-28)** — matches the model behind PMxAgent's published results; Haiku 4.5 for A4.
 - Runs: `claude -p --model <pinned>` in an isolated workspace outside this repo (no reference data, no parent CLAUDE.md), 10 reps/arm.
 
 ### Phase 3 — Tasks
@@ -65,15 +65,15 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 - [x] Phase 1: five skills written from package docs, testthat vs analytical solutions (all pass: `bash harness/test_all.sh`), frozen v1 (`skills/FROZEN.sha256`, `logs/skill_changes.md`). Not scored on PKanalix before freeze.
 - [x] Tasks built (`tasks/build_tasks.py`): T1 verbatim · T2 case study (+ results.json) · T3a messy xlsx · T3b explicit BLQ · T3c unit harmonisation · T3d oral 1-CM (out of scope for PMxAgent /PK, analytical truth) · T3e 9,100 subjects
 - [x] Docker (colima + Rosetta) + PMxAgent 1.0.0 pinned by digest, deployed at `~/pmxbench_runs/_pmxagent` (`harness/pmxagent.sh up|down`); MCP reachable headless via CI bearer token (6 tools)
-- [x] Harness `harness/run_arm.py`: per-arm git repo `~/pmxbench_runs/<arm>/base` with `ws/<task>` branches, fresh `git worktree` per rep, ledger `results/runs.csv` (cost, tokens, turns, tool calls/errors, wall time), transcripts + output SHA-256 in `results/raw/`
-- [x] Isolation blocker: T1 accepted the user-CLAUDE.md leak (equal in all arms; `logs/deviations.md`). T2 removes it: per-rep empty `CLAUDE_CONFIG_DIR` + `claude setup-token` subscription token (§11).
+- [x] Harness `harness/run_arm.py`: per-arm git repo `/Users/Shared/pmxbench_runs/<arm>/base` (outside `~`, §11) with `ws/<task>` branches, fresh `git worktree` per rep, ledger `results/runs.csv` (cost, tokens, turns, tool calls/errors, wall time), transcripts + output SHA-256 in `results/raw/`
+- [x] Isolation blocker: T1 accepted the user-CLAUDE.md leak (equal in all arms except A1 runs 4–10; `logs/deviations.md`). T2/T3 and A1b remove it: workspaces outside `~`, per-rep empty `HOME` + `CLAUDE_CONFIG_DIR`, env scrub + explicit `--allowedTools`, subscription token pool (§11, §16, §19).
 - [x] **T1 complete (2026-09-28):** A0–A4, `results/T1_report.md`; evidence on Zenodo (doi:10.5281/zenodo.23019418). Scope decision: arms only, T1 first.
 - [x] Preprint branch merged into the T2 work (2026-11-17): `paper/SPEC.md`, stats/figures/tables pipeline, per-task Claude Code pin (`logs/deviations.md` §15)
 - [x] A1 T1 top-up to 10 runs (T1 pin 2.1.283, isolated; sensitivity by isolation regime). The A1 agent called no PMxAgent tool in any T1 run; 2 runs unscorable (`logs/deviations.md` §17)
 - [x] S2 BLQ check passed; T3b runs as built (§18)
 - [x] Token pool: reps may run on several subscription accounts, `~/.config/pmxbench/tokens/acct<N>` (`harness/tokens.py`, §19)
-- [ ] **T2 (in progress):** case study ×10 per arm incl. A1; A0 10/10 valid, A1 re-running from zero (§20), A2–A4 not started. Scorer `score_case_run` (primary = pre-specified lin-up/log-down consistency) → `results/T2_report.md`
-- [ ] **T3 stress (in progress):** T3a–e ×5 per arm; references built (`tasks/*/reference/`). A0: T3a, T3d done, T3c/T3e under way; A1 re-running from zero (§20); A2–A4 not started
+- [ ] **T2 (in progress):** case study ×10 per arm incl. A1; A0 10/10 valid, A1 2/10 valid post-§20 restart, A2–A4 not started. Scorer `score_case_run` (primary = pre-specified lin-up/log-down consistency) → `results/T2_report.md`
+- [ ] **T3 stress (in progress):** T3a–e ×5 per arm; references built (`tasks/*/reference/`). A0: T3a/T3c/T3d/T3e 5/5 done, T3b 3/5; A1 post-§20: T3d 5/5 done, T3a/b/c/e 0/5; A2–A4 not started
 - [x] A1 shared PMxAgent output folders (§20): each A1/A1b rep now starts with them emptied (`harness/pmx_root.py`); all earlier A1 T2/T3 reps excluded (`results/exclusions.csv`, one valid-run rule in `harness/ledger.py`)
 - [ ] **A1b T1 secondary arm (ready to run, §21):** PMxAgent 1.0.0 MCP + verbatim shipped `v1.0.0` `CLAUDE.md` (SHA-256 pinned), 10 reps on `T1_nca` (T1 pin `2.1.283`, isolated), same task prompt; reported alongside primary A1 (`results/stats_secondary.csv`)
 - Note: a first A0 probe accidentally ran the full T1 task (harness bug, fixed); it was quarantined in `results/raw/A0/_preflight/`, marked in the ledger, and is excluded.

@@ -80,7 +80,7 @@ def fig_cost(scores, runs, task):
         sy = st.stdev(acc) if len(acc) > 1 else 0
         ax.errorbar(mx, my, xerr=sx, yerr=sy, fmt="none", ecolor=COLOR[a], elinewidth=1.0, capsize=0, zorder=2)
         ax.scatter(mx, my, s=34, marker=MARK[a], color=COLOR[a], edgecolor=SURF, linewidth=0.8, zorder=3)
-        above = a in ("A0", "A2", "A4")   # alternate label side so neighbours never collide
+        above = a in ("A0", "A1b", "A2", "A4")   # alternate label side so neighbours never collide
         ax.annotate(f"{a} (n={len(acc)})", (mx, my), xytext=(0, 8 if above else -13), textcoords="offset points",
                     ha="center", fontsize=7, color=INK)
     ax.set_xlabel("Cost per run (USD, list-price estimate)")
