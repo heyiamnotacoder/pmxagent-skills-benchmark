@@ -18,7 +18,7 @@ RES = os.path.join(ROOT, "results")
 EV = os.path.join(RES, "evidence")
 OUTDIR = os.path.expanduser("~/pmxbench_evidence")
 EXTRA = ["results/runs.csv", "results/runs.csv.bak-20260928", "results/scores.csv", "results/summary.csv",
-         "results/summary.md", "results/isolation_audit.csv", "logs/deviations.md", "logs/skill_changes.md",
+         "results/summary.md", "results/isolation_audit.csv", "results/exclusions.csv", "logs/deviations.md", "logs/skill_changes.md",
          "logs/calibration.txt", "env/versions.txt", "skills/FROZEN.sha256"]
 
 

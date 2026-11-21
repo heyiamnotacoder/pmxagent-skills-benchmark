@@ -2,13 +2,17 @@
 """Audit every run transcript for attempts to look outside its own workspace -> results/isolation_audit.csv.
 
 Flags, per run: mentions of another run's id or folder, the run archive, parent-directory paths, Claude Code's
-own session/memory folders, or this project repo. Only tool calls (what the agent actually did) are checked, not the
+session/memory folders outside the rep's own HOME, or this project repo. For an A1 run whose raw folder holds
+pmx_root.json (the harness emptied PMxAgent's shared /data/ and /figures/ before the agent started, deviations §20),
+those shared folders count as the run's own: reading them is how it fetches its tools' outputs. Only tool calls (what the agent actually did) are checked, not the
 system prompt. Stdlib only.  Usage: audit_isolation.py
 """
 import csv, glob, json, os, re, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import runstore
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "harness"))
+import pmx_root
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = os.path.join(ROOT, "results", "raw")
@@ -28,18 +32,28 @@ def tool_inputs(path):
         yield json.dumps(c.get("input"))
 
 
+def audit_run(transcript, runid):
+    """{pattern: number of hits} over the tool calls in one run's transcript (its raw folder = the file's folder)."""
+    hits = {k: 0 for k in PATTERNS}
+    clean_root = pmx_root.started_clean(os.path.dirname(transcript))
+    for inp in tool_inputs(transcript):
+        hits["other_run_id"] += sum(1 for m in RUNID.findall(inp) if m != runid)
+        own = (inp.replace(f"/runs/{runid}.home/.claude", "/OWNHOME")   # the rep's own Claude Code state
+               .replace(f"/runs/{runid}", "/OWN").replace(f"_pmxagent/data/{runid}", "OWN"))   # A1 data folder
+        if clean_root:
+            own = own.replace("pmxbench_runs/_pmxagent/data", "OWN").replace("pmxbench_runs/_pmxagent/figures", "OWN")
+        hits["run_area"] += len(RUN_AREA.findall(own))
+        for k, rx in PATTERNS.items():
+            if rx is not None:
+                hits[k] += len(rx.findall(own))
+    return hits
+
+
 def main():
     rows = []   # runs whose transcripts are not on this machine keep their committed rows
     for tr in sorted(glob.glob(os.path.join(RAW, "*", "*", "*", "transcript.jsonl"))):
         arm, task, runid = tr.split(os.sep)[-4:-1]
-        hits = {k: 0 for k in PATTERNS}
-        for inp in tool_inputs(tr):
-            hits["other_run_id"] += sum(1 for m in RUNID.findall(inp) if m != runid)
-            own = inp.replace(f"/runs/{runid}", "/OWN").replace(f"_pmxagent/data/{runid}", "OWN")   # A1 data folder
-            hits["run_area"] += len(RUN_AREA.findall(own))
-            for k, rx in PATTERNS.items():
-                if rx is not None:
-                    hits[k] += len(rx.findall(inp))
+        hits = audit_run(tr, runid)
         rows.append({"runid": runid, "arm": arm, "task": task, **hits, "flagged": any(hits.values())})
     out = os.path.join(ROOT, "results", "isolation_audit.csv")
     allrows = runstore.merge_rows(out, rows, {r["runid"] for r in rows})

@@ -11,6 +11,10 @@ Isolation
     results/raw/ here and never committed to the arm repo, so later reps cannot see earlier ones.
   - finished reps are moved (git worktree move) to ~/pmxbench_archive/<arm>/ (dirs mode 0300: not listable), and
     A1's /data/<runid> host folder with them, so a running agent has no sibling run folders to browse.
+  - A1: PMxAgent's tools write to the top of its shared /data/ and /figures/ folders, not to /data/<runid>/. Each A1
+    rep holds a lock (one A1 rep at a time), finds those folders emptied before it starts (leftovers go to
+    ~/pmxbench_archive/A1/_stray/<runid>/), and what its tools wrote there is moved into its own archived data
+    folder (_pmx_root/) when it ends; raw/pmx_root.json records both (pmx_root.py, logs/deviations.md §20).
   - claude flags: --setting-sources project (no user settings/plugins/hooks), --strict-mcp-config, an explicit
     --allowedTools list (allowed_tools; the scrub below forces permission mode `default`), git/web tools disallowed.
     `preflight` checks what actually leaks into context and that a tool really runs.
@@ -43,7 +47,7 @@ import argparse, csv, fcntl, datetime, hashlib, json, os, re, shutil, subprocess
 from typing import NamedTuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import tokens
+import ledger, pmx_root, tokens
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUNS = os.environ.get("PMXBENCH_RUNS", "/Users/Shared/pmxbench_runs")   # outside ~ (see Isolation)
@@ -294,18 +298,15 @@ def check_claude_version(task, allow_drift=False):
     return exe
 
 
-def valid(r):
-    return r["status"] == "ok" and r["is_error"] != "True"
-
-
-def rep_state(arm, task, ledger_rows, live_names):
+def rep_state(arm, task, ledger_rows, live_names, excluded=frozenset()):
     """(valid + in-progress reps, highest rep number used) for arm x task. Rep 0 is a preflight probe: its ledger
-    row and any leftover worktree folder never count toward --until."""
+    row and any leftover worktree folder never count toward --until. Excluded runs (results/exclusions.csv) do not
+    count either, but keep their rep numbers, so new reps never reuse one."""
     rows = [r for r in ledger_rows if r["arm"] == arm and r["task"] == task and r["rep"] != "0"]
     live = [d for d in live_names if d.startswith(f"{arm}_{task}_r") and not d.endswith((".mcp.json", ".home"))]
     live_reps = [int(d[len(f"{arm}_{task}_r"):][:2]) for d in live]
     live_reps = [r for r in live_reps if r != 0]
-    return sum(valid(r) for r in rows) + len(live_reps), max([int(r["rep"]) for r in rows] + live_reps or [0])
+    return sum(ledger.valid(r, excluded) for r in rows) + len(live_reps), max([int(r["rep"]) for r in rows] + live_reps or [0])
 
 
 def rate_limited(status):
@@ -347,7 +348,7 @@ def next_step(row, limited, switches, pool):
     """--until after one rep -> (action, limited, switches). action: "go" (next rep), "switch" (this account is now
     limited or unusable and another is free: next rep on it), "stop" (all limited, or two instant API failures).
     switches is bounded by the pool size, so a stale reset time can never make the loop spin."""
-    if valid({k: str(v) for k, v in row.items()}):
+    if ledger.completed({k: str(v) for k, v in row.items()}):
         return "go", 0, 0
     hit = rate_limited(row["status"])
     bad_account = row.get("api_error_status") in tokens.AUTH_FAIL_STATUS
@@ -360,10 +361,19 @@ def next_step(row, limited, switches, pool):
 
 
 def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True, exe="claude", pool=None):
+    if arm != "A1":
+        return run_rep(arm, task, rep, model, prompt, timeout_min, suffix, exe, pool)
+    with pmx_root.exclusive(PMX):   # the shared PMxAgent folders belong to one A1 rep at a time (§20)
+        return run_rep(arm, task, rep, model, prompt, timeout_min, suffix, exe, pool)
+
+
+def run_rep(arm, task, rep, model, prompt, timeout_min, suffix, exe, pool):
     auth = pick_account(pool)   # before any worktree exists, so an all-limited stop leaves nothing behind
     base = os.path.join(RUNS, arm, "base")
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     runid = f"{arm}_{task}_r{rep:02d}_{stamp}"
+    if arm == "A1":   # before the agent can see anything: an earlier rep's PMxAgent outputs go out of reach
+        stray = pmx_root.move_leftovers(PMX, runid, os.path.join(ARCHIVE, arm, "_stray", runid))
     wt = os.path.join(RUNS, arm, "runs", runid)
     os.makedirs(os.path.dirname(wt), exist_ok=True)
     sh(["git", "-C", base, "worktree", "add", "-q", "--detach", wt, f"ws/{task}"])
@@ -392,8 +402,11 @@ def run_once(arm, task, rep, model, prompt, timeout_min, suffix=True, exe="claud
             status = "timeout"
     wall = time.time() - t0
     shutil.copytree(os.path.join(wt, "output"), os.path.join(raw, "output"), dirs_exist_ok=True)
-    if arm == "A1" and suffix:
-        shutil.copytree(os.path.join(PMX, "data", runid), os.path.join(raw, "pmxagent_data"), dirs_exist_ok=True)
+    if arm == "A1":   # what the tools wrote at the shared top level joins the rep's own data folder
+        collected = pmx_root.move_leftovers(PMX, runid, os.path.join(PMX, "data", runid, "_pmx_root"))
+        pmx_root.write_record(raw, stray, collected)
+        if os.path.isdir(os.path.join(PMX, "data", runid)):
+            shutil.copytree(os.path.join(PMX, "data", runid), os.path.join(raw, "pmxagent_data"), dirs_exist_ok=True)
     hashes = sha_dir(os.path.join(raw, "output"))
     json.dump(hashes, open(os.path.join(raw, "output_sha256.json"), "w"), indent=1)
     tr = parse_transcript(os.path.join(raw, "transcript.jsonl"))
@@ -549,7 +562,7 @@ def main():
     def state():   # re-read each time: another session may be topping up the same arm
         live_dir = os.path.join(RUNS, a.arm, "runs")
         return rep_state(a.arm, task, list(csv.DictReader(open(LEDGER))),
-                         os.listdir(live_dir) if os.path.isdir(live_dir) else [])
+                         os.listdir(live_dir) if os.path.isdir(live_dir) else [], ledger.exclusions())
     limited = switches = 0
     have, rep = state()
     print(f"{a.arm} {task}: {have} valid or in-progress reps, target {reps}", flush=True)
