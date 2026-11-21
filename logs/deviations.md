@@ -335,3 +335,29 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   token (`permission_mode` / `auth_label` empty), whereas `r15–r21` (2026-11-20/21) ran under `default` + explicit
   `--allowedTools` + scrub (§16) + token pool `acct2` (§19). Both sets ran `isolated` on Claude Code `2.1.310` with 0
   permission denials; all 10 count as valid.
+
+### §22 Arm failures count as runs; `A1b` relabelled post hoc, with disclosures (2026-11-21, after §21)
+- **Why.** `SPEC.md` names HTTP 429 as the only exclusion rule, but `ledger.valid()` treated every non-`ok` rep as
+  invalid, so `--until` silently re-ran any crash or timeout. In effect that was a second exclusion rule, and it favours
+  arms that fail often (per-protocol, not intention-to-treat). §21 split the counts in `summary.*` but left the rule.
+- **Decision (author, 2026-11-21), made before any rep it could change** (no score looked at; the only non-429
+  non-`ok` rep so far, `A1_T3a_messy_r07` (`exit1` after 59 tool calls), is already excluded under §20):
+  - **Arm failure** (`ledger.arm_failure`): the agent did real work (cost > 0 or tool calls > 0), then the rep ended
+    `exit*`, `timeout`, or `ok` with `is_error`, with no `api_error_status`. Valid run, scored on whatever it left (no
+    scorable output → 0, as for a completed run), never repeated. Reported as `n_arm_failed` (part of `n_runs`).
+  - **Infrastructure failure** (`ledger.infra_failure`): any other non-completed, non-429 rep: an API/auth error
+    (`api_error_status` set), no work done, or a harness-bug status (`preflight_bug_*`). Not scored, repeated
+    (`n_infra_failed`).
+  - A harness bug that only shows after real work is excluded through `results/exclusions.csv` with its deviation,
+    decided from the setup, never the score. `run_arm.py next_step` treats an arm failure as a counted rep (a killed
+    timeout reports no cost, so it is no longer mistaken for an account problem).
+- **`A1b` relabelled post hoc.** §21 and `SPEC.md` called `A1b` "pre-specified before any A1b run". It was fixed before
+  any `A1b` run, but after the T1 results of A0–A4 (scores included) were known, so `A2 − A1b`, `A3 − A1b` and
+  `A4 − A1b` were designed with one side's results in view. The motivation was A1's behaviour (0/10 PMxAgent calls),
+  not a score. `A1b` and its comparisons are reported as **post hoc**, like the §17 sensitivity analysis.
+- **Disclosures added.** (1) §21's root cause (agents "saw no multi-drug support… and pivoted") infers the agents'
+  reasoning; it is reported as observed behaviour plus a hypothesis, which `A1b` tests. (2) PMxAgent's `CLAUDE.md`
+  was written by the benchmark's authors and documents this dataset's `/LIBRARY` `mode=benchmark` → `/NCA` workflow,
+  including that `DRUG` and `USUBJID` are independent (the failure behind A1 r07/r11, §17): dataset-specific guidance,
+  no reference values. (3) `A1b` runs about 8 weeks after the A0/A2–A4 T1 runs (2026-09-28) and one day after A1
+  runs 6–12 (2026-11-20), with the same Claude Code pin, model ID and images.

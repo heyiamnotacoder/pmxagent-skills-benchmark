@@ -23,12 +23,20 @@ One attempt by one arm at one task, started fresh with no memory of other reps.
 _Avoid_: run (for an attempt that may not count), trial, iteration
 
 **Valid run**:
-A rep that finished without error and is scored. Every valid run counts, whatever its score.
+A rep that finished without error, or ended in an **arm failure**, and is not in `results/exclusions.csv`. It is scored; every valid run counts, whatever its score.
 _Avoid_: successful run, good run
 
 **Usage-limit stop**:
-A rep ended by the subscription's usage limit (HTTP 429). Excluded from scoring (`n_invalid_excluded`); distinct from non-429 crashes/timeouts (`n_crash_timeout`) and setup/protocol exclusions (`results/exclusions.csv`).
+A rep ended by the subscription's usage limit (HTTP 429). Not scored and repeated (`n_invalid_excluded`); distinct from arm failures, infrastructure failures and setup/protocol exclusions (`results/exclusions.csv`).
 _Avoid_: failure, crash, rate-limit error
+
+**Arm failure**:
+A rep in which the agent did real work (cost or tool calls > 0) and then crashed, hit the time limit or ended in error, with no API/auth error behind it. A valid run, scored on whatever it left (no scorable output → 0); never repeated (`n_arm_failed`, deviations §22).
+_Avoid_: crash, invalid run
+
+**Infrastructure failure**:
+A non-429 rep that ended on an API/auth error, did no work, or carries a harness-bug status. Not scored and repeated (`n_infra_failed`, deviations §22).
+_Avoid_: crash, timeout
 
 **Preflight**:
 A short probe rep (rep 0) that lists what the agent can see, used to check isolation. Never scored.

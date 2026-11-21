@@ -370,7 +370,8 @@ def next_step(row, limited, switches, pool):
     """--until after one rep -> (action, limited, switches). action: "go" (next rep), "switch" (this account is now
     limited or unusable and another is free: next rep on it), "stop" (all limited, or two instant API failures).
     switches is bounded by the pool size, so a stale reset time can never make the loop spin."""
-    if ledger.completed({k: str(v) for k, v in row.items()}):
+    r = {k: str(v) for k, v in row.items()}
+    if ledger.completed(r) or ledger.arm_failure(r):   # a counted rep, the arm's own failure included (§22)
         return "go", 0, 0
     hit = rate_limited(row["status"])
     bad_account = row.get("api_error_status") in tokens.AUTH_FAIL_STATUS

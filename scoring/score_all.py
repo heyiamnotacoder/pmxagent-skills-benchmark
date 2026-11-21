@@ -314,7 +314,7 @@ def main():
         if runid not in runs:   # still running
             continue
         rescanned.add(runid)
-        if not ledger.valid(runs[runid], excluded):   # usage-limit / crashed / excluded runs are not scored
+        if not ledger.valid(runs[runid], excluded):   # usage-limit / infra-failed / excluded runs are not scored (§22)
             continue
         if task in NCA_TASKS:
             r = score_nca_run(run_dir, task)

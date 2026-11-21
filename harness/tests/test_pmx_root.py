@@ -82,18 +82,38 @@ class LedgerValidity(unittest.TestCase):
     def test_excluded_runs_are_not_valid_but_still_completed(self):
         ok = {"runid": "A1_T2_case_r03_x", "status": "ok", "is_error": "False"}
         rl = {"runid": "y", "status": "failed_ratelimit_midrun", "is_error": "True"}
-        crash = {"runid": "z", "status": "exit1", "is_error": "False"}
-        to = {"runid": "w", "status": "timeout", "is_error": "False"}
         self.assertTrue(ledger.completed(ok))
         self.assertTrue(ledger.valid(ok, frozenset()))
         self.assertFalse(ledger.valid(ok, {"A1_T2_case_r03_x"}))
         self.assertFalse(ledger.valid(rl, set()))
         self.assertTrue(ledger.rate_limited(rl))
-        self.assertFalse(ledger.crash_or_timeout(rl))
-        self.assertFalse(ledger.rate_limited(crash))
-        self.assertTrue(ledger.crash_or_timeout(crash))
-        self.assertTrue(ledger.crash_or_timeout(to))
-        self.assertFalse(ledger.crash_or_timeout(ok))
+        self.assertFalse(ledger.arm_failure(rl))
+        self.assertFalse(ledger.arm_failure(ok))
+
+    def test_arm_failures_count_as_runs_infra_failures_do_not(self):
+        """§22: a rep that did real work and then crashed, timed out or ended in error is the arm's failure: it
+        counts (scored on what it left). A rep that never did work, or that Claude Code ended on an API/auth error,
+        failed outside the arm: not counted, re-run."""
+        arm = [{"runid": "a1", "status": "exit1", "is_error": "False", "cost_usd": "1.51", "tool_calls": "59"},
+               {"runid": "a2", "status": "timeout", "is_error": "", "cost_usd": "", "tool_calls": "40"},
+               {"runid": "a3", "status": "ok", "is_error": "True", "cost_usd": "0.8", "tool_calls": "12"}]
+        infra = [{"runid": "i1", "status": "exit1", "is_error": "True", "cost_usd": "0.4", "tool_calls": "3",
+                  "api_error_status": "529"},
+                 {"runid": "i2", "status": "exit1", "is_error": "", "cost_usd": "", "tool_calls": "0"},
+                 {"runid": "i3", "status": "timeout", "is_error": "", "cost_usd": "", "tool_calls": "0"},
+                 {"runid": "i4", "status": "preflight_bug_task_suffix", "is_error": "False", "cost_usd": "0.39",
+                  "tool_calls": "15"}]
+        for r in arm:
+            with self.subTest(r["runid"]):
+                self.assertTrue(ledger.arm_failure(r))
+                self.assertFalse(ledger.infra_failure(r))
+                self.assertTrue(ledger.valid(r, frozenset()))
+                self.assertFalse(ledger.valid(r, {r["runid"]}))   # an exclusion still wins
+        for r in infra:
+            with self.subTest(r["runid"]):
+                self.assertFalse(ledger.arm_failure(r))
+                self.assertTrue(ledger.infra_failure(r))
+                self.assertFalse(ledger.valid(r, frozenset()))
 
     def test_exclusions_file_is_read_and_a_missing_file_excludes_nothing(self):
         with tempfile.TemporaryDirectory() as d:
