@@ -179,6 +179,17 @@ class PmxagentToolCalls(unittest.TestCase):
             self.assertEqual(score_all.pmxagent_http_calls(run), 3)
 
 
+class OralNoOutput(unittest.TestCase):
+    def test_t3d_run_without_results_json_scores_zero_not_missing(self):
+        """§22: an arm failure that left nothing scores 0 on T3d too, so it is not dropped from the accuracy stats."""
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, "output"))
+            r = score_all.score_oral_run(d)
+            self.assertEqual((r["completed"], r["overall"]), (False, 0.0))
+            open(os.path.join(d, "output", "results.json"), "w").write("{not json")
+            self.assertEqual(score_all.score_oral_run(d)["overall"], 0.0)
+
+
 class SummarizeOutcomes(unittest.TestCase):
     def test_separates_ratelimit_infra_arm_failures_and_protocol_exclusions(self):
         base = {"arm": "A1", "task": "T3a_messy", "is_error": "False", "cost_usd": "1.0", "tool_calls": "9"}
@@ -193,7 +204,7 @@ class SummarizeOutcomes(unittest.TestCase):
         ]
         c = summarize.count_outcomes(rows, excluded={"r5", "r7"})
         k = ("A1", "T3a_messy")
-        self.assertEqual((c["ratelimit"][k], c["infra"][k], c["excluded"][k], c["arm_failed"][k]), (1, 1, 2, 2))
+        self.assertEqual((c["n_invalid_excluded"][k], c["n_infra_failed"][k], c["n_protocol_excluded"][k], c["n_arm_failed"][k]), (1, 1, 2, 2))
 
 
 if __name__ == "__main__":

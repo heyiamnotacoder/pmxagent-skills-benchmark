@@ -31,21 +31,25 @@ def f(x):
         return None
 
 
+OUTCOME_COLS = ("n_invalid_excluded", "n_infra_failed", "n_protocol_excluded", "n_arm_failed")
+
+
 def count_outcomes(allruns, excluded):
-    """Per (arm, task) counts, keyed by outcome: "ratelimit" (HTTP 429, not scored), "infra" (API/auth error or no
-    work done, not scored), "excluded" (results/exclusions.csv, not scored), "arm_failed" (crash / timeout / error
-    after real work: valid, part of n_runs, scored on what it left; deviations §22)."""
-    c = {k: defaultdict(int) for k in ("ratelimit", "infra", "excluded", "arm_failed")}
+    """Per (arm, task) counts keyed by summary column. Checked in this order, first match wins:
+    n_invalid_excluded (HTTP 429), n_infra_failed (API/auth error, no work, harness-bug status: re-run either way, even
+    if also listed in exclusions.csv), n_protocol_excluded (completed run or arm failure in results/exclusions.csv),
+    n_arm_failed (crash / timeout / error after real work: valid, part of n_runs; deviations §22)."""
+    c = {k: defaultdict(int) for k in OUTCOME_COLS}
     for r in allruns:
         key = (r["arm"], r["task"])
         if ledger.rate_limited(r):
-            c["ratelimit"][key] += 1
+            c["n_invalid_excluded"][key] += 1
         elif ledger.infra_failure(r):
-            c["infra"][key] += 1
+            c["n_infra_failed"][key] += 1
         elif r["runid"] in excluded:
-            c["excluded"][key] += 1
+            c["n_protocol_excluded"][key] += 1
         elif ledger.arm_failure(r):
-            c["arm_failed"][key] += 1
+            c["n_arm_failed"][key] += 1
     return c
 
 
@@ -69,9 +73,8 @@ def main():
         sc = [scores.get(r["runid"], {}) for r in rs]
         acc = [f(s.get("overall")) for s in sc]
         row = {"arm": arm, "task": task, "model": rs[0]["model"], "n_runs": len(rs),
-               "n_arm_failed": c["arm_failed"][(arm, task)],
-               "n_invalid_excluded": c["ratelimit"][(arm, task)], "n_infra_failed": c["infra"][(arm, task)],
-               "n_protocol_excluded": c["excluded"][(arm, task)],
+               **{col: c[col][(arm, task)] for col in ("n_arm_failed", "n_invalid_excluded", "n_infra_failed",
+                                                        "n_protocol_excluded")},
                "accuracy_overall": ms(acc), "accuracy_min": min([a for a in acc if a is not None], default=""),
                "n_distinct_outputs": "",
                "cost_usd_per_run": ms([f(r["cost_usd"]) for r in rs], 3),
@@ -102,10 +105,11 @@ def main():
           "for NCA tasks; % of 3 typical values within 1% of analytical truth for T3d; T2 see columns in summary.csv.",
           "cost_usd = Claude Code list-price estimate from token usage (runs used a subscription).",
           "n_runs = valid runs only; n_arm_failed = of n_runs, runs where the agent crashed, timed out or ended in error "
-          "after real work, scored on what it left (deviations §22); "
+          "after real work, scored on what it left (deviations §22; a killed timeout reports no cost or turns, so it is "
+          "missing from those means); "
           "n_invalid_excluded = runs cut off by the subscription usage limit (HTTP 429), not scored; "
           "n_infra_failed = API/auth errors or runs that did no work, not scored and re-run (deviations §22); "
-          "n_protocol_excluded = completed runs listed in results/exclusions.csv (reason + deviation there), not scored.", "",
+          "n_protocol_excluded = completed runs or arm failures listed in results/exclusions.csv (reason + deviation there), not scored.", "",
           "| " + " | ".join(show) + " |", "|" + "---|" * len(show)]
     md += ["| " + " | ".join(str(r.get(c, "")) for c in show) + " |" for r in rows]
     md += ["", "## Tokens by model (summed over runs)", "", "| arm | task | tokens |", "|---|---|---|"]

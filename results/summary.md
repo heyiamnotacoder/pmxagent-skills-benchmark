@@ -2,7 +2,7 @@
 
 accuracy = paper metric (% of subject-parameters within 1% of PKanalix; mean of 7) for NCA tasks; % of 3 typical values within 1% of analytical truth for T3d; T2 see columns in summary.csv.
 cost_usd = Claude Code list-price estimate from token usage (runs used a subscription).
-n_runs = valid runs only; n_arm_failed = of n_runs, runs where the agent crashed, timed out or ended in error after real work, scored on what it left (deviations §22); n_invalid_excluded = runs cut off by the subscription usage limit (HTTP 429), not scored; n_infra_failed = API/auth errors or runs that did no work, not scored and re-run (deviations §22); n_protocol_excluded = completed runs listed in results/exclusions.csv (reason + deviation there), not scored.
+n_runs = valid runs only; n_arm_failed = of n_runs, runs where the agent crashed, timed out or ended in error after real work, scored on what it left (deviations §22; a killed timeout reports no cost or turns, so it is missing from those means); n_invalid_excluded = runs cut off by the subscription usage limit (HTTP 429), not scored; n_infra_failed = API/auth errors or runs that did no work, not scored and re-run (deviations §22); n_protocol_excluded = completed runs or arm failures listed in results/exclusions.csv (reason + deviation there), not scored.
 
 | arm | task | model | n_runs | n_arm_failed | n_invalid_excluded | n_infra_failed | n_protocol_excluded | accuracy_overall | accuracy_min | n_distinct_outputs | cost_usd_per_run | wall_min_per_run | turns_per_run | tool_calls_per_run | tool_errors_per_run |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|

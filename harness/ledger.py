@@ -23,6 +23,12 @@ def rate_limited(r):
     return str(r.get("status", "")).startswith("failed_ratelimit")
 
 
+def _api_error(r):
+    """The API/auth error status Claude Code reported, or "" (ledger rows hold "", run_arm.next_step passes "None")."""
+    s = str(r.get("api_error_status") or "")
+    return "" if s == "None" else s
+
+
 def _did_work(r):
     """The agent used tokens or tools before the rep ended (a timeout leaves no cost: Claude Code never reported)."""
     def num(v):
@@ -37,7 +43,7 @@ def arm_failure(r):
     """The agent did real work, then crashed, hit the time limit or ended in error, with no API/auth error behind it.
     That is the arm's own failure: it counts as a run, scored on whatever it left (no scorable output -> 0;
     deviations §22, SPEC.md "Pre-specified analysis")."""
-    if completed(r) or rate_limited(r) or str(r.get("api_error_status") or "") not in ("", "None"):
+    if completed(r) or rate_limited(r) or _api_error(r):
         return False
     s = str(r.get("status", ""))
     return (s == "timeout" or s.startswith("exit") or s == "ok") and _did_work(r)

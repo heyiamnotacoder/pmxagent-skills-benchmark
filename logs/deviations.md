@@ -310,6 +310,7 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
      on `T2_case` (single-drug 2-CM IV simulation matching `/PK` by name), bare `A1` called PMxAgent MCP tools in 100%
      of runs (16/16 total, including 2/2 clean post-§20 reps).
 - **Decision (author, 2026-11-21): add pre-specified secondary arm `A1b` on `T1_nca` (10 reps), keep `A1` unchanged.**
+  *(Relabelled **post hoc** in §22: specified after the A0–A4 T1 results were known.)*
   - `A1` stays untouched as the primary bare-MCP arm (no prompt change, no existing T1 run discarded or re-run).
   - `A1b` uses the **exact same verbatim T1 prompt** (and same `SUFFIX` + `SUFFIX_A1`), same PMxAgent 1.0.0 container
     digests, same model (`claude-sonnet-4-6`), same T1 Claude Code pin (`2.1.283`), isolated mode, and `pmx_root.py`
@@ -357,7 +358,13 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   not a score. `A1b` and its comparisons are reported as **post hoc**, like the §17 sensitivity analysis.
 - **Disclosures added.** (1) §21's root cause (agents "saw no multi-drug support… and pivoted") infers the agents'
   reasoning; it is reported as observed behaviour plus a hypothesis, which `A1b` tests. (2) PMxAgent's `CLAUDE.md`
-  was written by the benchmark's authors and documents this dataset's `/LIBRARY` `mode=benchmark` → `/NCA` workflow,
+  was written by PMxAgent's authors (who also built the 182-drug benchmark) and documents this dataset's `/LIBRARY` `mode=benchmark` → `/NCA` workflow,
   including that `DRUG` and `USUBJID` are independent (the failure behind A1 r07/r11, §17): dataset-specific guidance,
   no reference values. (3) `A1b` runs about 8 weeks after the A0/A2–A4 T1 runs (2026-09-28) and one day after A1
   runs 6–12 (2026-11-20), with the same Claude Code pin, model ID and images.
+- **Known limits of the rule.** (1) A timeout caused by an API hang leaves no `api_error_status`, so it cannot be
+  told apart from the arm's own timeout and counts as an arm failure. (2) `ok` + `is_error` with no API error
+  (e.g. a max-turns stop) counts as an arm failure; it could also be a Claude Code-side error. (3) A killed
+  timeout reports no cost or turns, so it is missing from the cost and turn means in `summary.*`. (4) A T3d run
+  with no `results.json` now scores 0 (`score_oral_run`), as an unscorable NCA run already did; no T3d run so far
+  lacks one.
