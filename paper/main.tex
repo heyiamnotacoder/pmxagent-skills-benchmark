@@ -57,11 +57,11 @@ accuracy was \numToneAonebAcc\% (A1b$-$A1 \numToneAonebVsAoneSecondaryDiff, 95\%
 \numToneAonebVsAoneSecondaryCI). Only the arms that executed a fixed script gave
 identical parameter values in every run. Mean list-price cost per run was
 \$\numToneAoneCost\ for A1, \$\numToneAthreeCost\ for A3 and \$\numToneAfourCost\ for A4. On the NCA stress tasks A3
-gave one set of values in every run and was equivalent to or more accurate than A1; without tools accuracy was
-\numTthreebAzeroVsAthreeDiff\ to \numTthreeaAzeroVsAthreeDiff\ points below A3, and the smaller model matched A3 on
-T3b and T3e only. In T2, every arm completed every run; A3 runs that used the packaged parameter set and script gave an
-identical EC$_{50}$, while A1 runs, which called PMxAgent's tools with the same parameters but chose different sampling
-times, did not.
+gave one set of values in every run and was equivalent to or more accurate than A1; without tools, A0$-$A3 ranged from
+\numTthreebAzeroVsAthreeDiff\ to \numTthreeaAzeroVsAthreeDiff\ points, and the smaller model matched A3 on T3b and T3e
+only. In T2, every arm completed every run; A3 runs that used the packaged parameter set and script gave an identical
+EC$_{50}$. A1 runs called PMxAgent's tools with the same parameters and seed but did not agree, because in some of them
+the reported AUCs did not match the run's own simulated data.
 
 \noindent\textbf{Conclusions.} On this benchmark, NCA accuracy came from domain instructions and reproducibility from
 executing fixed code; neither required the server stack. Offered PMxAgent's tools alone, the agent did not use them for NCA,
@@ -320,8 +320,8 @@ the agent used the published monoclonal-antibody parameter set packaged in the S
 the same seed, and these runs gave an identical EC$_{50}$. A2 had the same parameter set in its instructions but wrote
 its own code (\numTtwoAtwoEcDistinct\ distinct values). Every A1 run used PMxAgent's default parameter set and the same
 seed, yet A1 gave \numTtwoAoneEcDistinct\ distinct values, the largest group of identical values containing
-\numTtwoAoneEcModal\ runs: the runs chose different sampling times, and in some the reported AUCs did not match the
-simulated data (above). In A0 and A4 every run gave a different value, and A4
+\numTtwoAoneEcModal\ runs. The large differences came from the runs whose reported AUCs did not match their own
+simulated data (above); the other runs differed only slightly, through the sampling times they chose. In A0 and A4 every run gave a different value, and A4
 reported EC$_{50}$ in different units from run to run.
 
 \begin{table}[t]
@@ -338,8 +338,8 @@ three significant digits; the summary was chosen after the T2 data were seen.}
 \subsection{T3: stress tasks}
 On the four NCA stress tasks, A3 gave a single set of parameter values in every run of each task (Table~\ref{tab:t3acc}).
 A2 was as accurate as A3 on T3a, T3b and T3e (A3$-$A2 within $\pm$1 point; Table~\ref{tab:t3stats}) but gave several
-value sets per task. Without tools, accuracy was lower than A3's on every NCA stress task, by between
-\numTthreebAzeroVsAthreeDiff\ (T3b) and \numTthreeaAzeroVsAthreeDiff\ (T3a) points. A3 was equivalent to A1 on T3a, T3c
+value sets per task. Without tools, accuracy was lower than A3's on every NCA stress task (A0$-$A3 from
+\numTthreebAzeroVsAthreeDiff\ on T3b to \numTthreeaAzeroVsAthreeDiff\ on T3a). A3 was equivalent to A1 on T3a, T3c
 and T3e and more accurate on T3b (A3$-$A1 \numTthreebAthreeVsAoneDiff, \numTthreebAthreeVsAoneCI). A1 called a PMxAgent
 tool in \numTthreeaAonePmxRuns\ of \numTthreeaAonePmxKnown\ T3a runs and in none of its other T3 runs.
 
@@ -399,10 +399,11 @@ alone, and \numToneAonebUnscorable\ runs again gave results that could not be ma
 The stress tasks gave the same picture under harder conditions. With the script, the agent returned one set of values
 in every run of each NCA stress task, whether the input was a messy workbook, carried a below-quantification rule,
 mixed units or was five times larger. Without tools it was less accurate on each. T2 adds a limit to the
-reproducibility claim: fixed code gives identical results only when everything the agent passes to it is fixed too.
-A1 called PMxAgent's tools in every T2 run, with the same default parameters and seed, but chose different sampling
-times from run to run, and its EC$_{50}$ varied. A3 gave identical EC$_{50}$ values in the runs that used the
-parameter set and script packaged with the Skills, which fix those choices. In T3d, outside
+reproducibility claim: fixed code gives identical results only when the steps around it are fixed too. A1 called
+PMxAgent's tools in every T2 run, with the same default parameters and seed, yet its EC$_{50}$ varied: in some runs
+the AUCs the agent reported did not match its own simulated data, and the other runs chose different sampling times.
+A3 gave identical EC$_{50}$ values in the runs that used the parameter set and script packaged with the Skills, which
+fix those steps. In T3d, outside
 PMxAgent's simulation tool, the A1 agent wrote its own simulation code; the arms that wrote code solved this simple
 model, so T3d tested the agent rather than any tool.
 
@@ -437,7 +438,7 @@ affected.
 For NCA on this benchmark, a set of Agent Skills with a bundled, tested script was at least as accurate as the same agent
 with an MCP-based platform offered, gave identical results in every run, and cost less without server infrastructure;
 offered only the platform's tools, the agent did not use them for NCA. The same held on harder NCA inputs, while the
-simulation case study showed that identical results also need fixed inputs, not only fixed code. With the script,
+simulation case study showed that identical results need the whole workflow fixed, not only the calculation. With the script,
 a smaller model matched the larger one on some tasks but not all. Pharmacometric agent designs should test
 instructions, fixed code and serving infrastructure separately before adopting the heavier stack.
 
