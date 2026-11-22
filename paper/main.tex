@@ -42,8 +42,9 @@ agent tools. Which part of that design is responsible for its accuracy and repro
 with one model, varying only what the agent was given: nothing (A0); PMxAgent 1.0.0 over MCP (A1); Agent Skills with
 NCA method instructions only (A2); the same Skills plus a bundled, tested PKNCA script (A3); and A3 with a smaller
 model (A4); and, post hoc, A1 plus PMxAgent's own instruction file (A1b). Each run was a fresh headless session in an
-isolated workspace.
-\TODO{add T2 case study and T3 stress tasks once run.}
+isolated workspace. We also ran PMxAgent's simulation case study (T2, 10 runs per arm) and five stress tasks (T3,
+5 runs per arm): a messy Excel workbook, an explicit below-quantification rule, mixed units, a five-fold larger
+dataset, and an oral model outside PMxAgent's simulation tool.
 
 \noindent\textbf{Results.} Overall accuracy was \numToneAzeroAcc\% without tools (A0), \numToneAoneAcc\% with PMxAgent
 available (A1, $n=\numToneAoneN$), \numToneAtwoAcc\% with knowledge-only Skills (A2), and \numToneAthreeAcc\% with Skills
@@ -55,7 +56,12 @@ was \numToneAtwoVsAonePostHocDiff\ (\numToneAtwoVsAonePostHocCI). With PMxAgent'
 accuracy was \numToneAonebAcc\% (A1b$-$A1 \numToneAonebVsAoneSecondaryDiff, 95\% CI
 \numToneAonebVsAoneSecondaryCI). Only the arms that executed a fixed script gave
 identical parameter values in every run. Mean list-price cost per run was
-\$\numToneAoneCost\ for A1, \$\numToneAthreeCost\ for A3 and \$\numToneAfourCost\ for A4.
+\$\numToneAoneCost\ for A1, \$\numToneAthreeCost\ for A3 and \$\numToneAfourCost\ for A4. On the NCA stress tasks A3
+gave one set of values in every run and was equivalent to or more accurate than A1; without tools accuracy was
+\numTthreebAzeroVsAthreeDiff\ to \numTthreeaAzeroVsAthreeDiff\ points below A3, and the smaller model matched A3 on
+T3b and T3e only. In T2, every arm completed every run; A3 runs that used the packaged parameter set and script gave an
+identical EC$_{50}$, while A1 runs, which called PMxAgent's tools with the same parameters but chose different sampling
+times, did not.
 
 \noindent\textbf{Conclusions.} On this benchmark, NCA accuracy came from domain instructions and reproducibility from
 executing fixed code; neither required the server stack. Offered PMxAgent's tools alone, the agent did not use them for NCA,
@@ -113,7 +119,8 @@ pre-specified; that each of its seven parameters is then also 0 was made explici
 not change any overall score). For A1 we also counted, from each transcript, the calls the agent made to PMxAgent tools.
 
 \subsection{Arms}
-All arms used Claude Code \cite{claudecode} (version 2.1.283) in headless mode. A0--A3 used
+All arms used Claude Code \cite{claudecode} in headless mode, with one pinned version per task (2.1.283 for T1,
+2.1.310 for T2 and T3). A0--A3 used
 \texttt{claude-sonnet-4-6}, the model behind PMxAgent's published results; A4 used
 \texttt{claude-haiku-4-5-20251001}.
 \begin{description}
@@ -152,6 +159,11 @@ infrastructure failure (an API or authentication error, or a run that did no wor
 and then crashed or reached the time limit counted as a run and was scored on what it left.
 Every counted run was scored, whatever its result. Cost is Claude Code's list-price estimate from token counts.
 
+T2 and T3 runs loaded no user instructions and were made with at most two sessions at a time, spread over two
+subscription accounts. PMxAgent's tools write their outputs to shared folders; A1 runs of T2 and T3 made before those
+folders were emptied between runs could see earlier runs' files, so all of them were excluded and repeated. This was
+decided from when the runs were made, before any A1 T2 or T3 result was looked at.
+
 \subsection{Statistics}
 For each pre-specified pair of arms we report the difference in mean overall accuracy with a 95\% percentile bootstrap
 confidence interval (10,000 resamples of runs within each arm) and an exact two-sided permutation $p$-value. Arms were
@@ -162,12 +174,35 @@ distinct sets of parameter values (scored table, values at six significant digit
 seeing T1 scores and are labelled post hoc: the comparisons repeated without the runs whose results could not be
 matched to subjects; and the secondary arm A1b with its comparisons A1b$-$A1, A2$-$A1b, A3$-$A1b and A4$-$A1b, specified
 before any A1b run but after the A0--A4 T1 results were known. A1b is reported alongside A1, never instead of it.
+The same five comparisons were pre-specified for each NCA stress task (T3a, T3b, T3c, T3e); for T3d they are
+exploratory. For T2, the measure of EC$_{50}$ spread (the number of distinct values and the largest group of runs
+with an identical value, without averaging values whose parameters and units differ between runs) was chosen after
+the T2 data were seen.
 
 \subsection{Further tasks}
-\TODO{T2: the PMxAgent case study (simulate 60 subjects in three dose groups with a two-compartment IV model, NCA,
-binary exposure--response), 10 runs per arm; completion, internal consistency and cross-run spread of EC$_{50}$.
-T3a messy Excel workbook; T3b explicit BLQ rule; T3c unit harmonisation; T3d one-compartment oral model (outside the
-scope of PMxAgent's simulation tool; analytical truth); T3e five-fold larger dataset; 5 runs per arm.}
+Task~2 (T2) is the case study from the PMxAgent paper \cite{bloomingdale2026pmxagent}, with its prompt used verbatim:
+simulate 60 subjects in three IV dose groups (10, 30 and 100~mg) with a two-compartment model and 30\% between-subject
+variability, run NCA on the simulated profiles, and fit a binary exposure--response model with response rates of 0.1,
+0.5 and 0.9. The prompt gives no parameter values or units, so each run chose its own. An added sentence asked for a
+\texttt{results.json} file with the group summaries, EC$_{50}$, seed, number of sampling times and typical parameter
+values used. T2 has no reference answer and was reported descriptively, as pre-specified: completion (a
+\texttt{results.json} with all three dose groups); internal consistency, the percentage of reported group means
+(AUC$_\mathrm{last}$ and $C_\mathrm{max}$ for each dose) within 1\% of the means recomputed from the run's own
+simulated data, with AUC$_\mathrm{last}$ recomputed by the linear-up/log-down rule; and the spread of EC$_{50}$ across
+runs. Because the prompt names no AUC rule, consistency under either the linear or the linear-up/log-down rule was added
+before any T2 run was scored and is reported as a sensitivity analysis. Each arm had 10 runs.
+
+Task~3 (T3) has five variants with 5 runs per arm. Four are built from the T1 benchmark and scored with the T1 metric.
+T3a: 30 drugs (300 subjects) reshaped into an Excel workbook with one sheet per drug, patients in rows, ``$<$LLOQ''
+entries and blank cells. T3b: 65 drugs (650 subjects) with records below the limit of quantification and a stated rule
+(zero before $t_\mathrm{max}$, missing after); before any T3b run we confirmed that this rule reproduces the PKanalix
+AUC$_\mathrm{last}$ for all 220 subjects whose result depends on it. T3c: 30 drugs (300 subjects) with concentrations
+in four different units and results requested in harmonised units. T3e: the full benchmark repeated five times (9,100
+subjects). Unlike the T1 prompt, these prompts state how each subject must be identified in the results file. The fifth
+variant, T3d, asks the agent to simulate 20 subjects with a one-compartment oral model (absorption rate, clearance and
+volume given) and to report the typical-subject $C_\mathrm{max}$, $t_\mathrm{max}$ and AUC$_{0-\infty}$; it is scored
+as the percentage of these three values within 1\% of the analytical solution. PMxAgent's simulation tool covers IV
+administration only, so T3d lies outside A1's tool set.
 
 % ---------------------------------------------------------------------------------------------------------------
 \section{Results}
@@ -269,8 +304,80 @@ were the cheapest and fastest arms.
 \label{fig:cost}
 \end{figure}
 
-\subsection{Further tasks}
-\TODO{T2 and T3 results.}
+\subsection{T2: simulation case study}
+Every run of every arm completed T2 and reported all three dose groups (Table~\ref{tab:t2}). T2 is the workflow that
+PMxAgent's tools were demonstrated on, and A1 called a PMxAgent tool in \numTtwoAonePmxRuns\ of \numTtwoAonePmxKnown\
+runs. Under the pre-specified check, the reported group means matched the run's own simulated data in
+\numTtwoAthreeCons\% of comparisons for A3 and \numTtwoAtwoCons\% for A2 (checked in \numTtwoAtwoConsChecked\ of
+\numTtwoAtwoN\ A2 runs; in the others the scorer could not read the simulated-data file), against \numTtwoAzeroCons\%
+for A0, \numTtwoAoneCons\% for A1 and \numTtwoAfourCons\% for A4. Accepting either AUC rule (sensitivity analysis) raised
+A0 to \numTtwoAzeroConsAny\% and A4 to \numTtwoAfourConsAny\%; A1 stayed at \numTtwoAoneConsAny\%, because in some of its
+runs the reported mean AUC$_\mathrm{last}$ matched neither rule.
+
+Runs chose their own parameter values and units, so EC$_{50}$ values cannot be compared between runs that chose
+differently; Table~\ref{tab:t2} reports only whether runs agreed. In \numTtwoAthreeEcModal\ of \numTtwoAthreeN\ A3 runs
+the agent used the published monoclonal-antibody parameter set packaged in the Skills, the bundled simulation script and
+the same seed, and these runs gave an identical EC$_{50}$. A2 had the same parameter set in its instructions but wrote
+its own code (\numTtwoAtwoEcDistinct\ distinct values). Every A1 run used PMxAgent's default parameter set and the same
+seed, yet A1 gave \numTtwoAoneEcDistinct\ distinct values, the largest group of identical values containing
+\numTtwoAoneEcModal\ runs: the runs chose different sampling times, and in some the reported AUCs did not match the
+simulated data (above). In A0 and A4 every run gave a different value, and A4
+reported EC$_{50}$ in different units from run to run.
+
+\begin{table}[t]
+\centering\small
+\caption{T2 case study per arm. Completed: \texttt{results.json} with all three dose groups. Checked: runs whose
+simulated data the scorer could read. Consistent: mean percentage of reported group means (AUC$_\mathrm{last}$,
+$C_\mathrm{max}$) within 1\% of the means recomputed from the run's own simulated data (AUC$_\mathrm{last}$ by the
+linear-up/log-down rule). $^\dagger$Either AUC rule accepted (sensitivity analysis). EC$_{50}$ values are compared at
+three significant digits; the summary was chosen after the T2 data were seen.}
+\label{tab:t2}
+\resizebox{\linewidth}{!}{\input{tables/tab_t2_T2_case.tex}}
+\end{table}
+
+\subsection{T3: stress tasks}
+On the four NCA stress tasks, A3 gave a single set of parameter values in every run of each task (Table~\ref{tab:t3acc}).
+A2 was as accurate as A3 on T3a, T3b and T3e (A3$-$A2 within $\pm$1 point; Table~\ref{tab:t3stats}) but gave several
+value sets per task. Without tools, accuracy was lower than A3's on every NCA stress task, by between
+\numTthreebAzeroVsAthreeDiff\ (T3b) and \numTthreeaAzeroVsAthreeDiff\ (T3a) points. A3 was equivalent to A1 on T3a, T3c
+and T3e and more accurate on T3b (A3$-$A1 \numTthreebAthreeVsAoneDiff, \numTthreebAthreeVsAoneCI). A1 called a PMxAgent
+tool in \numTthreeaAonePmxRuns\ of \numTthreeaAonePmxKnown\ T3a runs and in none of its other T3 runs.
+
+The smaller model with the script (A4) matched A3 on T3b and T3e, again with one value set per task, but not on T3a
+(A4$-$A3 \numTthreeaAfourVsAthreeDiff, \numTthreeaAfourVsAthreeCI), where its results varied between runs, or on T3c
+(\numTthreecAfourVsAthreeDiff), where the same subset of results was wrong in every run.
+
+On T3d (exploratory comparisons), A0, A2 and A3 reported all three typical values within 1\% of the analytical solution
+in every run. A1 scored \numTthreedAoneAcc\% and A4 \numTthreedAfourAcc\%; in each run that lost points,
+$t_\mathrm{max}$ differed from the analytical value by more than 1\%. A1 called a PMxAgent tool in
+\numTthreedAonePmxRuns\ of \numTthreedAonePmxKnown\ T3d runs: the agent wrote its own simulation code.
+
+\begin{table}[t]
+\centering\small
+\caption{T3 accuracy per arm (mean over 5 runs). NCA tasks (T3a, T3b, T3c, T3e): the T1 metric. T3d: percentage of
+the three typical values within 1\% of the analytical solution. Sets: distinct sets of parameter values across runs.}
+\label{tab:t3acc}
+\resizebox{\linewidth}{!}{\input{tables/tab_accuracy_T3.tex}}
+\end{table}
+
+\begin{table}[t]
+\centering\small
+\caption{T3 comparisons of mean accuracy (percentage points; 5 vs 5 runs; 95\% percentile bootstrap CI).
+$^\ddagger$Exploratory (T3d is not an NCA task); the NCA-task comparisons were pre-specified.}
+\label{tab:t3stats}
+\input{tables/tab_stats_T3.tex}
+\end{table}
+
+\subsection{T2 and T3: cost}
+A3 cost less per run than A1 on T2 and on every T3 task, and A4 was the cheapest arm on T3a, T3b, T3c and T3e
+(Table~\ref{tab:cost23}).
+
+\begin{table}[t]
+\centering\small
+\caption{T2 and T3 mean list-price cost per run (USD).}
+\label{tab:cost23}
+\input{tables/tab_cost_T2T3.tex}
+\end{table}
 
 % ---------------------------------------------------------------------------------------------------------------
 \section{Discussion}
@@ -289,6 +396,20 @@ however accurate the calculations. With PMxAgent's own instruction file added (A
 tools in \numToneAonebPmxRuns\ of \numToneAonebPmxKnown\ runs, but mean accuracy was not higher than with the tools
 alone, and \numToneAonebUnscorable\ runs again gave results that could not be matched to subjects.
 
+The stress tasks gave the same picture under harder conditions. With the script, the agent returned one set of values
+in every run of each NCA stress task, whether the input was a messy workbook, carried a below-quantification rule,
+mixed units or was five times larger. Without tools it was less accurate on each. T2 adds a limit to the
+reproducibility claim: fixed code gives identical results only when everything the agent passes to it is fixed too.
+A1 called PMxAgent's tools in every T2 run, with the same default parameters and seed, but chose different sampling
+times from run to run, and its EC$_{50}$ varied. A3 gave identical EC$_{50}$ values in the runs that used the
+parameter set and script packaged with the Skills, which fix those choices. In T3d, outside
+PMxAgent's simulation tool, the A1 agent wrote its own simulation code; the arms that wrote code solved this simple
+model, so T3d tested the agent rather than any tool.
+
+The smaller model matched the larger one with the script on T1, T3b and T3e, but not on T3a, T3c or T3d. On T3c it made
+the same error in every run: the script made its results reproducible, not correct. The work around the script, such
+as preparing its input, still depended on the model.
+
 This does not make MCP redundant. An MCP server works with any compatible client, validates typed inputs at the tool
 boundary, and can be deployed once for many users in a controlled environment; Skills as used here run on the user's
 own machine with the user's own R installation. For a regulated, multi-user deployment those properties can matter more
@@ -306,13 +427,18 @@ comparisons were specified after the first T1 runs, and the analysis without uns
 A1's agent did not call PMxAgent's tools, so A1 reflects PMxAgent as offered to this client and model, not its NCA
 endpoint. A1b was specified after the A0--A4 T1 results were known and run about eight weeks after the A0 and A2--A4
 runs (same Claude Code version, model and container images); its instruction file was written by PMxAgent's authors
-for this benchmark's workflow.
-\TODO{T2/T3-specific limitations.}
+for this benchmark's workflow. T2 has no reference answer: it shows completion, internal consistency and agreement
+between runs, not correctness. Its EC$_{50}$ summary was chosen after the data were seen, and internal consistency
+could be recomputed for only \numTtwoAtwoConsChecked\ of \numTtwoAtwoN\ A2 runs. T3 used 5 runs per arm, and its T3d
+comparisons are exploratory. T2 and T3 ran on a later Claude Code version than T1; comparisons within a task are not
+affected.
 
 \section{Conclusions}
 For NCA on this benchmark, a set of Agent Skills with a bundled, tested script was at least as accurate as the same agent
 with an MCP-based platform offered, gave identical results in every run, and cost less without server infrastructure;
-offered only the platform's tools, the agent did not use them for NCA. Pharmacometric agent designs should test
+offered only the platform's tools, the agent did not use them for NCA. The same held on harder NCA inputs, while the
+simulation case study showed that identical results also need fixed inputs, not only fixed code. With the script,
+a smaller model matched the larger one on some tasks but not all. Pharmacometric agent designs should test
 instructions, fixed code and serving infrastructure separately before adopting the heavier stack.
 
 % ---------------------------------------------------------------------------------------------------------------
