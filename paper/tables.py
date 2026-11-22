@@ -11,7 +11,7 @@ numbers.tex              \\num... macros; per arm also `Distinct`/`DistinctFiles
 Usage: python3 paper/tables.py   (run scoring/stats.py first)
 """
 import csv, os, statistics as st
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = os.path.join(ROOT, "results")
@@ -168,7 +168,93 @@ def main():
                  f"\\newcommand{{{macro(r['task'], r['arm'], 'N' + reg)}}}{{{r['n']}}}"]
     for r in read("stats_sensitivity.csv"):   # \\numToneAtwoVsAoneIsolatedDiff
         nums += pair_macros(r["task"], r["comparison"], r["regime"].title(), r)
+    nums += t2_case(scores["T2_case"])
+    t3_accuracy(scores, distinct)
+    t3_stats(stats)
+    cost_by_task(scores, runs)
     write("numbers.tex", nums)
+
+
+T3 = ["T3a_messy", "T3b_blq", "T3c_units", "T3d_oral", "T3e_large"]
+SHORT = {"T2_case": "T2", "T3a_messy": "T3a", "T3b_blq": "T3b", "T3c_units": "T3c", "T3d_oral": "T3d", "T3e_large": "T3e"}
+
+
+def t2_case(by_arm):
+    """T2 has no ground truth (SPEC.md): completion, internal consistency, and spread of EC50 across runs.
+    EC50 depends on the PK parameters and units each run chose (the prompt gives neither), so it is summarised as the
+    number of distinct values (3 significant digits) and the size of the largest group of identical values, never
+    averaged across runs. Writes tab_t2_T2_case.tex; returns \\numTtwo<Arm>{Completed,ConsChecked,Cons,ConsAny,
+    EcDistinct,EcModal} macros."""
+    L = ["\\begin{tabular}{l r r r r r r r}", "\\toprule",
+         "Arm & $n$ & Completed & Checked & Consistent (\\%) & Either rule (\\%)$^\\dagger$ & "
+         "Distinct EC$_{50}$ & Largest identical group \\\\", "\\midrule"]
+    nums = []
+    for a in [a for a in ARMS if by_arm.get(a)]:
+        rs = by_arm[a]
+        cons = [f(r["summary_consistent_pct"]) for r in rs if f(r.get("summary_consistent_pct")) is not None]
+        anyr = [f(r["summary_consistent_any_rule_pct"]) for r in rs
+                if f(r.get("summary_consistent_any_rule_pct")) is not None]
+        ec = Counter(f"{f(r['ec50']):.3g}" for r in rs if f(r.get("ec50")) is not None)
+        vals = {"Completed": str(sum(r["completed"] == "True" for r in rs)), "ConsChecked": str(len(cons)),
+                "Cons": f"{st.mean(cons):.1f}" if cons else "--", "ConsAny": f"{st.mean(anyr):.1f}" if anyr else "--",
+                "EcDistinct": str(len(ec)), "EcModal": str(max(ec.values(), default=0))}
+        L.append(f"{a} & {len(rs)} & " + " & ".join(vals[k] for k in
+                 ("Completed", "ConsChecked", "Cons", "ConsAny", "EcDistinct", "EcModal")) + " \\\\")
+        nums += [f"\\newcommand{{{macro('T2_case', a, k)}}}{{{v}}}" for k, v in vals.items()]
+    L += ["\\bottomrule", "\\end{tabular}"]
+    write("tab_t2_T2_case.tex", L)
+    return nums
+
+
+def t3_accuracy(scores, distinct):
+    """tab_accuracy_T3.tex: per arm and T3 task, mean overall accuracy and distinct parameter-value sets."""
+    arms = [a for a in ARMS if all(scores[t].get(a) for t in T3)]
+    L = ["\\begin{tabular}{l " + "r r " * len(T3) + "}", "\\toprule",
+         " & " + " & ".join(f"\\multicolumn{{2}}{{c}}{{{SHORT[t]}}}" for t in T3) + " \\\\",
+         " ".join(f"\\cmidrule(lr){{{2 + 2 * i}-{3 + 2 * i}}}" for i in range(len(T3))),
+         "Arm" + " & Acc. & Sets" * len(T3) + " \\\\", "\\midrule"]
+    for a in arms:
+        cells = []
+        for t in T3:
+            ov = [f(r["overall"]) for r in scores[t][a] if f(r.get("overall")) is not None]
+            d = distinct.get((t, a), "n/a")
+            cells += [f"{st.mean(ov):.2f}" if ov else "--", "--" if d == "n/a" else d]
+        L.append(f"{a} & " + " & ".join(cells) + " \\\\")
+    L += ["\\bottomrule", "\\end{tabular}"]
+    write("tab_accuracy_T3.tex", L)
+
+
+def t3_stats(stats):
+    """tab_stats_T3.tex: the pre-specified comparisons for every T3 task in one table (T3d exploratory)."""
+    L = ["\\begin{tabular}{l l r c c}", "\\toprule",
+         "Task & Comparison & Difference (pp) & 95\\% CI & Within $\\pm$1 pp \\\\", "\\midrule"]
+    for i, t in enumerate(T3):
+        if i:
+            L.append("\\addlinespace")
+        for r in [r for r in stats if r["task"] == t]:
+            L.append(f"{SHORT[t]}{'$^\\ddagger$' if t == 'T3d_oral' else ''} & "
+                     f"{r['comparison'].replace('-', '$-$')} & {sg(float(r['diff']))} & "
+                     f"{sg(float(r['ci_lo']))} to {sg(float(r['ci_hi']))} & "
+                     f"{'yes' if r['equivalent_1pp'] == 'True' else 'no'} \\\\")
+    L += ["\\bottomrule", "\\end{tabular}"]
+    write("tab_stats_T3.tex", L)
+
+
+def cost_by_task(scores, runs):
+    """tab_cost_T2T3.tex: mean list-price cost per run (USD) by arm and task, T2 and T3."""
+    tasks = ["T2_case"] + T3
+    arms = [a for a in ARMS if all(scores[t].get(a) for t in tasks)]
+    L = ["\\begin{tabular}{l " + "r " * len(tasks) + "}", "\\toprule",
+         "Arm & " + " & ".join(SHORT[t] for t in tasks) + " \\\\", "\\midrule"]
+    for a in arms:
+        cells = []
+        for t in tasks:
+            c = [f(runs[r["runid"]]["cost_usd"]) for r in scores[t][a] if r["runid"] in runs]
+            c = [x for x in c if x is not None]
+            cells.append(f"{st.mean(c):.2f}" if c else "--")
+        L.append(f"{a} & " + " & ".join(cells) + " \\\\")
+    L += ["\\bottomrule", "\\end{tabular}"]
+    write("tab_cost_T2T3.tex", L)
 
 
 if __name__ == "__main__":

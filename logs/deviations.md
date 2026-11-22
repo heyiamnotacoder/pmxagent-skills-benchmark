@@ -383,3 +383,20 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   transcript and the setup, before this run's own T2 score was looked at. The A1 `T2_case` arm-level means in
   `results/summary.md` had been shown just before (interim snapshot), so the decision was not blind to the arm's
   aggregate. The audit pattern is unchanged; the run stays flagged in `results/isolation_audit.csv`.
+
+### §24 T2 EC50 spread summarised as counts, not mean ± SD; T2/T3 cross-task tables (2026-11-23)
+- **Found while drafting the T2 results.** SPEC.md pre-specifies T2 reproducibility as the "cross-run spread of EC50"
+  without saying how spread is measured. `summarize.py` writes `t2_ec50` as mean ± SD per arm. The T2 prompt gives no
+  PK parameter values or units, so each run chose its own: A3 used the antibody preset in our Skills (Davda 2014) in
+  9 of 10 runs, A1 used PMxAgent's per-kg preset, and A0, A2 and A4 chose values themselves, with EC50 units ranging
+  over mg·h/L, mg·day/L, µg·h/mL and ng·h/mL within an arm. A mean ± SD across those numbers has no meaning.
+- **Decision (author, 23 Nov, after the T2 values were seen).** The paper reports EC50 spread per arm as the number of
+  distinct EC50 values (3 significant digits) and the size of the largest group of runs with an identical value
+  (`paper/tables.py` `t2_case` → `tab_t2_T2_case.tex`, macros `EcDistinct`/`EcModal`). No EC50 is averaged or
+  compared across runs or arms. Labelled in the paper as chosen after seeing the data. `summary.*` keeps its
+  `t2_ec50` column unchanged; the paper does not use it.
+- **Consistency denominator shown.** Internal consistency could be recomputed in 7 of 10 A2 T2 runs (3 runs: "sim file
+  not parseable"); the table reports the number of runs checked next to the mean. No change to scoring.
+- **Cross-task tables.** `paper/tables.py` also writes `tab_accuracy_T3.tex` (accuracy and distinct value sets, all T3
+  tasks), `tab_stats_T3.tex` (the pre-specified comparisons for all T3 tasks; T3d marked exploratory, as in SPEC.md)
+  and `tab_cost_T2T3.tex`. Same data as the per-task tables; layout only.
