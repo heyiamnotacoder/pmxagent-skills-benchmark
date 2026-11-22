@@ -368,3 +368,18 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   timeout reports no cost or turns, so it is missing from the cost and turn means in `summary.*`. (4) A T3d run
   with no `results.json` now scores 0 (`score_oral_run`), as an unscorable NCA run already did; no T3d run so far
   lacks one.
+
+### §23 Isolation flag on `A1_T2_case_r18` kept as a valid run (2026-11-22, ~00:30 IST)
+- **Found by** `scoring/audit_isolation.py` on the ledger snapshot of 22 Nov, ~00:22 IST (lanes still running):
+  1 valid run flagged, `A1_T2_case_r18_20261121-220158` (`run_area`). Every other pattern: 0 hits.
+- **What the agent did.** One Bash call looking for its own plots:
+  `ls /Users/dhruvik/pmxbench_runs/_pmxagent/figures/ ...; find /Users/dhruvik/pmxbench_runs/_pmxagent/ -name "*.png" | head -10`.
+  The `find` starts at the PMxAgent deployment root, not at the rep's own `figures/<runid>/` folder, so it counts as
+  a `run_area` hit (§20 counts only the shared `data/` and `figures/` folders as the run's own). The rep started with
+  clean shared folders (`pmx_root.json`), and the call returned only that rep's own two figures
+  (`figures/A1_T2_case_r18_20261121-220158/{PK,ER}_*.png`). No other file under the deployment root (PMxAgent's
+  repo copy, including its `CLAUDE.md`) was listed or read; no other rep's output and no reference data were reachable.
+- **Decision (author, 22 Nov).** Kept as a valid run; no entry in `results/exclusions.csv`. Decided from the
+  transcript and the setup, before this run's own T2 score was looked at. The A1 `T2_case` arm-level means in
+  `results/summary.md` had been shown just before (interim snapshot), so the decision was not blind to the arm's
+  aggregate. The audit pattern is unchanged; the run stays flagged in `results/isolation_audit.csv`.

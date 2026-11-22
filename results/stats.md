@@ -8,6 +8,7 @@ Overall accuracy (paper metric, percentage points). Difference = mean(X) - mean(
 |---|---|---|---|---|---|---|
 | A0 | 10 | 93.21 | 1.13 | 91.57 | 95.09 | 7 |
 | A1 | 10 | 78.58 | 41.41 | 0.00 | 98.29 | 6 |
+| A1b | 10 | 59.27 | 43.96 | 0.00 | 98.29 | 4 |
 | A2 | 10 | 98.65 | 0.06 | 98.58 | 98.70 | 9 |
 | A3 | 10 | 98.64 | 0.00 | 98.64 | 98.64 | 1 |
 | A4 | 10 | 98.64 | 0.00 | 98.64 | 98.64 | 1 |
@@ -19,6 +20,17 @@ Overall accuracy (paper metric, percentage points). Difference = mean(X) - mean(
 | A3 - A2 | 10 vs 10 | -0.01 | -0.05 to +0.02 | 0.7577 (exact) | yes |
 | A4 - A3 | 10 vs 10 | +0.00 | +0.00 to +0.00 | 1.0000 (exact) | yes |
 | A0 - A3 | 10 vs 10 | -5.43 | -6.02 to -4.73 | <0.0001 (exact) | no |
+
+### T1_nca: secondary arm A1b (PMxAgent MCP + shipped CLAUDE.md)
+
+Pre-specified before any A1b run (paper/SPEC.md; logs/deviations.md §21). Reported alongside primary A1, never instead of it.
+
+| Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
+|---|---|---|---|---|---|
+| A1b - A1 | 10 vs 10 | -19.31 | -53.32 to +15.82 | 0.3434 (exact) | no |
+| A2 - A1b | 10 vs 10 | +39.38 | +14.43 to +65.79 | <0.0001 (exact) | no |
+| A3 - A1b | 10 vs 10 | +39.37 | +14.44 to +66.25 | <0.0001 (exact) | no |
+| A4 - A1b | 10 vs 10 | +39.37 | +14.42 to +64.67 | <0.0001 (exact) | no |
 
 ### T1_nca: sensitivity by isolation regime
 
@@ -44,6 +56,7 @@ Arms whose runs used more than one isolation regime, split by regime (user = use
 |---|---|---|---|---|
 | A0 | 10 | 0 | 93.21 | 1.13 |
 | A1 | 8 | 2 | 98.22 | 0.13 |
+| A1b | 7 | 3 | 84.67 | 19.75 |
 | A2 | 10 | 0 | 98.65 | 0.06 |
 | A3 | 10 | 0 | 98.64 | 0.00 |
 | A4 | 10 | 0 | 98.64 | 0.00 |
@@ -58,27 +71,54 @@ Arms whose runs used more than one isolation regime, split by regime (user = use
 | Arm | n | Mean | SD | Min | Max | Distinct value sets |
 |---|---|---|---|---|---|---|
 | A0 | 5 | 92.93 | 1.60 | 91.36 | 94.84 | 4 |
+| A1 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 4 |
+| A2 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 4 |
+| A3 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 1 |
+| A4 | 5 | 92.46 | 8.51 | 82.96 | 98.68 | 4 |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
+| A2 - A1 | 5 vs 5 | +0.00 | +0.00 to +0.00 | 1.0000 (exact) | yes |
+| A3 - A1 | 5 vs 5 | +0.00 | +0.00 to +0.00 | 1.0000 (exact) | yes |
+| A3 - A2 | 5 vs 5 | +0.00 | +0.00 to +0.00 | 1.0000 (exact) | yes |
+| A4 - A3 | 5 vs 5 | -6.22 | -12.50 to +0.00 | 0.4444 (exact) | no |
+| A0 - A3 | 5 vs 5 | -5.75 | -7.02 to -4.48 | 0.0079 (exact) | no |
 
 ## T3b_blq
 
 | Arm | n | Mean | SD | Min | Max | Distinct value sets |
 |---|---|---|---|---|---|---|
-| A0 | 3 | 95.76 | 0.00 | 95.76 | 95.76 | 3 |
+| A0 | 5 | 95.53 | 0.51 | 94.61 | 95.76 | 4 |
+| A1 | 5 | 92.88 | 7.01 | 80.35 | 96.34 | 5 |
+| A2 | 5 | 97.32 | 0.15 | 97.15 | 97.43 | 5 |
+| A3 | 5 | 97.43 | 0.00 | 97.43 | 97.43 | 1 |
+| A4 | 5 | 97.43 | 0.00 | 97.43 | 97.43 | 1 |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
+| A2 - A1 | 5 vs 5 | +4.44 | +1.07 to +10.74 | 0.0079 (exact) | no |
+| A3 - A1 | 5 vs 5 | +4.55 | +1.21 to +10.83 | 0.0079 (exact) | no |
+| A3 - A2 | 5 vs 5 | +0.11 | +0.00 to +0.22 | 0.4444 (exact) | yes |
+| A4 - A3 | 5 vs 5 | +0.00 | +0.00 to +0.00 | 1.0000 (exact) | yes |
+| A0 - A3 | 5 vs 5 | -1.90 | -2.36 to -1.67 | 0.0079 (exact) | no |
 
 ## T3c_units
 
 | Arm | n | Mean | SD | Min | Max | Distinct value sets |
 |---|---|---|---|---|---|---|
 | A0 | 5 | 93.63 | 2.64 | 91.36 | 98.20 | 3 |
+| A1 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 3 |
+| A2 | 5 | 98.21 | 0.92 | 96.58 | 98.68 | 5 |
+| A3 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 1 |
+| A4 | 5 | 85.51 | 0.00 | 85.51 | 85.51 | 1 |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
+| A2 - A1 | 5 vs 5 | -0.47 | -1.31 to +0.00 | 0.4444 (exact) | no |
+| A3 - A1 | 5 vs 5 | +0.00 | +0.00 to +0.00 | 1.0000 (exact) | yes |
+| A3 - A2 | 5 vs 5 | +0.47 | +0.00 to +1.31 | 0.4444 (exact) | no |
+| A4 - A3 | 5 vs 5 | -13.17 | -13.17 to -13.17 | 0.0079 (exact) | no |
+| A0 - A3 | 5 vs 5 | -5.05 | -6.72 to -2.62 | 0.0079 (exact) | no |
 
 ## T3d_oral
 
@@ -86,15 +126,32 @@ Arms whose runs used more than one isolation regime, split by regime (user = use
 |---|---|---|---|---|---|---|
 | A0 | 5 | 100.00 | 0.00 | 100.00 | 100.00 | n/a |
 | A1 | 5 | 93.33 | 14.91 | 66.67 | 100.00 | n/a |
+| A2 | 5 | 100.00 | 0.00 | 100.00 | 100.00 | n/a |
+| A3 | 5 | 100.00 | 0.00 | 100.00 | 100.00 | n/a |
+| A4 | 5 | 73.34 | 14.91 | 66.67 | 100.00 | n/a |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
+| A2 - A1 | 5 vs 5 | +6.67 | +0.00 to +20.00 | 1.0000 (exact) | no |
+| A3 - A1 | 5 vs 5 | +6.67 | +0.00 to +20.00 | 1.0000 (exact) | no |
+| A3 - A2 | 5 vs 5 | +0.00 | +0.00 to +0.00 | 1.0000 (exact) | yes |
+| A4 - A3 | 5 vs 5 | -26.66 | -33.33 to -13.33 | 0.0476 (exact) | no |
+| A0 - A3 | 5 vs 5 | +0.00 | +0.00 to +0.00 | 1.0000 (exact) | yes |
 
 ## T3e_large
 
 | Arm | n | Mean | SD | Min | Max | Distinct value sets |
 |---|---|---|---|---|---|---|
 | A0 | 5 | 93.21 | 1.05 | 92.74 | 95.09 | 4 |
+| A1 | 5 | 98.24 | 0.10 | 98.06 | 98.29 | 3 |
+| A2 | 5 | 98.68 | 0.04 | 98.62 | 98.70 | 4 |
+| A3 | 5 | 98.64 | 0.00 | 98.64 | 98.64 | 1 |
+| A4 | 5 | 98.64 | 0.00 | 98.64 | 98.64 | 1 |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
+| A2 - A1 | 5 vs 5 | +0.44 | +0.38 to +0.53 | 0.0079 (exact) | yes |
+| A3 - A1 | 5 vs 5 | +0.40 | +0.35 to +0.49 | 0.0079 (exact) | yes |
+| A3 - A2 | 5 vs 5 | -0.04 | -0.06 to -0.01 | 0.0476 (exact) | yes |
+| A4 - A3 | 5 vs 5 | +0.00 | +0.00 to +0.00 | 1.0000 (exact) | yes |
+| A0 - A3 | 5 vs 5 | -5.43 | -5.90 to -4.49 | 0.0079 (exact) | no |
