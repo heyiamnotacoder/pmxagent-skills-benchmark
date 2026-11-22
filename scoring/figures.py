@@ -49,16 +49,19 @@ def fig_params(scores, task):
     arms = [a for a in ARMS if scores[a]]
     fig, ax = plt.subplots(figsize=(6.3, 3.0))
     off = {a: (i - (len(arms) - 1) / 2) * 0.14 for i, a in enumerate(arms)}
+    means = []
     for j, (p, _) in enumerate(PARAMS):
         ax.axhline(j, color=GRID, lw=0.6, zorder=0)
         for a in arms:
             v = [f(r[f"{p}_pct"]) for r in scores[a] if f(r.get(f"{p}_pct")) is not None]
             if v:
-                ax.scatter(st.mean(v), j + off[a], s=30, marker=MARK[a], color=COLOR[a], edgecolor=SURF,
+                means.append(st.mean(v))
+                ax.scatter(means[-1], j + off[a], s=30, marker=MARK[a], color=COLOR[a], edgecolor=SURF,
                            linewidth=0.8, zorder=3, label=LABEL[a] if j == 0 else None)
     ax.set_yticks(range(len(PARAMS)), [lab for _, lab in PARAMS])
     ax.invert_yaxis()
-    ax.set_xlim(80, 100.5)
+    # 80 unless an arm's mean is lower: then the nearest 10 below it, so no marker is ever clipped off the axis
+    ax.set_xlim(min(80, 10 * (min(means, default=80) // 10)), 100.5)
     ax.set_xlabel("Subjects within 1% of PKanalix (%), mean over runs")
     ax.tick_params(axis="y", length=0)
     ax.spines["left"].set_visible(False)

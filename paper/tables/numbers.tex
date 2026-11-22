@@ -20,6 +20,18 @@
 \newcommand{\numToneAonePmxRuns}{0}
 \newcommand{\numToneAonePmxKnown}{10}
 \newcommand{\numToneAonePmxHttpRuns}{0}
+\newcommand{\numToneAonebN}{10}
+\newcommand{\numToneAonebAcc}{59.27}
+\newcommand{\numToneAonebAccSD}{43.96}
+\newcommand{\numToneAonebCost}{1.01}
+\newcommand{\numToneAonebWall}{8.0}
+\newcommand{\numToneAonebDistinct}{4}
+\newcommand{\numToneAonebDistinctFiles}{10}
+\newcommand{\numToneAonebUnscorable}{3}
+\newcommand{\numToneAonebAccPostHoc}{84.67}
+\newcommand{\numToneAonebPmxRuns}{5}
+\newcommand{\numToneAonebPmxKnown}{10}
+\newcommand{\numToneAonebPmxHttpRuns}{0}
 \newcommand{\numToneAtwoN}{10}
 \newcommand{\numToneAtwoAcc}{98.65}
 \newcommand{\numToneAtwoAccSD}{0.06}
@@ -63,15 +75,33 @@
 \newcommand{\numTtwoAzeroCost}{0.23}
 \newcommand{\numTtwoAzeroWall}{3.3}
 \newcommand{\numTtwoAzeroDistinctFiles}{10}
-\newcommand{\numTtwoAoneN}{2}
+\newcommand{\numTtwoAoneN}{10}
 \newcommand{\numTtwoAoneAcc}{--}
 \newcommand{\numTtwoAoneAccSD}{--}
-\newcommand{\numTtwoAoneCost}{0.65}
-\newcommand{\numTtwoAoneWall}{3.0}
-\newcommand{\numTtwoAoneDistinctFiles}{2}
-\newcommand{\numTtwoAonePmxRuns}{2}
-\newcommand{\numTtwoAonePmxKnown}{2}
+\newcommand{\numTtwoAoneCost}{0.66}
+\newcommand{\numTtwoAoneWall}{3.1}
+\newcommand{\numTtwoAoneDistinctFiles}{10}
+\newcommand{\numTtwoAonePmxRuns}{10}
+\newcommand{\numTtwoAonePmxKnown}{10}
 \newcommand{\numTtwoAonePmxHttpRuns}{0}
+\newcommand{\numTtwoAtwoN}{10}
+\newcommand{\numTtwoAtwoAcc}{--}
+\newcommand{\numTtwoAtwoAccSD}{--}
+\newcommand{\numTtwoAtwoCost}{0.54}
+\newcommand{\numTtwoAtwoWall}{3.4}
+\newcommand{\numTtwoAtwoDistinctFiles}{10}
+\newcommand{\numTtwoAthreeN}{10}
+\newcommand{\numTtwoAthreeAcc}{--}
+\newcommand{\numTtwoAthreeAccSD}{--}
+\newcommand{\numTtwoAthreeCost}{0.24}
+\newcommand{\numTtwoAthreeWall}{1.1}
+\newcommand{\numTtwoAthreeDistinctFiles}{10}
+\newcommand{\numTtwoAfourN}{10}
+\newcommand{\numTtwoAfourAcc}{--}
+\newcommand{\numTtwoAfourAccSD}{--}
+\newcommand{\numTtwoAfourCost}{0.30}
+\newcommand{\numTtwoAfourWall}{3.3}
+\newcommand{\numTtwoAfourDistinctFiles}{10}
 \newcommand{\numTthreeaAzeroN}{5}
 \newcommand{\numTthreeaAzeroAcc}{92.93}
 \newcommand{\numTthreeaAzeroAccSD}{1.60}
@@ -79,13 +109,95 @@
 \newcommand{\numTthreeaAzeroWall}{4.1}
 \newcommand{\numTthreeaAzeroDistinct}{4}
 \newcommand{\numTthreeaAzeroDistinctFiles}{5}
-\newcommand{\numTthreebAzeroN}{3}
-\newcommand{\numTthreebAzeroAcc}{95.76}
-\newcommand{\numTthreebAzeroAccSD}{0.00}
-\newcommand{\numTthreebAzeroCost}{0.53}
-\newcommand{\numTthreebAzeroWall}{3.7}
-\newcommand{\numTthreebAzeroDistinct}{3}
-\newcommand{\numTthreebAzeroDistinctFiles}{3}
+\newcommand{\numTthreeaAoneN}{5}
+\newcommand{\numTthreeaAoneAcc}{98.68}
+\newcommand{\numTthreeaAoneAccSD}{0.00}
+\newcommand{\numTthreeaAoneCost}{1.12}
+\newcommand{\numTthreeaAoneWall}{6.8}
+\newcommand{\numTthreeaAoneDistinct}{4}
+\newcommand{\numTthreeaAoneDistinctFiles}{5}
+\newcommand{\numTthreeaAonePmxRuns}{1}
+\newcommand{\numTthreeaAonePmxKnown}{5}
+\newcommand{\numTthreeaAonePmxHttpRuns}{0}
+\newcommand{\numTthreeaAtwoN}{5}
+\newcommand{\numTthreeaAtwoAcc}{98.68}
+\newcommand{\numTthreeaAtwoAccSD}{0.00}
+\newcommand{\numTthreeaAtwoCost}{0.62}
+\newcommand{\numTthreeaAtwoWall}{3.8}
+\newcommand{\numTthreeaAtwoDistinct}{4}
+\newcommand{\numTthreeaAtwoDistinctFiles}{5}
+\newcommand{\numTthreeaAthreeN}{5}
+\newcommand{\numTthreeaAthreeAcc}{98.68}
+\newcommand{\numTthreeaAthreeAccSD}{0.00}
+\newcommand{\numTthreeaAthreeCost}{0.54}
+\newcommand{\numTthreeaAthreeWall}{2.6}
+\newcommand{\numTthreeaAthreeDistinct}{1}
+\newcommand{\numTthreeaAthreeDistinctFiles}{5}
+\newcommand{\numTthreeaAfourN}{5}
+\newcommand{\numTthreeaAfourAcc}{92.46}
+\newcommand{\numTthreeaAfourAccSD}{8.51}
+\newcommand{\numTthreeaAfourCost}{0.20}
+\newcommand{\numTthreeaAfourWall}{2.2}
+\newcommand{\numTthreeaAfourDistinct}{4}
+\newcommand{\numTthreeaAfourDistinctFiles}{5}
+\newcommand{\numTthreeaAtwoVsAoneDiff}{+0.00}
+\newcommand{\numTthreeaAtwoVsAoneCI}{+0.00 to +0.00}
+\newcommand{\numTthreeaAthreeVsAoneDiff}{+0.00}
+\newcommand{\numTthreeaAthreeVsAoneCI}{+0.00 to +0.00}
+\newcommand{\numTthreeaAthreeVsAtwoDiff}{+0.00}
+\newcommand{\numTthreeaAthreeVsAtwoCI}{+0.00 to +0.00}
+\newcommand{\numTthreeaAfourVsAthreeDiff}{$-$6.22}
+\newcommand{\numTthreeaAfourVsAthreeCI}{$-$12.50 to +0.00}
+\newcommand{\numTthreeaAzeroVsAthreeDiff}{$-$5.75}
+\newcommand{\numTthreeaAzeroVsAthreeCI}{$-$7.02 to $-$4.48}
+\newcommand{\numTthreebAzeroN}{5}
+\newcommand{\numTthreebAzeroAcc}{95.53}
+\newcommand{\numTthreebAzeroAccSD}{0.51}
+\newcommand{\numTthreebAzeroCost}{0.46}
+\newcommand{\numTthreebAzeroWall}{3.0}
+\newcommand{\numTthreebAzeroDistinct}{4}
+\newcommand{\numTthreebAzeroDistinctFiles}{5}
+\newcommand{\numTthreebAoneN}{5}
+\newcommand{\numTthreebAoneAcc}{92.88}
+\newcommand{\numTthreebAoneAccSD}{7.01}
+\newcommand{\numTthreebAoneCost}{0.79}
+\newcommand{\numTthreebAoneWall}{5.1}
+\newcommand{\numTthreebAoneDistinct}{5}
+\newcommand{\numTthreebAoneDistinctFiles}{5}
+\newcommand{\numTthreebAonePmxRuns}{0}
+\newcommand{\numTthreebAonePmxKnown}{5}
+\newcommand{\numTthreebAonePmxHttpRuns}{0}
+\newcommand{\numTthreebAtwoN}{5}
+\newcommand{\numTthreebAtwoAcc}{97.32}
+\newcommand{\numTthreebAtwoAccSD}{0.15}
+\newcommand{\numTthreebAtwoCost}{0.51}
+\newcommand{\numTthreebAtwoWall}{2.8}
+\newcommand{\numTthreebAtwoDistinct}{5}
+\newcommand{\numTthreebAtwoDistinctFiles}{5}
+\newcommand{\numTthreebAthreeN}{5}
+\newcommand{\numTthreebAthreeAcc}{97.43}
+\newcommand{\numTthreebAthreeAccSD}{0.00}
+\newcommand{\numTthreebAthreeCost}{0.18}
+\newcommand{\numTthreebAthreeWall}{0.8}
+\newcommand{\numTthreebAthreeDistinct}{1}
+\newcommand{\numTthreebAthreeDistinctFiles}{4}
+\newcommand{\numTthreebAfourN}{5}
+\newcommand{\numTthreebAfourAcc}{97.43}
+\newcommand{\numTthreebAfourAccSD}{0.00}
+\newcommand{\numTthreebAfourCost}{0.09}
+\newcommand{\numTthreebAfourWall}{1.0}
+\newcommand{\numTthreebAfourDistinct}{1}
+\newcommand{\numTthreebAfourDistinctFiles}{3}
+\newcommand{\numTthreebAtwoVsAoneDiff}{+4.44}
+\newcommand{\numTthreebAtwoVsAoneCI}{+1.07 to +10.74}
+\newcommand{\numTthreebAthreeVsAoneDiff}{+4.55}
+\newcommand{\numTthreebAthreeVsAoneCI}{+1.21 to +10.83}
+\newcommand{\numTthreebAthreeVsAtwoDiff}{+0.11}
+\newcommand{\numTthreebAthreeVsAtwoCI}{+0.00 to +0.22}
+\newcommand{\numTthreebAfourVsAthreeDiff}{+0.00}
+\newcommand{\numTthreebAfourVsAthreeCI}{+0.00 to +0.00}
+\newcommand{\numTthreebAzeroVsAthreeDiff}{$-$1.90}
+\newcommand{\numTthreebAzeroVsAthreeCI}{$-$2.36 to $-$1.67}
 \newcommand{\numTthreecAzeroN}{5}
 \newcommand{\numTthreecAzeroAcc}{93.63}
 \newcommand{\numTthreecAzeroAccSD}{2.64}
@@ -93,6 +205,47 @@
 \newcommand{\numTthreecAzeroWall}{3.9}
 \newcommand{\numTthreecAzeroDistinct}{3}
 \newcommand{\numTthreecAzeroDistinctFiles}{5}
+\newcommand{\numTthreecAoneN}{5}
+\newcommand{\numTthreecAoneAcc}{98.68}
+\newcommand{\numTthreecAoneAccSD}{0.00}
+\newcommand{\numTthreecAoneCost}{0.82}
+\newcommand{\numTthreecAoneWall}{4.6}
+\newcommand{\numTthreecAoneDistinct}{3}
+\newcommand{\numTthreecAoneDistinctFiles}{5}
+\newcommand{\numTthreecAonePmxRuns}{0}
+\newcommand{\numTthreecAonePmxKnown}{5}
+\newcommand{\numTthreecAonePmxHttpRuns}{0}
+\newcommand{\numTthreecAtwoN}{5}
+\newcommand{\numTthreecAtwoAcc}{98.21}
+\newcommand{\numTthreecAtwoAccSD}{0.92}
+\newcommand{\numTthreecAtwoCost}{0.43}
+\newcommand{\numTthreecAtwoWall}{2.6}
+\newcommand{\numTthreecAtwoDistinct}{5}
+\newcommand{\numTthreecAtwoDistinctFiles}{5}
+\newcommand{\numTthreecAthreeN}{5}
+\newcommand{\numTthreecAthreeAcc}{98.68}
+\newcommand{\numTthreecAthreeAccSD}{0.00}
+\newcommand{\numTthreecAthreeCost}{0.37}
+\newcommand{\numTthreecAthreeWall}{2.1}
+\newcommand{\numTthreecAthreeDistinct}{1}
+\newcommand{\numTthreecAthreeDistinctFiles}{4}
+\newcommand{\numTthreecAfourN}{5}
+\newcommand{\numTthreecAfourAcc}{85.51}
+\newcommand{\numTthreecAfourAccSD}{0.00}
+\newcommand{\numTthreecAfourCost}{0.19}
+\newcommand{\numTthreecAfourWall}{2.1}
+\newcommand{\numTthreecAfourDistinct}{1}
+\newcommand{\numTthreecAfourDistinctFiles}{5}
+\newcommand{\numTthreecAtwoVsAoneDiff}{$-$0.47}
+\newcommand{\numTthreecAtwoVsAoneCI}{$-$1.31 to +0.00}
+\newcommand{\numTthreecAthreeVsAoneDiff}{+0.00}
+\newcommand{\numTthreecAthreeVsAoneCI}{+0.00 to +0.00}
+\newcommand{\numTthreecAthreeVsAtwoDiff}{+0.47}
+\newcommand{\numTthreecAthreeVsAtwoCI}{+0.00 to +1.31}
+\newcommand{\numTthreecAfourVsAthreeDiff}{$-$13.17}
+\newcommand{\numTthreecAfourVsAthreeCI}{$-$13.17 to $-$13.17}
+\newcommand{\numTthreecAzeroVsAthreeDiff}{$-$5.05}
+\newcommand{\numTthreecAzeroVsAthreeCI}{$-$6.72 to $-$2.62}
 \newcommand{\numTthreedAzeroN}{5}
 \newcommand{\numTthreedAzeroAcc}{100.00}
 \newcommand{\numTthreedAzeroAccSD}{0.00}
@@ -108,6 +261,34 @@
 \newcommand{\numTthreedAonePmxRuns}{0}
 \newcommand{\numTthreedAonePmxKnown}{5}
 \newcommand{\numTthreedAonePmxHttpRuns}{0}
+\newcommand{\numTthreedAtwoN}{5}
+\newcommand{\numTthreedAtwoAcc}{100.00}
+\newcommand{\numTthreedAtwoAccSD}{0.00}
+\newcommand{\numTthreedAtwoCost}{0.21}
+\newcommand{\numTthreedAtwoWall}{1.3}
+\newcommand{\numTthreedAtwoDistinctFiles}{5}
+\newcommand{\numTthreedAthreeN}{5}
+\newcommand{\numTthreedAthreeAcc}{100.00}
+\newcommand{\numTthreedAthreeAccSD}{0.00}
+\newcommand{\numTthreedAthreeCost}{0.16}
+\newcommand{\numTthreedAthreeWall}{0.9}
+\newcommand{\numTthreedAthreeDistinctFiles}{5}
+\newcommand{\numTthreedAfourN}{5}
+\newcommand{\numTthreedAfourAcc}{73.34}
+\newcommand{\numTthreedAfourAccSD}{14.91}
+\newcommand{\numTthreedAfourCost}{0.12}
+\newcommand{\numTthreedAfourWall}{1.3}
+\newcommand{\numTthreedAfourDistinctFiles}{5}
+\newcommand{\numTthreedAtwoVsAoneDiff}{+6.67}
+\newcommand{\numTthreedAtwoVsAoneCI}{+0.00 to +20.00}
+\newcommand{\numTthreedAthreeVsAoneDiff}{+6.67}
+\newcommand{\numTthreedAthreeVsAoneCI}{+0.00 to +20.00}
+\newcommand{\numTthreedAthreeVsAtwoDiff}{+0.00}
+\newcommand{\numTthreedAthreeVsAtwoCI}{+0.00 to +0.00}
+\newcommand{\numTthreedAfourVsAthreeDiff}{$-$26.66}
+\newcommand{\numTthreedAfourVsAthreeCI}{$-$33.33 to $-$13.33}
+\newcommand{\numTthreedAzeroVsAthreeDiff}{+0.00}
+\newcommand{\numTthreedAzeroVsAthreeCI}{+0.00 to +0.00}
 \newcommand{\numTthreeeAzeroN}{5}
 \newcommand{\numTthreeeAzeroAcc}{93.21}
 \newcommand{\numTthreeeAzeroAccSD}{1.05}
@@ -115,6 +296,55 @@
 \newcommand{\numTthreeeAzeroWall}{3.8}
 \newcommand{\numTthreeeAzeroDistinct}{4}
 \newcommand{\numTthreeeAzeroDistinctFiles}{5}
+\newcommand{\numTthreeeAoneN}{5}
+\newcommand{\numTthreeeAoneAcc}{98.24}
+\newcommand{\numTthreeeAoneAccSD}{0.10}
+\newcommand{\numTthreeeAoneCost}{0.86}
+\newcommand{\numTthreeeAoneWall}{6.0}
+\newcommand{\numTthreeeAoneDistinct}{3}
+\newcommand{\numTthreeeAoneDistinctFiles}{5}
+\newcommand{\numTthreeeAonePmxRuns}{0}
+\newcommand{\numTthreeeAonePmxKnown}{5}
+\newcommand{\numTthreeeAonePmxHttpRuns}{0}
+\newcommand{\numTthreeeAtwoN}{5}
+\newcommand{\numTthreeeAtwoAcc}{98.68}
+\newcommand{\numTthreeeAtwoAccSD}{0.04}
+\newcommand{\numTthreeeAtwoCost}{0.44}
+\newcommand{\numTthreeeAtwoWall}{2.6}
+\newcommand{\numTthreeeAtwoDistinct}{4}
+\newcommand{\numTthreeeAtwoDistinctFiles}{5}
+\newcommand{\numTthreeeAthreeN}{5}
+\newcommand{\numTthreeeAthreeAcc}{98.64}
+\newcommand{\numTthreeeAthreeAccSD}{0.00}
+\newcommand{\numTthreeeAthreeCost}{0.23}
+\newcommand{\numTthreeeAthreeWall}{2.7}
+\newcommand{\numTthreeeAthreeDistinct}{1}
+\newcommand{\numTthreeeAthreeDistinctFiles}{2}
+\newcommand{\numTthreeeAfourN}{5}
+\newcommand{\numTthreeeAfourAcc}{98.64}
+\newcommand{\numTthreeeAfourAccSD}{0.00}
+\newcommand{\numTthreeeAfourCost}{0.07}
+\newcommand{\numTthreeeAfourWall}{2.5}
+\newcommand{\numTthreeeAfourDistinct}{1}
+\newcommand{\numTthreeeAfourDistinctFiles}{3}
+\newcommand{\numTthreeeAtwoVsAoneDiff}{+0.44}
+\newcommand{\numTthreeeAtwoVsAoneCI}{+0.38 to +0.53}
+\newcommand{\numTthreeeAthreeVsAoneDiff}{+0.40}
+\newcommand{\numTthreeeAthreeVsAoneCI}{+0.35 to +0.49}
+\newcommand{\numTthreeeAthreeVsAtwoDiff}{$-$0.04}
+\newcommand{\numTthreeeAthreeVsAtwoCI}{$-$0.06 to $-$0.01}
+\newcommand{\numTthreeeAfourVsAthreeDiff}{+0.00}
+\newcommand{\numTthreeeAfourVsAthreeCI}{+0.00 to +0.00}
+\newcommand{\numTthreeeAzeroVsAthreeDiff}{$-$5.43}
+\newcommand{\numTthreeeAzeroVsAthreeCI}{$-$5.90 to $-$4.49}
+\newcommand{\numToneAonebVsAoneSecondaryDiff}{$-$19.31}
+\newcommand{\numToneAonebVsAoneSecondaryCI}{$-$53.32 to +15.82}
+\newcommand{\numToneAtwoVsAonebSecondaryDiff}{+39.38}
+\newcommand{\numToneAtwoVsAonebSecondaryCI}{+14.43 to +65.79}
+\newcommand{\numToneAthreeVsAonebSecondaryDiff}{+39.37}
+\newcommand{\numToneAthreeVsAonebSecondaryCI}{+14.44 to +66.25}
+\newcommand{\numToneAfourVsAonebSecondaryDiff}{+39.37}
+\newcommand{\numToneAfourVsAonebSecondaryCI}{+14.42 to +64.67}
 \newcommand{\numToneAtwoVsAonePostHocDiff}{+0.43}
 \newcommand{\numToneAtwoVsAonePostHocCI}{+0.35 to +0.52}
 \newcommand{\numToneAthreeVsAonePostHocDiff}{+0.42}
