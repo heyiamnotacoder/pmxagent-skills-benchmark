@@ -41,7 +41,8 @@ agent tools. Which part of that design is responsible for its accuracy and repro
 1,820 subjects, PKanalix reference, the paper's scoring metric, reproduced exactly) in one agent client (Claude Code)
 with one model, varying only what the agent was given: nothing (A0); PMxAgent 1.0.0 over MCP (A1); Agent Skills with
 NCA method instructions only (A2); the same Skills plus a bundled, tested PKNCA script (A3); and A3 with a smaller
-model (A4). Each run was a fresh headless session in an isolated workspace.
+model (A4); and, post hoc, A1 plus PMxAgent's own instruction file (A1b). Each run was a fresh headless session in an
+isolated workspace.
 \TODO{add T2 case study and T3 stress tasks once run.}
 
 \noindent\textbf{Results.} Overall accuracy was \numToneAzeroAcc\% without tools (A0), \numToneAoneAcc\% with PMxAgent
@@ -50,12 +51,14 @@ plus script on either model (A3, A4). The A1 agent called a PMxAgent tool in \nu
 \numToneAonePmxKnown\ runs: it wrote its own NCA code, and in \numToneAoneUnscorable\ runs its results file named the drug
 but not the subject, so those runs scored 0. A2$-$A1 was \numToneAtwoVsAoneDiff\ percentage points (95\% CI
 \numToneAtwoVsAoneCI); in a post-hoc analysis without the unscorable runs, A1 scored \numToneAoneAccPostHoc\% and A2$-$A1
-was \numToneAtwoVsAonePostHocDiff\ (\numToneAtwoVsAonePostHocCI). Only the arms that executed a fixed script gave
+was \numToneAtwoVsAonePostHocDiff\ (\numToneAtwoVsAonePostHocCI). With PMxAgent's instruction file added (A1b),
+accuracy was \numToneAonebAcc\% (A1b$-$A1 \numToneAonebVsAoneSecondaryDiff, 95\% CI
+\numToneAonebVsAoneSecondaryCI). Only the arms that executed a fixed script gave
 identical parameter values in every run. Mean list-price cost per run was
 \$\numToneAoneCost\ for A1, \$\numToneAthreeCost\ for A3 and \$\numToneAfourCost\ for A4.
 
 \noindent\textbf{Conclusions.} On this benchmark, NCA accuracy came from domain instructions and reproducibility from
-executing fixed code; neither required the server stack. Offered PMxAgent's tools, the agent did not use them for NCA,
+executing fixed code; neither required the server stack. Offered PMxAgent's tools alone, the agent did not use them for NCA,
 so PMxAgent's own reproducibility was not tested here. MCP remains useful for client-agnostic and multi-user deployment.
 \end{abstract}
 
@@ -116,6 +119,11 @@ All arms used Claude Code \cite{claudecode} (version 2.1.283) in headless mode. 
 \begin{description}
 \item[A0] No Skills, no MCP server: the agent writes its own code.
 \item[A1] PMxAgent 1.0.0 MCP server (Docker images pinned by digest), as published.
+\item[A1b] Secondary arm, T1 only, post hoc: A1 plus the \texttt{CLAUDE.md} instruction file shipped with PMxAgent
+1.0.0 (pinned by SHA-256), which Claude Code loads at the start of each session; the prompt was unchanged. PMxAgent's
+documentation tells Claude Code users to start the client in its repository, where this file sits next to the MCP
+configuration. The file describes the NCA tool's multi-drug and mixed-route input, which the tool's API description
+omits. It was written by PMxAgent's authors, describes the workflow for this benchmark, and contains no reference values.
 \item[A2] Agent Skills, knowledge only: the \texttt{SKILL.md} method instructions (AUC rule, $\lambda_z$ selection,
 derived parameters, route and BLQ handling, units, output checks), with all script sections removed.
 \item[A3] The same Skills plus a bundled R script (\texttt{run\_nca.R}, PKNCA 0.12.1) that the instructions tell the agent to
@@ -134,8 +142,8 @@ A2--A4, that arm's Skills. Workspaces lived outside the project repository, so n
 User-level settings, plugins, hooks and automatic memory were disabled, MCP servers were restricted to the arm's
 configuration, and git and web tools were disallowed. Finished runs were moved to a non-listable archive. An audit of
 every tool call in all transcripts found no access to another run's files. One known leak, the user-global
-instruction file (general tool-usage rules, no pharmacometric content), was loaded in every T1 run except A1 runs 4--10,
-which ran with no user instructions.
+instruction file (general tool-usage rules, no pharmacometric content), was loaded in every T1 run except A1 runs 4--10
+and all A1b runs, which ran with no user instructions.
 
 The planned number of runs was 10 per arm. A1 first had 3 runs because of cost and time and was later topped up to 10
 under the stricter isolation; A1 is therefore also reported per isolation regime (pre-specified before the top-up). Runs used a Claude subscription; the only
@@ -150,9 +158,10 @@ confidence interval (10,000 resamples of runs within each arm) and an exact two-
 called equivalent only if the whole 95\% CI lay within $\pm$1.0 percentage point. For T1 this analysis was specified
 after the runs had been completed; for the remaining tasks it was fixed in the repository before any run
 (commit \texttt{08ea7b3}). Reproducibility is reported as the SD of overall accuracy across runs and as the number of
-distinct sets of parameter values (scored table, values at six significant digits). One analysis was decided after
-seeing the T1 scores and is labelled post hoc: the comparisons repeated without the runs whose results could not be
-matched to subjects.
+distinct sets of parameter values (scored table, values at six significant digits). Two analyses were decided after
+seeing T1 scores and are labelled post hoc: the comparisons repeated without the runs whose results could not be
+matched to subjects; and the secondary arm A1b with its comparisons A1b$-$A1, A2$-$A1b, A3$-$A1b and A4$-$A1b, specified
+before any A1b run but after the A0--A4 T1 results were known. A1b is reported alongside A1, never instead of it.
 
 \subsection{Further tasks}
 \TODO{T2: the PMxAgent case study (simulate 60 subjects in three dose groups with a two-compartment IV model, NCA,
@@ -163,7 +172,9 @@ scope of PMxAgent's simulation tool; analytical truth); T3e five-fold larger dat
 % ---------------------------------------------------------------------------------------------------------------
 \section{Results}
 \subsection{T1: accuracy}
-All arms scored 100\% on $C_\mathrm{max}$ and $t_\mathrm{max}$ (Table~\ref{tab:acc}, Figure~\ref{fig:params}).
+In every run whose results could be matched to subjects, $C_\mathrm{max}$ and $t_\mathrm{max}$ were within 1\% of
+PKanalix for all subjects; the lower means of A1 and A1b on these parameters come only from runs whose results could
+not be matched (Table~\ref{tab:acc}, Figure~\ref{fig:params}).
 Without tools (A0), accuracy was \numToneAzeroAcc\% (SD \numToneAzeroAccSD), with the largest losses on $t_{1/2}$ and
 $V_z$, the parameters that depend on choosing the terminal phase. With PMxAgent available (A1), accuracy was
 \numToneAoneAcc\% (SD \numToneAoneAccSD). Knowledge-only Skills (A2) scored \numToneAtwoAcc\% and Skills with the
@@ -210,6 +221,24 @@ bootstrap CI; exact permutation $p$).}
 \label{fig:params}
 \end{figure}
 
+\subsection{T1: PMxAgent with its instruction file (A1b, post hoc)}
+With PMxAgent's \texttt{CLAUDE.md} added (A1b), accuracy was \numToneAonebAcc\% (SD \numToneAonebAccSD,
+$n=\numToneAonebN$; Table~\ref{tab:acc}). The agent called a PMxAgent tool in \numToneAonebPmxRuns\ of
+\numToneAonebPmxKnown\ runs, against \numToneAonePmxRuns\ of \numToneAonePmxKnown\ for A1. In \numToneAonebUnscorable\
+runs the results could not be matched to any subject and scored 0; without them A1b scored \numToneAonebAccPostHoc\%.
+A1b$-$A1 was \numToneAonebVsAoneSecondaryDiff\ percentage points (95\% CI \numToneAonebVsAoneSecondaryCI;
+Table~\ref{tab:secondary}): the mean was lower than A1's, and the interval is too wide to show a difference in either
+direction. The Skills arms were more accurate than A1b (A2$-$A1b \numToneAtwoVsAonebSecondaryDiff,
+\numToneAtwoVsAonebSecondaryCI; A3$-$A1b \numToneAthreeVsAonebSecondaryDiff, \numToneAthreeVsAonebSecondaryCI;
+A4$-$A1b \numToneAfourVsAonebSecondaryDiff, \numToneAfourVsAonebSecondaryCI).
+
+\begin{table}[t]
+\centering\small
+\caption{T1 secondary arm A1b (post hoc): comparisons of overall accuracy, as in Table~\ref{tab:stats}.}
+\label{tab:secondary}
+\input{tables/tab_stats_secondary_T1_nca.tex}
+\end{table}
+
 \subsection{T1: reproducibility}
 A3 and A4 produced the same overall accuracy in every run (SD \numToneAthreeAccSD\ and \numToneAfourAccSD): across
 \numToneAthreeN\ and \numToneAfourN\ runs there were \numToneAthreeDistinct\ and \numToneAfourDistinct\ distinct sets
@@ -221,9 +250,10 @@ differing only in extra files such as plots and summaries. A0 varied from run to
 code, gave \numToneAoneDistinct\ distinct value sets.
 
 \subsection{T1: effort and cost}
-A1 needed the most turns and tool calls and the longest wall time (Table~\ref{tab:effort}, Figure~\ref{fig:cost}); part
-of the wall time reflects PMxAgent's amd64 containers running under emulation on the test machine. A3 and A4 were the
-cheapest and fastest arms.
+The two PMxAgent arms (A1, A1b) needed the most turns and tool calls and the longest wall time (Table~\ref{tab:effort},
+Figure~\ref{fig:cost}); part of the wall time reflects PMxAgent's amd64 containers running under emulation on the test
+machine. A1b was the most expensive arm (\$\numToneAonebCost\ per run, against \$\numToneAoneCost\ for A1). A3 and A4
+were the cheapest and fastest arms.
 
 \begin{table}[t]
 \centering\small
@@ -235,7 +265,7 @@ cheapest and fastest arms.
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.62\linewidth]{figures/fig_cost_T1_nca.pdf}
-\caption{T1 overall accuracy against cost per run (mean $\pm$ SD across runs).}
+\caption{T1 overall accuracy against cost per run. Markers are means across runs; bars span the minimum to maximum.}
 \label{fig:cost}
 \end{figure}
 
@@ -255,7 +285,9 @@ to write its own PKNCA code. A tool
 stack only helps if the agent calls it. This also means our A1 results do not test PMxAgent's NCA endpoint itself, and
 the run-to-run identity reported for PMxAgent \cite{bloomingdale2026pmxagent} could not be checked here. The \numToneAoneUnscorable\ A1
 runs that scored 0 show a second cost of agent-written code: an output that omits the subject identifier is unusable
-however accurate the calculations.
+however accurate the calculations. With PMxAgent's own instruction file added (A1b, post hoc), the agent called its
+tools in \numToneAonebPmxRuns\ of \numToneAonebPmxKnown\ runs, but mean accuracy was not higher than with the tools
+alone, and \numToneAonebUnscorable\ runs again gave results that could not be matched to subjects.
 
 This does not make MCP redundant. An MCP server works with any compatible client, validates typed inputs at the tool
 boundary, and can be deployed once for many users in a controlled environment; Skills as used here run on the user's
@@ -269,15 +301,18 @@ the reference uses a different point-selection rule. \TODO{confirm with terminal
 \subsection{Limitations}
 One benchmark source was used, with PKanalix as the reference rather than an analytical truth. Only Claude models were tested. Runs used a subscription, so
 cost is an estimate. The Skills were written with the help of an AI coding assistant from package documentation. The
-user-global instruction file was loaded in every arm except in A1 runs 4--10. The T1 statistical comparisons were
-specified after the first T1 runs, and the analysis without unscorable runs after seeing the scores. A1's agent did not
-call PMxAgent's tools, so A1 reflects PMxAgent as offered to this client and model, not its NCA endpoint.
+user-global instruction file was loaded in every arm except in A1 runs 4--10 and all A1b runs. The T1 statistical
+comparisons were specified after the first T1 runs, and the analysis without unscorable runs after seeing the scores.
+A1's agent did not call PMxAgent's tools, so A1 reflects PMxAgent as offered to this client and model, not its NCA
+endpoint. A1b was specified after the A0--A4 T1 results were known and run about eight weeks after the A0 and A2--A4
+runs (same Claude Code version, model and container images); its instruction file was written by PMxAgent's authors
+for this benchmark's workflow.
 \TODO{T2/T3-specific limitations.}
 
 \section{Conclusions}
 For NCA on this benchmark, a set of Agent Skills with a bundled, tested script was at least as accurate as the same agent
 with an MCP-based platform offered, gave identical results in every run, and cost less without server infrastructure;
-offered the platform's tools, the agent did not use them for NCA. Pharmacometric agent designs should test
+offered only the platform's tools, the agent did not use them for NCA. Pharmacometric agent designs should test
 instructions, fixed code and serving infrastructure separately before adopting the heavier stack.
 
 % ---------------------------------------------------------------------------------------------------------------
