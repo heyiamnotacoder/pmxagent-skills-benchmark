@@ -26,7 +26,7 @@ PARAMS = [("Cmax", "Cmax"), ("Tmax", "Tmax"), ("AUClast", "AUClast"), ("AUCINF_o
 # fig_cost direct-label offset (points) and alignment per arm, placed clear of neighbours and of the range bars
 COST_LABEL_POS = {"A0": (0, -13, "center"), "A1": (-4, -12, "right"), "A1b": (4, 6, "left"),
                   "A2": (0, 8, "center"), "A3": (-8, -13, "center"), "A4": (0, 8, "center")}
-INK, INK2, GRID, SURF ="#0b0b0b", "#52514e", "#e6e5e1", "#ffffff"
+INK, INK2, GRID, SURF = "#0b0b0b", "#52514e", "#e6e5e1", "#ffffff"
 
 plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 8, "axes.edgecolor": INK2, "axes.labelcolor": INK,
                      "xtick.color": INK2, "ytick.color": INK2, "axes.spines.top": False, "axes.spines.right": False,
