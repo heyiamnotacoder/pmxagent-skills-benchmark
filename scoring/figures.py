@@ -2,7 +2,7 @@
 """Paper figures from results/scores.csv + results/runs.csv -> paper/figures/*.pdf (+ .png preview).
 
 fig_params_<task>: per-parameter accuracy (% within 1% of PKanalix), mean over runs, one marker per arm.
-fig_cost_<task>:   overall accuracy vs notional cost per run (mean ± SD), direct-labelled.
+fig_cost_<task>:   overall accuracy vs notional cost per run (mean, bars = min-max over runs), direct-labelled.
 Colours: validated categorical palette (dataviz skill, light mode); every arm also has its own marker shape and a
 direct label, so identity never relies on colour alone.  Usage: figures.py [--task T1_nca]
 """
@@ -23,7 +23,10 @@ COLOR = {"A0": "#2a78d6", "A1": "#eb6834", "A1b": "#7a5195", "A2": "#1baf7a", "A
 MARK = {"A0": "o", "A1": "s", "A1b": "P", "A2": "D", "A3": "^", "A4": "v"}
 PARAMS = [("Cmax", "Cmax"), ("Tmax", "Tmax"), ("AUClast", "AUClast"), ("AUCINF_obs", "AUCINF,obs"),
           ("HL", "t½"), ("CL", "CL(/F)"), ("Vz", "Vz(/F)")]
-INK, INK2, GRID, SURF = "#0b0b0b", "#52514e", "#e6e5e1", "#ffffff"
+# fig_cost direct-label offset (points) and alignment per arm, placed clear of neighbours and of the range bars
+COST_LABEL_POS = {"A0": (0, -13, "center"), "A1": (-4, -12, "right"), "A1b": (4, 6, "left"),
+                  "A2": (0, 8, "center"), "A3": (-8, -13, "center"), "A4": (0, 8, "center")}
+INK, INK2, GRID, SURF ="#0b0b0b", "#52514e", "#e6e5e1", "#ffffff"
 
 plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 8, "axes.edgecolor": INK2, "axes.labelcolor": INK,
                      "xtick.color": INK2, "ytick.color": INK2, "axes.spines.top": False, "axes.spines.right": False,
@@ -79,13 +82,13 @@ def fig_cost(scores, runs, task):
         if not acc or not cost:
             continue
         mx, my = st.mean(cost), st.mean(acc)
-        sx = st.stdev(cost) if len(cost) > 1 else 0
-        sy = st.stdev(acc) if len(acc) > 1 else 0
-        ax.errorbar(mx, my, xerr=sx, yerr=sy, fmt="none", ecolor=COLOR[a], elinewidth=1.0, capsize=0, zorder=2)
+        # min-max range, not SD: bimodal arms (runs at ~98 or 0) would put mean ± SD outside 0-100 %
+        ax.errorbar(mx, my, xerr=[[mx - min(cost)], [max(cost) - mx]], yerr=[[my - min(acc)], [max(acc) - my]],
+                    fmt="none", ecolor=COLOR[a], elinewidth=1.0, capsize=0, zorder=2)
         ax.scatter(mx, my, s=34, marker=MARK[a], color=COLOR[a], edgecolor=SURF, linewidth=0.8, zorder=3)
-        above = a in ("A0", "A1b", "A2", "A4")   # alternate label side so neighbours never collide
-        ax.annotate(f"{a} (n={len(acc)})", (mx, my), xytext=(0, 8 if above else -13), textcoords="offset points",
-                    ha="center", fontsize=7, color=INK)
+        dx, dy, ha = COST_LABEL_POS.get(a, (0, 8, "center"))
+        ax.annotate(f"{a} (n={len(acc)})", (mx, my), xytext=(dx, dy), textcoords="offset points",
+                    ha=ha, fontsize=7, color=INK)
     ax.set_xlabel("Cost per run (USD, list-price estimate)")
     ax.set_ylabel("Overall accuracy (%)")
     ax.set_xlim(left=0)
