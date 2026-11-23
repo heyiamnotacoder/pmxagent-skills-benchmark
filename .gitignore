@@ -6,6 +6,7 @@ pmxagent-main/
 tasks/*/reference/
 # bulky run artefacts; per-run summaries are committed under results/
 results/raw/
+results/*.bak-*
 logs/*.log
 logs/.resume_lanes.lock/
 .DS_Store

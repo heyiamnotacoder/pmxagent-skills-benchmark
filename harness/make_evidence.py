@@ -63,6 +63,8 @@ def run(cmd):
 
 
 def main():
+    # Before anything is written: this script rewrites tracked files (the manifest), which would read as dirty.
+    commit, dirty = run(["git", "rev-parse", "HEAD"]), bool(run(["git", "status", "--porcelain", "--untracked-files=no"]))
     os.makedirs(EV, exist_ok=True); os.makedirs(OUTDIR, exist_ok=True)
     files = sorted(os.path.relpath(os.path.join(dp, f), ROOT)
                    for dp, _, fs in os.walk(os.path.join(RES, "raw")) for f in fs)
@@ -79,8 +81,8 @@ def main():
     by_task = claude_code_by_task(rows, excluded, read_pins())
     prov = {
         "created": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
-        "git_commit": run(["git", "rev-parse", "HEAD"]),
-        "git_dirty": bool(run(["git", "status", "--porcelain", "--untracked-files=no"])),
+        "git_commit": commit,
+        "git_dirty": dirty,
         "claude_code_versions_all_ledger_rows": sorted({r["claude_version"] for r in rows}),
         "claude_code_by_task": by_task,
         "models_seen_per_arm": {a: sorted({r["model_seen"] for r in scored(rows, excluded)
