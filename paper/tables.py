@@ -5,6 +5,7 @@ tab_accuracy_<task>.tex  per-parameter + overall accuracy, mean over runs (NCA t
 tab_stats_<task>.tex     pre-specified comparisons (results/stats.csv, from scoring/stats.py)
 tab_effort_<task>.tex    cost, wall time, turns, tool calls, tool errors per run (results/runs.csv, valid runs)
 numbers.tex              \\num... macros; per arm also `Distinct`/`DistinctFiles` (parameter-value / output-file sets),
+                         `NptsRuns`/`NptsMatch`/`LzErr`/`LzErrDiffer`/`LzErrNone`/`LzErrMatch` (terminal-point match, NCA tasks; §26),
                          `PmxRuns`/`PmxKnown` (runs with >=1 PMxAgent tool call / runs scanned), and, from stats.py,
                          `Unscorable`/`AccPostHoc` (post hoc, logs/deviations.md §17; only where a run was unscorable),
                          `Acc<Regime>`/`N<Regime>` and `...Vs...<Regime>Diff/CI` (isolation-regime sensitivity, §15).
@@ -77,7 +78,8 @@ def main():
         scores[r["task"]][r["arm"]].append(r)
     runs = {r["runid"]: r for r in csv.DictReader(open(os.path.join(RES, "runs.csv")))}
     stats = read("stats.csv")
-    distinct = {(r["task"], r["arm"]): r["distinct_value_sets"] for r in read("stats_arms.csv")}
+    arm_stats = {(r["task"], r["arm"]): r for r in read("stats_arms.csv")}
+    distinct = {k: r["distinct_value_sets"] for k, r in arm_stats.items()}
     files = {(r["task"], r["arm"]): r["n_distinct_outputs"] for r in read("summary.csv")}
     ph_arms = {(r["task"], r["arm"]): r for r in read("stats_posthoc_arms.csv")}
 
@@ -97,6 +99,7 @@ def main():
                 vals["Distinct"] = distinct[(task, a)]
             if files.get((task, a)):
                 vals["DistinctFiles"] = files[(task, a)]
+            vals.update(terminal_point_macros(arm_stats.get((task, a), {})))
             ph = ph_arms.get((task, a))   # only tasks where some run was unscorable (stats.py, post hoc)
             if ph:
                 vals["Unscorable"] = ph["n_dropped"]
@@ -109,14 +112,16 @@ def main():
                 vals["PmxHttpRuns"] = str(sum(n > 0 for n in http))
             nums += [f"\\newcommand{{{macro(task, a, k)}}}{{{v}}}" for k, v in vals.items()]
         if task in NCA:
-            L = ["\\begin{tabular}{l r " + "r" * len(PARAMS) + " r r}", "\\toprule",
-                 "Arm & $n$ & " + " & ".join(lab for _, lab in PARAMS) + " & Overall & Range \\\\", "\\midrule"]
+            L = ["\\begin{tabular}{l r " + "r" * len(PARAMS) + " r r r}", "\\toprule",
+                 "Arm & $n$ & " + " & ".join(lab for _, lab in PARAMS) + " & Overall & Range & Points match$^*$ \\\\",
+                 "\\midrule"]
             for a in arms:
                 rs = by_arm[a]
                 cells = [f"{st.mean([f(r[p + '_pct']) for r in rs]):.1f}" for p, _ in PARAMS]
                 ov = [f(r["overall"]) for r in rs]
                 L.append(f"{a} & {len(rs)} & " + " & ".join(cells) +
-                         f" & {st.mean(ov):.2f} & {min(ov):.2f}--{max(ov):.2f} \\\\")
+                         f" & {st.mean(ov):.2f} & {min(ov):.2f}--{max(ov):.2f} & "
+                         f"{terminal_point_cell(arm_stats.get((task, a), {}))} \\\\")
             L += ["\\bottomrule", "\\end{tabular}"]
             write(f"tab_accuracy_{task}.tex", L)
 
@@ -174,6 +179,31 @@ def main():
     t3_stats(stats)
     cost_by_task(scores, runs)
     write("numbers.tex", nums)
+
+
+def tex_int(x):
+    """Integer with LaTeX-safe thousands separators: 1420 -> 1{,}420."""
+    return f"{int(x):,}".replace(",", "{,}")
+
+
+def terminal_point_macros(r):
+    """`NptsRuns`, `NptsMatch`, `LzErr`, `LzErrDiffer`, `LzErrNone`, `LzErrMatch` from one stats_arms.csv row
+    (stats.terminal_points; descriptive, post hoc, logs/deviations.md §26); nothing without raw files or for non-NCA
+    tasks."""
+    if r.get("npts_match_pct") in (None, "", "n/a"):
+        return {}
+    return {"NptsRuns": r["npts_runs"], "NptsMatch": f"{float(r['npts_match_pct']):.1f}",
+            "LzErr": tex_int(r["lz_errors"]), "LzErrDiffer": tex_int(r["lz_errors_npts_differ"]),
+            "LzErrNone": tex_int(r["lz_errors_npts_none"]), "LzErrMatch": tex_int(r["lz_errors_npts_match"])}
+
+
+def terminal_point_cell(r):
+    """Accuracy-table cell: % of subjects with PKanalix's number of terminal points, pooled over the runs that reported
+    it, with that run count when not every run did."""
+    m = terminal_point_macros(r)
+    if not m:
+        return "--"
+    return m["NptsMatch"] + ("" if m["NptsRuns"] == r.get("n") else f" ({m['NptsRuns']})")
 
 
 T3 = ["T3a_messy", "T3b_blq", "T3c_units", "T3d_oral", "T3e_large"]

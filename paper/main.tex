@@ -170,7 +170,12 @@ confidence interval (10,000 resamples of runs within each arm) and an exact two-
 called equivalent only if the whole 95\% CI lay within $\pm$1.0 percentage point. For T1 this analysis was specified
 after the runs had been completed; for the remaining tasks it was fixed in the repository before any run
 (commit \texttt{08ea7b3}). Reproducibility is reported as the SD of overall accuracy across runs and as the number of
-distinct sets of parameter values (scored table, values at six significant digits). Two analyses were decided after
+distinct sets of parameter values (scored table, values at six significant digits). For the NCA tasks we report the
+terminal-point match: the percentage of subjects scored for $\lambda_z$-dependent parameters whose terminal phase used
+the same number of points as PKanalix, pooled over the runs that reported the number of points (a subject without a
+count in such a run counts as not matching). How the $\lambda_z$-dependent values outside 1\% divide between subjects
+whose points matched, subjects with a different number of points and subjects without a count was decided after all
+results were seen and is descriptive. Two analyses were decided after
 seeing T1 scores and are labelled post hoc: the comparisons repeated without the runs whose results could not be
 matched to subjects; and the secondary arm A1b with its comparisons A1b$-$A1, A2$-$A1b, A3$-$A1b and A4$-$A1b, specified
 before any A1b run but after the A0--A4 T1 results were known. A1b is reported alongside A1, never instead of it.
@@ -241,10 +246,24 @@ instructions alone bring accuracy level with, and slightly above, A1. Adding the
 accuracy (A3$-$A2 \numToneAthreeVsAtwoDiff, \numToneAthreeVsAtwoCI), and the smaller model matched the larger one when
 it called the script (A4$-$A3 \numToneAfourVsAthreeDiff).
 
+The terminal phase used the same number of points as PKanalix in \numToneAthreeNptsMatch\% of subjects with the
+script and \numToneAzeroNptsMatch\% without tools (Table~\ref{tab:acc}). Over the runs that reported the number of
+points, A3's \numToneAthreeLzErr\ $\lambda_z$-dependent values outside 1\% were \numToneAthreeLzErrDiffer\ in
+subjects with a different number of points, \numToneAthreeLzErrNone\ in subjects for which the script returned no
+terminal phase, and \numToneAthreeLzErrMatch\ in subjects whose points matched (A4: \numToneAfourLzErrDiffer,
+\numToneAfourLzErrNone\ and \numToneAfourLzErrMatch). The same three counts were \numToneAtwoLzErrDiffer,
+\numToneAtwoLzErrNone\ and \numToneAtwoLzErrMatch\ for A2, \numToneAoneLzErrDiffer, \numToneAoneLzErrNone\ and
+\numToneAoneLzErrMatch\ for A1, and \numToneAzeroLzErrDiffer, \numToneAzeroLzErrNone\ and \numToneAzeroLzErrMatch\
+for A0 (descriptive, decided after the results were seen). In A1b most
+errors were in subjects whose points matched (\numToneAonebLzErrMatch\ of \numToneAonebLzErr), from runs whose files
+had no AUC$_{\infty,\mathrm{obs}}$, CL or $V_z$ values.
+
 \begin{table}[t]
 \centering\small
 \caption{T1 accuracy: percentage of subject-parameters within 1\% of PKanalix, mean over runs. $\lambda_z$-dependent
-parameters are scored for subjects with PKanalix adjusted $R^2 \ge 0.80$. Overall = mean of the seven parameters.}
+parameters are scored for subjects with PKanalix adjusted $R^2 \ge 0.80$. Overall = mean of the seven parameters.
+$^*$Percentage of those subjects whose terminal phase used the same number of points as PKanalix, pooled over the runs
+that reported the number of points (number of such runs in parentheses when not every run did); not part of Overall.}
 \label{tab:acc}
 \resizebox{\linewidth}{!}{\input{tables/tab_accuracy_T1_nca.tex}}
 \end{table}
@@ -290,7 +309,7 @@ differing only in extra files such as plots and summaries. A0 varied from run to
 \numToneAzeroDistinct\ distinct value sets), as reported for code-writing agents
 \cite{bloomingdale2026pmxagent,shin2023chatgptpk}. A2 varied little (SD \numToneAtwoAccSD) but gave
 \numToneAtwoDistinct\ distinct value sets, because the agent wrote new code each time. A1, which also wrote its own
-code, gave \numToneAoneDistinct\ distinct value sets.
+code, gave \numToneAoneDistinct\ distinct value sets. Value sets are counted over the runs that had a scorable file.
 
 \subsection{T1: effort and cost}
 The two PMxAgent arms (A1, A1b) needed the most turns and tool calls and the longest wall time (Table~\ref{tab:effort},
@@ -435,9 +454,15 @@ boundary, and can be deployed once for many users in a controlled environment; S
 own machine with the user's own R installation. For a regulated, multi-user deployment those properties can matter more
 than setup cost. Our results concern the narrower question of where accuracy and reproducibility come from.
 
-The remaining errors in all tool-using arms were concentrated in the $\lambda_z$-dependent parameters, where the choice
-of terminal points differs between implementations; 98.6\% is close to the ceiling that this metric allows when
-the reference uses a different point-selection rule. \TODO{confirm with terminal-point match rates.}
+On T1, the remaining errors with the script followed the choice of terminal phase. Of its \numToneAthreeLzErr\
+$\lambda_z$-dependent values outside 1\%, \numToneAthreeLzErrDiffer\ were in subjects whose terminal phase used a
+different number of points from PKanalix, \numToneAthreeLzErrNone\ in subjects for which the script returned no
+terminal phase, and \numToneAthreeLzErrMatch\ in subjects whose points matched. The gap between
+\numToneAthreeAcc\% and 100\% on T1 therefore reflects how the terminal phase was chosen, not an error in the
+calculation once it was. This did not hold for the smaller model on every stress task: on T3c,
+\numTthreecAfourLzErrMatch\ of A4's \numTthreecAfourLzErr\ $\lambda_z$-dependent values outside 1\% were in subjects
+whose points matched, and on T3a \numTthreeaAfourLzErrMatch\ of \numTthreeaAfourLzErr. Without tools (A0) the
+points matched less often on T1, and errors also occurred where they matched (\numToneAzeroLzErrMatch\ values).
 
 \subsection{Limitations}
 One benchmark source was used, with PKanalix as the reference rather than an analytical truth. Only Claude models were tested. Runs used a subscription, so

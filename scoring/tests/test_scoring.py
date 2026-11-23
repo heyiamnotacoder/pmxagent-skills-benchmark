@@ -176,6 +176,35 @@ class UnscorableNca(unittest.TestCase):
             self.assertEqual(r[f"{p}_pct"], 0.0, p)
 
 
+class TerminalPointBreakdown(unittest.TestCase):
+    """Terminal-point match and where the lambda-z-dependent errors fall (logs/deviations.md §26)."""
+    REF = {**{(s, p): 10.0 for s in ("s1", "s2", "s3") for p in score_all.sn.PARAMS},
+           ("s1", "R2ADJ"): 0.95, ("s1", "NPTS"): 3.0,
+           ("s2", "R2ADJ"): 0.90, ("s2", "NPTS"): 4.0,
+           ("s3", "R2ADJ"): 0.50, ("s3", "NPTS"): 3.0}   # s3: R2adj < 0.80, not scored for lambda-z parameters
+
+    def agent(self, **npts):
+        a = {(s, p): 10.0 for s in ("s1", "s2", "s3") for p in score_all.sn.PARAMS}
+        a[("s2", "HL")], a[("s2", "Vz")] = 12.0, 13.0   # two lambda-z errors, both in s2
+        a.update({(s, "NPTS"): v for s, v in npts.items()})
+        return a
+
+    def test_errors_split_by_whether_terminal_points_match(self):
+        b = score_all.sn.terminal_point_breakdown(self.agent(s1=3.0, s2=5.0, s3=9.0), self.REF)
+        self.assertEqual(b, {"subjects": 2, "match": 1, "lz_match_n": 4, "lz_match_err": 0,
+                             "lz_differ_n": 4, "lz_differ_err": 2, "lz_none_n": 0, "lz_none_err": 0})
+
+    def test_subject_without_npts_in_a_reporting_run_is_its_own_group(self):
+        b = score_all.sn.terminal_point_breakdown(self.agent(s1=3.0, s2=math.nan), self.REF)
+        self.assertEqual((b["subjects"], b["match"], b["lz_differ_err"], b["lz_none_n"], b["lz_none_err"]),
+                         (2, 1, 0, 4, 2))
+        b = score_all.sn.terminal_point_breakdown(self.agent(s1=3.0), self.REF)   # absent, not NaN
+        self.assertEqual((b["lz_none_n"], b["lz_none_err"]), (4, 2))
+
+    def test_run_that_reports_no_npts_is_none(self):
+        self.assertIsNone(score_all.sn.terminal_point_breakdown(self.agent(), self.REF))
+
+
 class PmxagentToolCalls(unittest.TestCase):
     def test_counts_only_pmxagent_mcp_tool_uses(self):
         with tempfile.TemporaryDirectory() as run:

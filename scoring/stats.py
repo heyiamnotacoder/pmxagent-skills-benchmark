@@ -5,7 +5,9 @@ For each task with a run-level accuracy (`overall` in results/scores.csv) and ea
   - difference in mean accuracy, 95% percentile bootstrap CI (resample runs within each arm; B = 10,000; fixed seed)
   - two-sided permutation p-value (exact when the number of splits is <= 200,000, else 100,000 random splits)
   - equivalence vs the +/-1.0 percentage-point margin: "equivalent" only if the whole 95% CI lies inside the margin
-Per arm: n, mean, SD, min, max, and the number of distinct parameter-value sets (needs results/raw/; else "n/a").
+Per arm: n, mean, SD, min, max, and the number of distinct parameter-value sets (needs results/raw/; else "n/a");
+for NCA tasks also the terminal-point match and how many lambda-z-dependent errors fall in subjects whose terminal
+points differ from PKanalix (descriptive, post hoc; logs/deviations.md §26; needs results/raw/ and the reference).
 Sensitivity (pre-specified 2026-11-17, before A1 T1 runs 4-10; logs/deviations.md §15): for an arm whose runs in a
 task used more than one isolation regime (ledger `claude_config`: empty/"user" = user instructions loaded, as in T1;
 "isolated" = none), per-regime arm stats and every pair involving that arm recomputed on each regime alone.
@@ -15,11 +17,12 @@ pair involving an arm that lost runs, recomputed without those runs -> results/s
 Per-arm rows of both sensitivity analyses: results/stats_{sensitivity,posthoc}_arms.csv (read by paper/tables.py).
 Valid runs only (scores.csv already holds only those). Stdlib only.  Usage: stats.py [--b 10000] [--seed 20261116]
 """
-import argparse, csv, glob, hashlib, itertools, math, os, random, statistics as st, sys
+import argparse, csv, functools, glob, hashlib, itertools, math, os, random, statistics as st, sys
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import score_all
+import score_nca as sn
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = os.path.join(ROOT, "results")
 PAIRS = [("A2", "A1"), ("A3", "A1"), ("A3", "A2"), ("A4", "A3"), ("A0", "A3")]
@@ -61,14 +64,38 @@ def perm_p(x, y, rng, n_mc=100_000):
     return (hits + 1) / (n_mc + 1), "MC"
 
 
-def value_set_hash(run_dir, scored_file):
-    """Hash of the scored individual table: (subject, parameter, value at 6 significant digits), sorted."""
+def load_scored(run_dir, scored_file):
+    """The run's scored individual table {(subject, parameter): value}, or None without the file."""
     p = os.path.join(run_dir, scored_file)
-    if not scored_file or not os.path.exists(p):
-        return None
-    d = score_all.load_any(p)
+    return score_all.load_any(p) if scored_file and os.path.exists(p) else None
+
+
+def value_set_hash(d):
+    """Hash of a scored individual table: (subject, parameter, value at 6 significant digits), sorted."""
     items = sorted((s, k, "nan" if math.isnan(v) else f"{v:.6g}") for (s, k), v in d.items())
     return hashlib.sha256(repr(items).encode()).hexdigest()
+
+
+def terminal_points(breakdowns):
+    """Pool score_nca.terminal_point_breakdown over an arm's runs (None = run reported no terminal-point count, left
+    out). Descriptive, decided after the results were seen (logs/deviations.md §26): `npts_runs` runs reporting,
+    `npts_match_pct` of their subjects with PKanalix's number of points, `lz_errors` lambda-z-dependent values outside
+    1%, and how many of those are in subjects whose count differs / is missing / matches
+    (`lz_errors_npts_differ` / `_none` / `_match`)."""
+    bs = [b for b in breakdowns if b is not None]
+    tot = {k: sum(b[k] for b in bs) for k in sn.BREAKDOWN_KEYS}
+    split = {f"lz_errors_npts_{g}": tot[f"lz_{g}_err"] for g in ("differ", "none", "match")}
+    if not tot["subjects"]:
+        return {"npts_runs": len(bs), **dict.fromkeys(("npts_match_pct", "lz_errors", *split), "n/a")}
+    return {"npts_runs": len(bs), "npts_match_pct": round(100 * tot["match"] / tot["subjects"], 2),
+            "lz_errors": sum(split.values()), **split}
+
+
+@functools.lru_cache(maxsize=None)
+def nca_ref(task):
+    """PKanalix reference of an NCA task, or None where it is not built (git-ignored; `tasks/build_tasks.py`)."""
+    p = os.path.join(ROOT, "tasks", task, "reference", "pkanalix_individual.csv")
+    return sn.load(p) if os.path.exists(p) else None
 
 
 def regime(ledger_row):
@@ -142,7 +169,8 @@ def md_pair(r, *lead):
 
 def write_csv(name, rows, empty_cols):
     with open(os.path.join(RES, name), "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0]) if rows else empty_cols); w.writeheader(); w.writerows(rows)
+        cols = list(dict.fromkeys(k for r in rows for k in r)) if rows else empty_cols   # keys in first-seen order
+        w = csv.DictWriter(f, fieldnames=cols); w.writeheader(); w.writerows(rows)
 
 
 def pfmt(p):
@@ -175,6 +203,7 @@ def main():
     by_regime = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     vsets = defaultdict(lambda: defaultdict(set))
     have_raw = defaultdict(lambda: defaultdict(bool))
+    tpts = defaultdict(lambda: defaultdict(list))   # task -> arm -> terminal_point_breakdown per run with raw files
     for r in rows:
         try:
             v = float(r["overall"])
@@ -182,12 +211,12 @@ def main():
             continue
         acc[r["task"]][r["arm"]].append(v)
         by_regime[r["task"]][r["arm"]][regime(ledger.get(r["runid"], {}))].append(v)
-        run_dir = os.path.join(RES, "raw", r["arm"], r["task"], r["runid"])
-        if os.path.isdir(run_dir) and r.get("scored_file"):
-            h = value_set_hash(run_dir, r["scored_file"])
-            if h:
-                vsets[r["task"]][r["arm"]].add(h)
-                have_raw[r["task"]][r["arm"]] = True
+        d = load_scored(os.path.join(RES, "raw", r["arm"], r["task"], r["runid"]), r.get("scored_file"))
+        if d is not None:
+            vsets[r["task"]][r["arm"]].add(value_set_hash(d))
+            have_raw[r["task"]][r["arm"]] = True
+            if r["task"] in score_all.NCA_TASKS and nca_ref(r["task"]) is not None:
+                tpts[r["task"]][r["arm"]].append(sn.terminal_point_breakdown(d, nca_ref(r["task"])))
 
     out_arm, out_pair, out_sec = [], [], []
     for task in sorted(acc):
@@ -195,7 +224,8 @@ def main():
             x = acc[task][arm]
             out_arm.append({"task": task, "arm": arm, "n": len(x), "mean": mean(x),
                             "sd": st.stdev(x) if len(x) > 1 else 0.0, "min": min(x), "max": max(x),
-                            "distinct_value_sets": len(vsets[task][arm]) if have_raw[task][arm] else "n/a"})
+                            "distinct_value_sets": len(vsets[task][arm]) if have_raw[task][arm] else "n/a",
+                            **(terminal_points(tpts[task][arm]) if task in score_all.NCA_TASKS else {})})
         out_pair += compare_pairs(acc[task], task, PAIRS, a.b, a.seed)
         out_sec += compare_pairs(acc[task], task, SECONDARY_PAIRS, a.b, a.seed, suffix="-secondary")
     sens_arm, sens_pair = sensitivity(by_regime, PAIRS, a.b, a.seed)
@@ -214,9 +244,14 @@ def main():
           f"bootstrap CI over runs (B = {a.b:,}, seed {a.seed}); two-sided permutation p. Equivalent = whole CI inside "
           f"+/-{MARGIN} pp. With n = 3 in an arm the bootstrap has only 10 distinct resamples for it, so its CI is coarse. Generated by `scoring/stats.py`; do not edit by hand.", ""]
     for task in sorted(acc):
-        md += [f"## {task}", "", "| Arm | n | Mean | SD | Min | Max | Distinct value sets |", "|---|---|---|---|---|---|---|"]
+        nca = task in score_all.NCA_TASKS
+        md += [f"## {task}", "", "| Arm | n | Mean | SD | Min | Max | Distinct value sets |" +
+               (" Runs with terminal points | Terminal points match (%) | λz errors (in differing subjects) |" if nca else ""),
+               "|---|---|---|---|---|---|---|" + ("---|---|---|" if nca else "")]
         md += [f"| {r['arm']} | {r['n']} | {fmt(r['mean'])} | {fmt(r['sd'])} | {fmt(r['min'])} | {fmt(r['max'])} | "
-               f"{r['distinct_value_sets']} |" for r in out_arm if r["task"] == task]
+               f"{r['distinct_value_sets']} |" +
+               (f" {r['npts_runs']} | {r['npts_match_pct']} | {r['lz_errors']} ({r['lz_errors_npts_differ']}) |" if nca else "")
+               for r in out_arm if r["task"] == task]
         md += ["", "| Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |", "|---|---|---|---|---|---|"]
         md += [md_pair(r) for r in out_pair if r["task"] == task]
         md.append("")

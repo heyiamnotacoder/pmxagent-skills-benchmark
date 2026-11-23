@@ -4,14 +4,14 @@ Overall accuracy (paper metric, percentage points). Difference = mean(X) - mean(
 
 ## T1_nca
 
-| Arm | n | Mean | SD | Min | Max | Distinct value sets |
-|---|---|---|---|---|---|---|
-| A0 | 10 | 93.21 | 1.13 | 91.57 | 95.09 | 7 |
-| A1 | 10 | 78.58 | 41.41 | 0.00 | 98.29 | 6 |
-| A1b | 10 | 59.27 | 43.96 | 0.00 | 98.29 | 4 |
-| A2 | 10 | 98.65 | 0.06 | 98.58 | 98.70 | 9 |
-| A3 | 10 | 98.64 | 0.00 | 98.64 | 98.64 | 1 |
-| A4 | 10 | 98.64 | 0.00 | 98.64 | 98.64 | 1 |
+| Arm | n | Mean | SD | Min | Max | Distinct value sets | Runs with terminal points | Terminal points match (%) | λz errors (in differing subjects) |
+|---|---|---|---|---|---|---|---|---|---|
+| A0 | 10 | 93.21 | 1.13 | 91.57 | 95.09 | 7 | 8 | 80.33 | 4944 (3960) |
+| A1 | 10 | 78.58 | 41.41 | 0.00 | 98.29 | 6 | 7 | 95.32 | 1183 (938) |
+| A1b | 10 | 59.27 | 43.96 | 0.00 | 98.29 | 4 | 4 | 95.32 | 9440 (798) |
+| A2 | 10 | 98.65 | 0.06 | 98.58 | 98.70 | 9 | 9 | 95.33 | 1248 (1224) |
+| A3 | 10 | 98.64 | 0.00 | 98.64 | 98.64 | 1 | 10 | 95.32 | 1420 (1340) |
+| A4 | 10 | 98.64 | 0.00 | 98.64 | 98.64 | 1 | 10 | 95.32 | 1420 (1340) |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
@@ -68,13 +68,13 @@ Arms whose runs used more than one isolation regime, split by regime (user = use
 
 ## T3a_messy
 
-| Arm | n | Mean | SD | Min | Max | Distinct value sets |
-|---|---|---|---|---|---|---|
-| A0 | 5 | 92.93 | 1.60 | 91.36 | 94.84 | 4 |
-| A1 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 4 |
-| A2 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 4 |
-| A3 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 1 |
-| A4 | 5 | 92.46 | 8.51 | 82.96 | 98.68 | 4 |
+| Arm | n | Mean | SD | Min | Max | Distinct value sets | Runs with terminal points | Terminal points match (%) | λz errors (in differing subjects) |
+|---|---|---|---|---|---|---|---|---|---|
+| A0 | 5 | 92.93 | 1.60 | 91.36 | 94.84 | 4 | 5 | 75.21 | 553 (514) |
+| A1 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 4 | 5 | 95.38 | 110 (110) |
+| A2 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 4 | 5 | 95.21 | 110 (110) |
+| A3 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 1 | 5 | 95.38 | 110 (110) |
+| A4 | 5 | 92.46 | 8.51 | 82.96 | 98.68 | 4 | 5 | 87.23 | 523 (386) |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
@@ -86,13 +86,13 @@ Arms whose runs used more than one isolation regime, split by regime (user = use
 
 ## T3b_blq
 
-| Arm | n | Mean | SD | Min | Max | Distinct value sets |
-|---|---|---|---|---|---|---|
-| A0 | 5 | 95.53 | 0.51 | 94.61 | 95.76 | 4 |
-| A1 | 5 | 92.88 | 7.01 | 80.35 | 96.34 | 5 |
-| A2 | 5 | 97.32 | 0.15 | 97.15 | 97.43 | 5 |
-| A3 | 5 | 97.43 | 0.00 | 97.43 | 97.43 | 1 |
-| A4 | 5 | 97.43 | 0.00 | 97.43 | 97.43 | 1 |
+| Arm | n | Mean | SD | Min | Max | Distinct value sets | Runs with terminal points | Terminal points match (%) | λz errors (in differing subjects) |
+|---|---|---|---|---|---|---|---|---|---|
+| A0 | 5 | 95.53 | 0.51 | 94.61 | 95.76 | 4 | 4 | 81.69 | 564 (564) |
+| A1 | 5 | 92.88 | 7.01 | 80.35 | 96.34 | 5 | 4 | 86.91 | 470 (424) |
+| A2 | 5 | 97.32 | 0.15 | 97.15 | 97.43 | 5 | 4 | 90.56 | 332 (320) |
+| A3 | 5 | 97.43 | 0.00 | 97.43 | 97.43 | 1 | 5 | 90.56 | 400 (400) |
+| A4 | 5 | 97.43 | 0.00 | 97.43 | 97.43 | 1 | 5 | 90.56 | 400 (400) |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
@@ -104,13 +104,13 @@ Arms whose runs used more than one isolation regime, split by regime (user = use
 
 ## T3c_units
 
-| Arm | n | Mean | SD | Min | Max | Distinct value sets |
-|---|---|---|---|---|---|---|
-| A0 | 5 | 93.63 | 2.64 | 91.36 | 98.20 | 3 |
-| A1 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 3 |
-| A2 | 5 | 98.21 | 0.92 | 96.58 | 98.68 | 5 |
-| A3 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 1 |
-| A4 | 5 | 85.51 | 0.00 | 85.51 | 85.51 | 1 |
+| Arm | n | Mean | SD | Min | Max | Distinct value sets | Runs with terminal points | Terminal points match (%) | λz errors (in differing subjects) |
+|---|---|---|---|---|---|---|---|---|---|
+| A0 | 5 | 93.63 | 2.64 | 91.36 | 98.20 | 3 | 5 | 79.92 | 483 (422) |
+| A1 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 3 | 5 | 95.38 | 110 (110) |
+| A2 | 5 | 98.21 | 0.92 | 96.58 | 98.68 | 5 | 5 | 94.45 | 137 (116) |
+| A3 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 1 | 5 | 95.38 | 110 (110) |
+| A4 | 5 | 85.51 | 0.00 | 85.51 | 85.51 | 1 | 5 | 95.38 | 810 (120) |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
@@ -140,13 +140,13 @@ Arms whose runs used more than one isolation regime, split by regime (user = use
 
 ## T3e_large
 
-| Arm | n | Mean | SD | Min | Max | Distinct value sets |
-|---|---|---|---|---|---|---|
-| A0 | 5 | 93.21 | 1.05 | 92.74 | 95.09 | 4 |
-| A1 | 5 | 98.24 | 0.10 | 98.06 | 98.29 | 3 |
-| A2 | 5 | 98.68 | 0.04 | 98.62 | 98.70 | 4 |
-| A3 | 5 | 98.64 | 0.00 | 98.64 | 98.64 | 1 |
-| A4 | 5 | 98.64 | 0.00 | 98.64 | 98.64 | 1 |
+| Arm | n | Mean | SD | Min | Max | Distinct value sets | Runs with terminal points | Terminal points match (%) | λz errors (in differing subjects) |
+|---|---|---|---|---|---|---|---|---|---|
+| A0 | 5 | 93.21 | 1.05 | 92.74 | 95.09 | 4 | 4 | 81.4 | 12135 (9285) |
+| A1 | 5 | 98.24 | 0.10 | 98.06 | 98.29 | 3 | 4 | 95.32 | 3350 (2680) |
+| A2 | 5 | 98.68 | 0.04 | 98.62 | 98.70 | 4 | 4 | 95.32 | 2720 (2720) |
+| A3 | 5 | 98.64 | 0.00 | 98.64 | 98.64 | 1 | 5 | 95.32 | 3550 (3350) |
+| A4 | 5 | 98.64 | 0.00 | 98.64 | 98.64 | 1 | 5 | 95.32 | 3550 (3350) |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|

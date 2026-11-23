@@ -81,10 +81,7 @@ def score(agent, ref, r2_filter="ref", missing="incorrect"):
             if (s, p) not in ref:
                 continue
             if p in LZ_DEP:
-                r_ref = ref.get((s, "R2ADJ"), math.nan)
-                r_ag = agent.get((s, "R2ADJ"), math.nan)
-                ok_ref = not math.isnan(r_ref) and r_ref >= 0.80
-                ok_ag = not math.isnan(r_ag) and r_ag >= 0.80
+                ok_ref, ok_ag = _r2_ok(ref, s), _r2_ok(agent, s)
                 keep = {"ref": ok_ref, "both": ok_ref and ok_ag, "agent": ok_ag}[r2_filter]
                 if not keep:
                     continue
@@ -97,16 +94,48 @@ def score(agent, ref, r2_filter="ref", missing="incorrect"):
             acceptable += 0.01 <= e < 0.05
         res[p] = {"n": n, "correct_pct": 100 * correct / n if n else math.nan,
                   "acceptable_pct": 100 * acceptable / n if n else math.nan}
-    # terminal-point match (reported separately, not in overall)
-    n = m = 0
-    for s in subjects:
-        r_ref = ref.get((s, "R2ADJ"), math.nan)
-        if (s, "NPTS") in ref and not math.isnan(r_ref) and r_ref >= 0.80:
-            n += 1
-            m += agent.get((s, "NPTS")) == ref[(s, "NPTS")]
-    res["terminal_points_match_pct"] = 100 * m / n if n else math.nan
+    # terminal-point match (reported separately, not in overall; a run without NPTS counts every subject as differing)
+    npts_subj = _npts_subjects(ref)
+    m = sum(agent.get((s, "NPTS")) == ref[(s, "NPTS")] for s in npts_subj)
+    res["terminal_points_match_pct"] = 100 * m / len(npts_subj) if npts_subj else math.nan
     res["overall"] = sum(res[p]["correct_pct"] for p in PARAMS) / len(PARAMS)
     return res
+
+
+def _r2_ok(table, s):
+    """Adjusted R2 of subject `s` in `table` is >= 0.80 (the paper's filter for lambda-z-dependent parameters)."""
+    r = table.get((s, "R2ADJ"), math.nan)
+    return not math.isnan(r) and r >= 0.80
+
+
+def _npts_subjects(ref):
+    """Subjects with a reference terminal-point count and PKanalix adjusted R2 >= 0.80 (scored for lambda-z)."""
+    return [s for s in sorted({s for s, _ in ref}) if (s, "NPTS") in ref and _r2_ok(ref, s)]
+
+
+BREAKDOWN_KEYS = ("subjects", "match", "lz_match_n", "lz_match_err", "lz_differ_n", "lz_differ_err",
+                  "lz_none_n", "lz_none_err")
+
+
+def terminal_point_breakdown(agent, ref):
+    """Terminal-point match and where the lambda-z-dependent errors fall, for one run (descriptive; not in `overall`).
+    None if the run reported no terminal-point count for any subject. Otherwise, over subjects scored for lambda-z:
+    `subjects` and `match` (same number of points as PKanalix). Each subject falls in one group: `match`, `differ`
+    (a count other than PKanalix's) or `none` (no count for that subject); per group, the lambda-z-dependent values
+    (AUCINF_obs, HL, CL, Vz) scored (`lz_<group>_n`) and outside 1% (`lz_<group>_err`). Keys: BREAKDOWN_KEYS."""
+    if not any(p == "NPTS" for _, p in agent):
+        return None
+    b = dict.fromkeys(BREAKDOWN_KEYS, 0)
+    for s in _npts_subjects(ref):
+        n = agent.get((s, "NPTS"))
+        group = "none" if n is None or math.isnan(n) else "match" if n == ref[(s, "NPTS")] else "differ"
+        b["subjects"] += 1
+        b["match"] += group == "match"
+        for p in LZ_DEP:
+            if (s, p) in ref:
+                b[f"lz_{group}_n"] += 1
+                b[f"lz_{group}_err"] += rel_err(agent.get((s, p)), ref[(s, p)]) >= 0.01
+    return b
 
 
 def fmt(name, r):
