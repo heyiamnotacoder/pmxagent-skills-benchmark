@@ -465,3 +465,16 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   tislelizumab_2) have no count and no λz values (80 of A3's 1,420 errors). They are now their own group, and the
   paper says the script returned no terminal phase for them. The Discussion claim is now limited to T1: with the
   script, A4 also had errors in subjects whose points matched on T3c and T3a, and the paper says so.
+
+### §27 Infrastructure footprint: setup steps instead of setup time; line categories fixed (2026-11-23)
+- **Plan:** `docs/PLAN.md` lists "infrastructure LOC / services / setup time" (claim C4, issue #11).
+- **Change:** setup is reported as a **count of steps** from a machine with Claude Code installed, not as time: no
+  setup was timed, and time depends on network and machine. Each step is a named row in `results/infra.csv`
+  (`harness/count_infra.py` `SETUP`; PMxAgent's from its README "Quick Start" and "Connect an AI Agent"). Services
+  = what must be running before the agent starts (the Docker engine plus each docker-compose service).
+- **Lines:** non-blank, non-comment lines per file, put in one category by path: tool code, serving/infrastructure
+  (API router, MCP server, container/compose files, dependency lists, CI), tests, agent instructions (`CLAUDE.md`,
+  `SKILL.md`). Documentation, licences and `skills/FROZEN.sha256` are listed but not counted. PMxAgent's Plumber
+  `#*` annotations count as comments, and its endpoint modules as tool code. The old `infra.csv` (one row per
+  directory × file type) is replaced by one row per counted item; `.cpp` model files are now counted.
+- **Order:** categories and steps were set (and unit-tested) before the new counts were run; the old per-directory `infra.csv` had been seen. No accuracy result is affected.

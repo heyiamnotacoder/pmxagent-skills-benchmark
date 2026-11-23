@@ -143,6 +143,12 @@ written from package documentation and general NCA conventions without reading P
 script was run once on the T1 input to confirm that it completed; its output was not compared with PKanalix before the
 freeze. The runner refused to start A2--A4 if any hash differed.
 
+The infrastructure of each stack was counted by a script from its repository (PMxAgent at its \texttt{v1.0.0} tag; the
+frozen Skills): containers and host ports from PMxAgent's docker-compose files, the services that must be running
+before the agent starts, the setup steps from a machine with Claude Code installed (for PMxAgent, those in its README),
+and non-blank, non-comment lines in each file, grouped by role (tool code, serving and infrastructure, tests, agent
+instructions); documentation and licence files were not counted, and no code was interpreted beyond line counts.
+
 \subsection{Run protocol and isolation}
 Each run was a new \texttt{claude -p} process in a new git worktree that contained only the task inputs and, for
 A2--A4, that arm's Skills. Workspaces lived outside the project repository, so no reference data were reachable.
@@ -417,13 +423,38 @@ A3 cost less per run than A1 on T2 and on every T3 task, and A4 was the cheapest
 \input{tables/tab_cost_T2T3.tex}
 \end{table}
 
+\subsection{Infrastructure}
+PMxAgent needs \numInfraPmxagentService\ services running before the agent starts (a container engine and
+\numInfraPmxagentContainer\ containers) and opens \numInfraPmxagentPort\ host ports; the Skills need
+\numInfraSkillsService\ services and no ports (Table~\ref{tab:infra}). Setting up took \numInfraPmxagentSetup\ steps
+for PMxAgent and \numInfraSkillsSetup\ for the Skills. PMxAgent's repository holds \numInfraPmxagentLines\ maintained
+lines (\numInfraPmxagentTool\ of tool code and \numInfraPmxagentServing\ of serving and infrastructure code), the
+Skills \numInfraSkillsLines\ (\numInfraSkillsTool\ in the bundled scripts). The comparison is not like for like.
+PMxAgent's extra code provides things the Skills do not: OAuth authorisation, typed validation of every input at the
+tool boundary, a server that any MCP client can use, R packages pinned inside a container image, and tests and release
+pipelines for all of these. The Skills instead rely on the user's own R installation, which their setup counts as one
+step however long it takes.
+
+\begin{table}[t]
+\centering\small
+\caption{Infrastructure footprint per stack. Lines are non-blank, non-comment lines in the repository; documentation and
+licence files are not counted. PMxAgent's larger code base also provides OAuth, typed input validation, support for
+any MCP client and a pinned container environment, which the Skills do not.
+$^a$From a machine with Claude Code installed; each step is listed in \texttt{results/infra.csv}.
+$^b$API router, MCP server, container and compose files, dependency lists and CI workflows.}
+\label{tab:infra}
+\input{tables/tab_infra.tex}
+\end{table}
+
 % ---------------------------------------------------------------------------------------------------------------
 \section{Discussion}
 On PMxAgent's own NCA benchmark, the two properties that motivate its architecture separated cleanly. Accuracy came
 from domain instructions: telling the agent how to choose the terminal phase and derive parameters raised accuracy from
 \numToneAzeroAcc\% to \numToneAtwoAcc\% even though the agent still wrote its own code. Reproducibility came from
 executing fixed code: only the arms that called a tested script returned identical values in every run. Neither
-property needed a container, an API server or MCP, and with the script in place a small model was enough.
+property needed a container, an API server or MCP, and with the script in place a small model was enough. The Skills
+did this with no running services and \numInfraSkillsLines\ maintained lines against PMxAgent's
+\numInfraPmxagentLines\ (Table~\ref{tab:infra}).
 
 Offered PMxAgent's tools, the agent called them in \numToneAonePmxRuns\ of \numToneAonePmxKnown\ T1 runs; it preferred
 to write its own PKNCA code. A tool
@@ -451,8 +482,8 @@ as preparing its input, still depended on the model.
 
 This does not make MCP redundant. An MCP server works with any compatible client, validates typed inputs at the tool
 boundary, and can be deployed once for many users in a controlled environment; Skills as used here run on the user's
-own machine with the user's own R installation. For a regulated, multi-user deployment those properties can matter more
-than setup cost. Our results concern the narrower question of where accuracy and reproducibility come from.
+own machine with the user's own R installation. Much of PMxAgent's larger code base (Table~\ref{tab:infra}) pays for
+these properties. For a regulated, multi-user deployment they can matter more than setup cost. Our results concern the narrower question of where accuracy and reproducibility come from.
 
 On T1, the remaining errors with the script followed the choice of terminal phase. Of its \numToneAthreeLzErr\
 $\lambda_z$-dependent values outside 1\%, \numToneAthreeLzErrDiffer\ were in subjects whose terminal phase used a

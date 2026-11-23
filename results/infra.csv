@@ -1,32 +1,81 @@
-stack,group,kind,files,lines
-Skills,pmx-data,text.md,1,32
-Skills,pmx-data/scripts,code.r,1,159
-Skills,pmx-data/tests,code.r,1,74
-Skills,pmx-er,text.md,1,39
-Skills,pmx-er/scripts,code.r,1,126
-Skills,pmx-er/tests,code.r,1,47
-Skills,pmx-library,text.md,1,33
-Skills,pmx-library/scripts,code.r,1,88
-Skills,pmx-library/tests,code.r,1,35
-Skills,pmx-nca,text.md,1,59
-Skills,pmx-nca/scripts,code.r,1,145
-Skills,pmx-nca/tests,code.r,1,89
-Skills,pmx-pksim,text.md,1,51
-Skills,pmx-pksim/scripts,code.r,1,115
-Skills,pmx-pksim/tests,code.r,1,63
-PMxAgent,(root),code.py,1,370
-PMxAgent,(root),container,2,123
-PMxAgent,(root),text.json,1,8
-PMxAgent,(root),text.md,4,1068
-PMxAgent,(root),text.txt,2,24
-PMxAgent,.github/workflows,text.yml,2,392
-PMxAgent,apis,code.r,1,52
-PMxAgent,apis/endpoints,code.r,5,1868
-PMxAgent,apis/models,code.r,3,750
-PMxAgent,apis/tests,code.r,3,674
-PMxAgent,apis/utils,code.r,8,1246
-PMxAgent,docker,container,2,160
-PMxAgent,docker,text.txt,1,6
-PMxAgent,tests,code.py,5,1008
-PMxAgent,docker-compose services,services,2,mcp;rapi
-Skills,runtime services,services,0,
+stack,category,item,lines
+Skills,source,FROZEN.sha256 sha256:a1656f60548dc192c732ebd4e5447003fcc534e982f76d468983f5db0d164c1b,
+Skills,other,FROZEN.sha256,16
+Skills,instructions,pmx-data/SKILL.md,32
+Skills,tool,pmx-data/scripts/run_data.R,159
+Skills,tests,pmx-data/tests/test_run_data.R,74
+Skills,instructions,pmx-er/SKILL.md,39
+Skills,tool,pmx-er/scripts/run_er.R,126
+Skills,tests,pmx-er/tests/test_run_er.R,47
+Skills,instructions,pmx-library/SKILL.md,33
+Skills,tool,pmx-library/scripts/Makevars.rxode2,1
+Skills,tool,pmx-library/scripts/run_library.R,88
+Skills,tests,pmx-library/tests/test_run_library.R,35
+Skills,instructions,pmx-nca/SKILL.md,59
+Skills,tool,pmx-nca/scripts/run_nca.R,145
+Skills,tests,pmx-nca/tests/test_run_nca.R,89
+Skills,instructions,pmx-pksim/SKILL.md,51
+Skills,tool,pmx-pksim/scripts/run_pksim.R,115
+Skills,tests,pmx-pksim/tests/test_run_pksim.R,63
+Skills,setup,Install R and the R packages the scripts load,
+Skills,setup,Clone the repository,
+Skills,setup,Copy the skill folders into .claude/skills/,
+PMxAgent,source,v1.0.0 4811423042e03fa69194bfcaa9429a5b7a23f9c4,
+PMxAgent,serving,.dockerignore,35
+PMxAgent,serving,.github/workflows/publish.yml,296
+PMxAgent,serving,.github/workflows/test.yml,66
+PMxAgent,other,.gitignore,41
+PMxAgent,serving,.mcp.json,8
+PMxAgent,other,CITATION.cff,93
+PMxAgent,other,CLA.md,28
+PMxAgent,instructions,CLAUDE.md,663
+PMxAgent,other,CONTRIBUTING.md,214
+PMxAgent,other,README.md,163
+PMxAgent,tool,apis/endpoints/data.R,89
+PMxAgent,tool,apis/endpoints/er.R,168
+PMxAgent,tool,apis/endpoints/library.R,566
+PMxAgent,tool,apis/endpoints/nca.R,644
+PMxAgent,tool,apis/endpoints/pk.R,401
+PMxAgent,tool,apis/models/1CM.cpp,22
+PMxAgent,tool,apis/models/2CM.cpp,34
+PMxAgent,tool,apis/models/er_models.R,182
+PMxAgent,tool,apis/models/mrgsolve_pk.R,100
+PMxAgent,tool,apis/models/nlmixr2lib_sim.R,468
+PMxAgent,serving,apis/rapi.R,52
+PMxAgent,tests,apis/tests/test_library_models.R,189
+PMxAgent,tests,apis/tests/test_nca.R,382
+PMxAgent,tests,apis/tests/test_pk_models.R,103
+PMxAgent,tool,apis/utils/colors.R,28
+PMxAgent,tool,apis/utils/constants.R,100
+PMxAgent,tool,apis/utils/data_processing.R,139
+PMxAgent,tool,apis/utils/library_utils.R,240
+PMxAgent,tool,apis/utils/pknca_units.R,223
+PMxAgent,tool,apis/utils/plotting.R,246
+PMxAgent,tool,apis/utils/units.R,54
+PMxAgent,tool,apis/utils/validation.R,216
+PMxAgent,serving,docker-compose.ghcr.yml,5
+PMxAgent,serving,docker-compose.yml,73
+PMxAgent,serving,docker/Dockerfile.mcp,48
+PMxAgent,serving,docker/Dockerfile.rapi,37
+PMxAgent,serving,docker/r-packages.txt,6
+PMxAgent,tests,pytest.ini,19
+PMxAgent,tests,requirements-dev.txt,5
+PMxAgent,serving,requirements.txt,4
+PMxAgent,serving,server.py,370
+PMxAgent,tests,tests/conftest.py,45
+PMxAgent,tests,tests/test_endpoints.py,531
+PMxAgent,tests,tests/test_library_endpoint.py,188
+PMxAgent,tests,tests/test_mcp_protocol.py,111
+PMxAgent,tests,tests/test_validation.py,133
+PMxAgent,container,mcp,
+PMxAgent,container,rapi,
+PMxAgent,port,5762:8000,
+PMxAgent,port,8000:8000,
+PMxAgent,service,"Docker engine (README prerequisite: Docker Desktop, running)",
+PMxAgent,service,mcp,
+PMxAgent,service,rapi,
+PMxAgent,setup,Install and start Docker Desktop,
+PMxAgent,setup,Clone the repository,
+PMxAgent,setup,Build or pull the images and start the containers (docker compose up),
+PMxAgent,setup,"Connect the client to the MCP endpoint (.mcp.json in the repository, or the client's MCP settings)",
+PMxAgent,setup,Approve the one-time OAuth prompt on first connection,
