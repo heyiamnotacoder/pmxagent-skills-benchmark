@@ -95,7 +95,7 @@ NCA rules and reproducibility from running a fixed script, Skills should match a
 infrastructure.
 
 We tested this with a controlled comparison on PMxAgent's own benchmark: same client, same model, same prompt, and
-separate arms for ``instructions only'' and ``instructions plus fixed code''.
+separate arms for ``instructions only'' and ``instructions plus fixed code'' (Figure~\ref{fig:arch}).
 
 % ---------------------------------------------------------------------------------------------------------------
 \section{Methods}
@@ -137,6 +137,19 @@ derived parameters, route and BLQ handling, units, output checks), with all scri
 call instead of writing NCA code.
 \item[A4] A3 with the smaller model.
 \end{description}
+Figure~\ref{fig:arch} shows the components each arm gives the agent.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_arch.pdf}
+\caption{What each arm gives the agent. Every arm runs Claude Code with its built-in tools; A0 has nothing else, so
+the agent writes and runs its own code. (a) A1 adds the tools of PMxAgent 1.0.0 over MCP, served by two Docker
+containers; A1b also loads PMxAgent's \texttt{CLAUDE.md}. (b) A2 adds the Skills' instructions only; A3 and A4 add the
+bundled scripts, which the agent runs as a local R process. Labelled boxes mark the arms that have each component
+(colours as in Figures~\ref{fig:params} and~\ref{fig:cost}). PMxAgent's components are named from its paper
+\cite{bloomingdale2026pmxagent} and its Docker and README files.}
+\label{fig:arch}
+\end{figure}
 Five Skills were written (NCA, PK simulation, data standardisation, exposure--response, model library). They were
 written from package documentation and general NCA conventions without reading PMxAgent's endpoint code, tested with
 \texttt{testthat} against analytical solutions only, and frozen by SHA-256 hash before any benchmark run. The NCA

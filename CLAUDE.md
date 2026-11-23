@@ -18,7 +18,7 @@ Goal: test how much of PMxAgent's architecture (Docker + R Plumber + FastMCP) is
 - `results/` — `runs.csv` (run ledger, append-only), `exclusions.csv` (protocol exclusions: runid, reason, deviation §), `scores.csv`, `summary.*`, `isolation_audit.csv`, `t2_parser_check.csv` (read by `paper/tables.py`), `T1_report.md`, `evidence/` (`MANIFEST.sha256`, `provenance.json`). `results/raw/` is git-ignored; raw T1 evidence is on Zenodo (doi:10.5281/zenodo.23019418).
 - `logs/` — `deviations.md` (protocol deviations), `skill_changes.md` (post-freeze skill changes), `calibration.txt`; `*.log` git-ignored.
 - `env/versions.txt` — pinned tool and package versions.
-- `paper/` — bioRxiv preprint: `SPEC.md` (spec, decisions log, pre-specified analysis; work tracked as GitHub sub-issues), `main.tex`, `references.bib`; tables/numbers from `paper/tables.py`, figures from `scoring/figures.py`. Never type a result number by hand.
+- `paper/` — bioRxiv preprint: `SPEC.md` (spec, decisions log, pre-specified analysis; work tracked as GitHub sub-issues), `main.tex`, `references.bib`; tables/numbers from `paper/tables.py`, figures from `scoring/figures.py` (Fig 1, the architecture diagram: TikZ `paper/figures/fig_arch.tex`, build command at its top). Never type a result number by hand.
 
 ## Rules
 - Same pinned model for every arm in a comparison; one pinned Claude Code version per task (`env/versions.txt` `claude-code-pin`; harness-owned binaries in `~/.local/share/pmxbench/claude/`).
@@ -36,7 +36,7 @@ Goal: test how much of PMxAgent's architecture (Docker + R Plumber + FastMCP) is
 - Score a run: `python3 scoring/score_nca.py <individual.csv>` · score all: `python3 scoring/score_all.py [--arm A3] [--task T1_nca]`
 - Summarize + audit: `python3 scoring/summarize.py` · `python3 scoring/audit_isolation.py`
 - Build arm repos: `python3 harness/run_arm.py setup <arm>` · probe isolation: `python3 harness/run_arm.py preflight <arm> claude-sonnet-4-6`
-- Paper pipeline: `python3 scoring/stats.py && python3 scoring/figures.py && python3 paper/tables.py && (cd paper && latexmk -pdf main.tex)`
+- Paper pipeline: `python3 scoring/stats.py && python3 scoring/figures.py && (cd paper/figures && latexmk -pdf fig_arch.tex) && python3 paper/tables.py && (cd paper && latexmk -pdf main.tex)`
 - Run an arm: `bash harness/run_arm.sh <A0|A1|A1b|A2|A3|A4> <task> <reps> claude-sonnet-4-6` (A1/A1b need `bash harness/pmxagent.sh up`)
 - Evidence bundle: `python3 harness/make_evidence.py`
 
