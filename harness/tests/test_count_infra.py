@@ -1,6 +1,6 @@
 """Tests for the infrastructure footprint count (count_infra.py, paper/SPEC.md slice S9, issue #11).
 Run: python3 -m unittest discover -s harness/tests"""
-import os, sys, tempfile, unittest
+import hashlib, os, sys, tempfile, unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import count_infra as ci
@@ -66,12 +66,30 @@ def write(path, text):
         fh.write(text)
 
 
+def freeze(sk):
+    """skills/FROZEN.sha256 as `shasum -a 256` writes it from the skills folder (`<hash>  ./<path>`)."""
+    lines = []
+    for d, _, names in sorted(os.walk(sk)):
+        for f in sorted(names):
+            p = os.path.join(d, f)
+            with open(p, "rb") as fh:
+                lines.append(f"{hashlib.sha256(fh.read()).hexdigest()}  ./{os.path.relpath(p, sk)}\n")
+    write(os.path.join(sk, "FROZEN.sha256"), "".join(lines))
+
+
 class Compose(unittest.TestCase):
     def test_containers_and_host_ports_from_base_and_overlay(self):
         with tempfile.TemporaryDirectory() as d:
             write(os.path.join(d, "docker-compose.yml"), COMPOSE)
             write(os.path.join(d, "docker-compose.ghcr.yml"), OVERLAY)
             self.assertEqual(ci.compose(d), {"container": ["mcp", "rapi"], "port": ["5762:8000", "8000:8000"]})
+
+    def test_port_syntax_it_cannot_read_stops_the_count(self):
+        for ports in ('    ports: ["8000:8000"]\n', "    ports:\n      - target: 8000\n        published: 8000\n"):
+            with tempfile.TemporaryDirectory() as d:
+                write(os.path.join(d, "docker-compose.yml"), "services:\n  mcp:\n" + ports)
+                with self.assertRaises(ValueError, msg=ports):
+                    ci.compose(d)
 
 
 class Footprint(unittest.TestCase):
@@ -82,7 +100,7 @@ class Footprint(unittest.TestCase):
             write(os.path.join(sk, "pmx-nca", "SKILL.md"), "# NCA\n\nUse the script.\n")
             write(os.path.join(sk, "pmx-nca", "scripts", "run.R"), "# header\nx <- 1\n\n  # note\ny <- 2\n")
             write(os.path.join(sk, "pmx-nca", "tests", "test_run.R"), "expect_true(TRUE)\n")
-            write(os.path.join(sk, "FROZEN.sha256"), "abc  pmx-nca/SKILL.md\n")
+            freeze(sk)
             write(os.path.join(pmx, "server.py"), "import x\n# c\nrun()\n")
             write(os.path.join(pmx, "apis", "endpoints", "nca.R"), "#* @post /NCA\nf <- function() 1\n")
             write(os.path.join(pmx, "apis", "models", "1CM.cpp"), "// model\nint a;\n")
@@ -95,15 +113,29 @@ class Footprint(unittest.TestCase):
             s = ci.summary(ci.rows(sk, pmx))
         compose_lines = sum(1 for l in COMPOSE.splitlines() if l.strip() and not l.lstrip().startswith("#"))
         self.assertEqual(s["Skills"], {"service": 0, "container": 0, "port": 0, "setup": 3,
-                                       "tool": 2, "serving": 0, "tests": 1, "instructions": 2})
-        self.assertEqual(s["PMxAgent"], {"service": 3, "container": 2, "port": 2, "setup": 5,
-                                         "tool": 2, "serving": 2 + 2 + compose_lines, "tests": 1, "instructions": 2})
+                                       "tool": 2, "serving": 0, "tests": 1, "instructions": 2, "lines": 5})
+        serving = 2 + 2 + compose_lines
+        self.assertEqual(s["PMxAgent"], {"service": 3, "container": 2, "port": 2, "setup": 4, "tool": 2,
+                                         "serving": serving, "tests": 1, "instructions": 2, "lines": 5 + serving})
 
     def test_without_pmxagent_repo_only_skills(self):
         with tempfile.TemporaryDirectory() as d:
-            write(os.path.join(d, "skills", "a", "SKILL.md"), "x\n")
-            s = ci.summary(ci.rows(os.path.join(d, "skills"), os.path.join(d, "missing")))
+            sk = os.path.join(d, "skills")
+            write(os.path.join(sk, "a", "SKILL.md"), "x\n")
+            freeze(sk)
+            s = ci.summary(ci.rows(sk, os.path.join(d, "missing")))
         self.assertEqual(set(s), {"Skills"})
+
+    def test_skills_that_differ_from_the_freeze_are_not_counted(self):
+        """The paper counts the frozen Skills: a changed or an unfrozen file stops the count."""
+        for change in ("edit", "add"):
+            with tempfile.TemporaryDirectory() as d:
+                sk = os.path.join(d, "skills")
+                write(os.path.join(sk, "a", "SKILL.md"), "x\n")
+                freeze(sk)
+                write(os.path.join(sk, "a", "SKILL.md" if change == "edit" else "scripts/new.R"), "y\n")
+                with self.assertRaises(ValueError, msg=change):
+                    ci.rows(sk, os.path.join(d, "missing"))
 
 
 if __name__ == "__main__":

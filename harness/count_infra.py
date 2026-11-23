@@ -15,14 +15,12 @@ Reads only line counts, file paths and docker-compose service names and ports: n
 Usage: count_infra.py [--pmxagent pmxagent-main]
 """
 import argparse, csv, hashlib, os, re, subprocess
-from collections import defaultdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "results", "infra.csv")
 SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "renv", "dist", "build"}
 # comment marker per counted file type; None = count every non-blank line; types not listed are not counted
-EXT = {".R": "#", ".r": "#", ".py": "#", ".sh": "#", ".yml": "#", ".yaml": "#", ".toml": "#", ".txt": "#", ".ini": "#",
-       ".cpp": "//", ".c": "//", ".h": "//", ".js": "//", ".ts": "//",
+EXT = {".R": "#", ".r": "#", ".py": "#", ".sh": "#", ".yml": "#", ".yaml": "#", ".txt": "#", ".ini": "#", ".cpp": "//",
        ".md": None, ".json": None, ".cff": None, ".sha256": None}
 NAME = {"Dockerfile": "#", "Makevars": "#", ".dockerignore": "#", ".gitignore": "#"}   # basename prefixes
 
@@ -33,18 +31,19 @@ PMX_SERVING = ("docker/", ".github/")
 PMX_SERVING_FILES = {"server.py", "apis/rapi.R", ".mcp.json", ".dockerignore", "requirements.txt"}
 
 ENGINE = "Docker engine (README prerequisite: Docker Desktop, running)"
-SETUP = {   # from a machine with Claude Code installed; PMxAgent from its README "Quick Start" and "Connect an AI Agent"
+# From a machine with Claude Code installed; PMxAgent from its README "Quick Start" and "Connect an AI Agent". Claude Code
+# started in PMxAgent's repository reads its .mcp.json, so connecting the client is not a separate step.
+SETUP = {
     "PMxAgent": ["Install and start Docker Desktop",
                  "Clone the repository",
                  "Build or pull the images and start the containers (docker compose up)",
-                 "Connect the client to the MCP endpoint (.mcp.json in the repository, or the client's MCP settings)",
                  "Approve the one-time OAuth prompt on first connection"],
     "Skills": ["Install R and the R packages the scripts load",
                "Clone the repository",
                "Copy the skill folders into .claude/skills/"],
 }
-MEASURES = ["service", "container", "port", "setup", "tool", "serving", "tests", "instructions"]
-LINES = {"tool", "serving", "tests", "instructions"}
+LINES = ["tool", "serving", "tests", "instructions"]
+MEASURES = ["service", "container", "port", "setup"] + LINES + ["lines"]   # lines = total of LINES
 
 
 def category(stack, rel):
@@ -118,34 +117,62 @@ def compose(top):
             m = re.match(r"^  ([A-Za-z0-9_.-]+):\s*$", line)
             if m:
                 names.add(m.group(1)); in_ports = False; continue
-            if re.match(r"^    ports:\s*$", line):
+            if re.match(r"^    ports:", line):
+                if not re.match(r"^    ports:\s*$", line):
+                    raise ValueError(f"{f}: ports not in block-list form: {line.strip()}")
                 in_ports = True; continue
-            m = re.match(r"^\s+-\s*[\"']?([^\"'\s]+)[\"']?\s*$", line) if in_ports else None
+            if not in_ports or not line.strip() or line.lstrip().startswith("#"):
+                continue
+            m = re.match(r"^\s+-\s*[\"']?([0-9.:/a-z-]+)[\"']?\s*(#.*)?$", line)
             if m:
                 ports.add(m.group(1))
-            elif in_ports and line.strip() and not line.lstrip().startswith("#"):
+            elif line.lstrip().startswith("-") or len(line) - len(line.lstrip()) > 4:
+                raise ValueError(f"{f}: port entry not in short form: {line.strip()}")
+            else:
                 in_ports = False
     return {"container": sorted(names), "port": sorted(ports)}
 
 
 def git_version(top):
-    """`<tag> <commit>` of a git checkout, or '' when top is not one."""
+    """`<tag> <commit>` of a clean git checkout, or '' when top is not one. A checkout with local changes stops the
+    count: the paper names the version counted."""
     try:
         run = lambda *a: subprocess.run(["git", "-C", top, *a], capture_output=True, text=True, check=True).stdout.strip()
-        return f"{run('describe', '--tags', '--always')} {run('rev-parse', 'HEAD')}"
+        tag, head = run("describe", "--tags", "--always", "--dirty"), run("rev-parse", "HEAD")
     except (OSError, subprocess.CalledProcessError):
         return ""
+    if tag.endswith("-dirty"):
+        raise ValueError(f"{top} has local changes; count a clean checkout")
+    return f"{tag} {head}"
+
+
+def check_frozen(skills_dir, counted):
+    """SHA-256 of skills/FROZEN.sha256 after checking that every file it lists is unchanged and that it lists every
+    counted file: the paper counts the frozen Skills."""
+    frozen = os.path.join(skills_dir, "FROZEN.sha256")
+    with open(frozen, "rb") as fh:
+        raw = fh.read()
+    listed = {}
+    for line in raw.decode().splitlines():
+        h, rel = line.split(None, 1)
+        listed[rel.strip().removeprefix("./")] = h
+    for rel, h in listed.items():
+        with open(os.path.join(skills_dir, rel), "rb") as fh:
+            if hashlib.sha256(fh.read()).hexdigest() != h:
+                raise ValueError(f"skills/{rel} changed since the freeze")
+    unfrozen = sorted(set(counted) - set(listed) - {"FROZEN.sha256"})
+    if unfrozen:
+        raise ValueError(f"skills files not in FROZEN.sha256: {', '.join(unfrozen)}")
+    return hashlib.sha256(raw).hexdigest()
 
 
 def rows(skills_dir, pmx_dir):
     """Every counted item of both stacks (PMxAgent only when its repo is present)."""
     out = []
     add = lambda stack, cat, item, lines="": out.append({"stack": stack, "category": cat, "item": item, "lines": lines})
-    frozen = os.path.join(skills_dir, "FROZEN.sha256")
-    if os.path.exists(frozen):
-        with open(frozen, "rb") as fh:
-            add("Skills", "source", "FROZEN.sha256 sha256:" + hashlib.sha256(fh.read()).hexdigest())
-    for rel, n in files(skills_dir):
+    skill_files = files(skills_dir)
+    add("Skills", "source", "FROZEN.sha256 sha256:" + check_frozen(skills_dir, [rel for rel, _ in skill_files]))
+    for rel, n in skill_files:
         add("Skills", category("Skills", rel), rel, n)
     for step in SETUP["Skills"]:
         add("Skills", "setup", step)
@@ -155,10 +182,12 @@ def rows(skills_dir, pmx_dir):
     for rel, n in files(pmx_dir):
         add("PMxAgent", category("PMxAgent", rel), rel, n)
     dc = compose(pmx_dir)
+    if not dc["container"]:
+        raise ValueError(f"no docker-compose services found in {pmx_dir}")
     for kind in ("container", "port"):
         for item in dc[kind]:
             add("PMxAgent", kind, item)
-    for item in ([ENGINE] if dc["container"] else []) + dc["container"]:
+    for item in [ENGINE] + dc["container"]:
         add("PMxAgent", "service", item)
     for step in SETUP["PMxAgent"]:
         add("PMxAgent", "setup", step)
@@ -166,13 +195,14 @@ def rows(skills_dir, pmx_dir):
 
 
 def summary(rs):
-    """{stack: {measure: number}}: item counts for service/container/port/setup, summed lines for the file
-    categories (MEASURES); category `other` and `source` are not counted."""
+    """{stack: {measure: number}} in MEASURES order: item counts for service/container/port/setup, summed lines for
+    each file category and their total `lines`; categories `other` and `source` are not counted."""
     out = {}
     for r in rs:
         s = out.setdefault(r["stack"], dict.fromkeys(MEASURES, 0))
         if r["category"] in LINES:
             s[r["category"]] += int(r["lines"])
+            s["lines"] += int(r["lines"])
         elif r["category"] in s:
             s[r["category"]] += 1
     return out

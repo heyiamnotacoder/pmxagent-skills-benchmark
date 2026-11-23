@@ -332,12 +332,11 @@ INFRA_ROWS = [("service", "Services running before the agent starts"), ("contain
 
 def infra_table():
     """tab_infra.tex from results/infra.csv (count_infra.summary); returns \\numInfra<Stack><Measure> macros,
-    with `Lines` the total of the four line categories. Nothing if PMxAgent was not counted."""
+    `Lines` being the total of the four line categories. Stops if a stack is missing (the paper cites both)."""
     s = count_infra.summary(read("infra.csv"))
-    if not all(k in s for k, _ in INFRA_STACKS):
-        return []
-    for m in s.values():
-        m["lines"] = sum(m[k] for k in sorted(count_infra.LINES))
+    missing = [k for k, _ in INFRA_STACKS if k not in s]
+    if missing:
+        sys.exit(f"results/infra.csv has no {', '.join(missing)} rows: run harness/count_infra.py with pmxagent-main/")
     L = ["\\begin{tabular}{l r r}", "\\toprule", " & " + " & ".join(lab for _, lab in INFRA_STACKS) + " \\\\",
          "\\midrule"]
     for row in INFRA_ROWS:
