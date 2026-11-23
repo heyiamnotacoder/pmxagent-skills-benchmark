@@ -125,7 +125,7 @@ Added 2026-11-17, before any T2 score was computed and before A1 T1 runs 4–10 
   version; `--allow-version-drift` overrides by hand and must be logged. Same pinned models and PMxAgent image digests.
 - **No hand-typed numbers.** Tables and number macros come from `paper/tables.py`; figures from `scoring/figures.py` (Fig 1: TikZ source `paper/figures/fig_arch.tex`, arm colours kept in step by `scoring/tests/test_fig_arch.py`);
   comparisons from `scoring/stats.py`. The manuscript only `\input`s them.
-- **Pipeline:** `score_all.py → summarize.py → stats.py → figures.py → paper/tables.py → latexmk`.
+- **Pipeline:** `score_all.py → summarize.py → stats.py → figures.py (+ `fig_arch.tex`, Fig 1) → paper/tables.py → latexmk`.
 - **Concurrency and exclusion** as for T1 (`logs/deviations.md` §2–3): at most 2 Claude Code sessions, `--until`
   top-up, stop on HTTP 429. Runner: A1 T1 top-up first, alone (`run_arm.py run A1 T1_nca 10 … --until`), then
   `harness/run_t2_t3_lanes.sh` (`T3B_OK=1` after S2).

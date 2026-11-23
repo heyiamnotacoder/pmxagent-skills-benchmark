@@ -26,7 +26,7 @@ class ArchFigure(unittest.TestCase):
 
     def test_fig_arch_is_figure_1_and_is_cited_before_it_appears(self):
         tex = read("main.tex")
-        figs = re.findall(r"\\begin\{figure\}.*?\\end\{figure\}", tex, flags=re.S)
+        figs = re.findall(r"\\begin\{figure\*?\}.*?\\end\{figure\*?\}", tex, flags=re.S)
         self.assertIn(r"\includegraphics", figs[0])
         self.assertIn("figures/fig_arch.pdf", figs[0])
         self.assertIn(r"\label{fig:arch}", figs[0])
