@@ -436,3 +436,26 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   PR review flagged both as contradicting §24, and both were removed before merge.)
 - **Timing.** The comparison was planned in #7, before the T2 runs. Converting the unit and applying the 1% rule
   to it were chosen after the T2 data were seen, and are labelled that way in the paper.
+
+### §26 Terminal-point match reported with runs that did not report points left out; λz errors split by match (2026-11-23)
+- **Why.** Issue #10 (S8) asks for the terminal-point match rate per arm, to back the Discussion sentence that the
+  remaining T1 error comes from λz terminal-point selection. `docs/PLAN.md` lists terminal-point match as an accuracy
+  measure but does not define how a run without a point count is handled.
+- **Definition.** `scores.csv` `npts_match_pct` (unchanged, `score_nca.score`) counts every subject as a mismatch
+  when the run's file has no terminal-point count at all, so 0.0 there means "not reported", not "all different"
+  (checked: each 0.0 T1 run has no `NPTS` row). The paper instead reports the match pooled over subjects of the runs
+  that did report a count (`stats.terminal_points`; run count shown in the accuracy table when not all runs did).
+  Within a reporting run, a subject without a count counts as differing. Subjects: PKanalix adjusted R² ≥ 0.80, as
+  for the λz-dependent parameters. Not part of `overall`; no accuracy number changes.
+- **Error split (post hoc, descriptive).** For each arm and NCA task, the λz-dependent values (AUCINF_obs, HL, CL,
+  Vz) outside 1% are counted separately for subjects whose points matched and subjects whose points differed
+  (`score_nca.terminal_point_breakdown` → `results/stats_arms.csv` `lz_errors`, `lz_errors_npts_differ`,
+  `lz_errors_npts_match`; "n/a" where the task's reference is not built). Chosen
+  after all T1–T3 results had been seen, and after an exploratory run of the same count; labelled descriptive and
+  post hoc in the paper. No run is selected or excluded by it.
+- **Numbers.** Generated only (`paper/tables.py` → `\num…NptsMatch`, `…LzErr`, `…LzErrDiffer`, `…LzErrMatch`). The
+  Discussion's hand-typed "98.6%" is replaced by `\numToneAthreeAcc`.
+- **Discussion.** The λz sentence now states the split with the script (A3, A4) only. A first version called
+  98.64% "the ceiling" of the metric; the PR review pointed out that A2 scored higher (98.70 in some runs) with the
+  same terminal-point matches, so that claim was removed before merge. A1b's errors are mostly in subjects whose
+  points matched, because two of its runs had no AUCINF_obs, CL or Vz rows; the paper says so.
