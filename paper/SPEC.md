@@ -45,6 +45,9 @@ benchmark and open data; state what MCP gives that Skills do not.
 | 2026-11-21 | **Secondary arm `A1b` on `T1_nca` (10 reps, T1 pin `2.1.283`, isolated):** PMxAgent 1.0.0 MCP **plus PMxAgent's shipped `v1.0.0` `CLAUDE.md`** (pinned SHA-256 `1ebc55d4…`), using the **exact same task prompt** (no prompt change). Motivated by finding that PMxAgent's multi-drug `/NCA` support is documented only in its repo `CLAUDE.md` and absent from `openapi.json`. Primary `A1` (bare MCP, 10 reps) stays unchanged; `A1b` is reported alongside it (`results/stats_secondary.csv`, `logs/deviations.md` §21). Also log direct Plumber HTTP calls (`pmxagent_http_calls`) alongside MCP calls (`pmxagent_tool_calls`) | user |
 | 2026-11-21 | **Crash/timeout vs HTTP 429 reporting & isolation audit clarity:** separate `n_crash_timeout` from `n_invalid_excluded` (HTTP 429) in `results/summary.{csv,md}` (`harness/ledger.py`, `scoring/summarize.py`), and mark protocol-excluded runs in `results/isolation_audit.csv` so valid vs excluded flagged counts are shown distinctly (§21) | user |
 | 2026-11-21 | **Arm failures count, infrastructure failures repeat:** a rep that did real work and then crashed / timed out / ended in error (no API/auth error) is a valid run scored on what it left; API/auth errors, no-work reps and harness-bug statuses are repeated. Replaces the "relabel only" split of §21, which still re-ran every crash. No valid run changes (the only such rep so far, `A1_T3a_messy_r07`, is already excluded under §20). Also: `A1b` relabelled **post hoc** (specified after A0–A4 T1 results were known), with the doc-authorship and timing disclosures (§22) | user |
+| 2026-11-24 | Manuscript finalised against C1–C5 (#15): "did not use PMxAgent's tools for NCA" softened to "rarely" (A1 called its NCA tool in 1 of 30 NCA-task runs, all in T3a; generated macro `\numNcaAonePmxRuns`); T3 reproducibility claim limited to A3 (A4 varied on T3a); T3d wording corrected (A1 wrote code and did not solve it in every run). Limitations regrouped and extended for T2/T3 | — |
+| 2026-11-24 | Corresponding e-mail: personal Gmail. Funding: no specific grant. CRediT: D.P. conceptualization, methodology, software, investigation, formal analysis, data curation, visualization, writing (original draft, review & editing); S.S. conceptualization, supervision, validation, writing (review & editing). Code cited as GitHub URL + release tag `preprint-v1` (tag created at posting, #16). Use-of-AI statement checked against the bioRxiv FAQ ("How should I acknowledge the use of generative AI", read 2026-11-24): use described in the manuscript, authors accountable, no AI author | user |
+| _pending_ | Prof. Surjit Singh read and approved the full draft (#15) | S.S. |
 
 ## User stories
 1. As a pharmacometrician reading the preprint, I want to see which ingredient (instructions, fixed code, server
@@ -173,7 +176,20 @@ Claude subscription, or an account action); AFK = an agent can do it in this rep
 | S14 | #16 | bioRxiv submission PDF and posting | HITL | S12, S13 (#14, #15) |
 
 ## Known limitations to state in the paper
-Single benchmark source (paper's 182-drug set, PKanalix as reference, not ground truth) · subscription runs, cost is
+Kept in step with the Limitations section of `main.tex` (grouped there as benchmark and models · arms · T1 protocol ·
+T2 and T3).
+
+**T2 and T3 (added 2026-11-24, #15):** T2 has no reference answer (completion, internal consistency and agreement
+between runs only) · T2 EC50 summary, unit conversion and the 1% rule for the comparison with PMxAgent's published
+EC50 chosen after the data were seen · scorer's reading of agents' T2 files hand-checked on a fixed subset only
+(`check_t2_parser.py`; `SUBJID` fix after the first T2 results, changing no computed value) · T3 has 5 runs per arm
+(wide intervals); T3d comparisons exploratory · T3 prompts, unlike T1's, state how to identify subjects, so T1's
+unscorable-output failure could not recur in T3 · A1 T2/T3 runs made before PMxAgent's shared folders were emptied were
+excluded and repeated (§20, decided from run timing) · T2/T3 spread over two subscription accounts (same model and
+Claude Code version within a task; §19) · the λz error split by terminal-point match is descriptive and post hoc (§26) ·
+Skills written by the study authors (frozen before any run, output not compared with PKanalix before the freeze).
+
+**Earlier list:** Single benchmark source (paper's 182-drug set, PKanalix as reference, not ground truth) · subscription runs, cost is
 Claude Code's list-price estimate · user-global CLAUDE.md loaded in all T1 arms equally (tool-usage rules only) except A1 runs 4–10, which ran
 isolated (sensitivity analysis by regime); T2/T3 load no user instructions · skills
 written with Claude from package docs · A1 containers under Rosetta (wall time) · one model family (Claude) · ceiling

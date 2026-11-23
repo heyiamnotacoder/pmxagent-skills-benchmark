@@ -7,7 +7,8 @@ tab_effort_<task>.tex    cost, wall time, turns, tool calls, tool errors per run
 tab_infra.tex            infrastructure footprint per stack (results/infra.csv, harness/count_infra.py; issue #11)
 numbers.tex              \\num... macros; per arm also `Distinct`/`DistinctFiles` (parameter-value / output-file sets),
                          `NptsRuns`/`NptsMatch`/`LzErr`/`LzErrDiffer`/`LzErrNone`/`LzErrMatch` (terminal-point match, NCA tasks; §26),
-                         `PmxRuns`/`PmxKnown` (runs with >=1 PMxAgent tool call / runs scanned), and, from stats.py,
+                         `PmxRuns`/`PmxKnown` (runs with >=1 PMxAgent tool call / runs scanned; summed over the
+                         NCA tasks as \\numNca<Arm>PmxRuns/PmxKnown), and, from stats.py,
                          `Unscorable`/`AccPostHoc` (post hoc, logs/deviations.md §17; only where a run was unscorable),
                          `Acc<Regime>`/`N<Regime>` and `...Vs...<Regime>Diff/CI` (isolation-regime sensitivity, §15);
                          \\numInfra<Stack><Measure> (infrastructure footprint).
@@ -177,6 +178,7 @@ def main():
                  f"\\newcommand{{{macro(r['task'], r['arm'], 'N' + reg)}}}{{{r['n']}}}"]
     for r in read("stats_sensitivity.csv"):   # \\numToneAtwoVsAoneIsolatedDiff
         nums += pair_macros(r["task"], r["comparison"], r["regime"].title(), r)
+    nums += nca_tool_use_macros(scores)
     nums += t2_case(scores["T2_case"])
     nums += t2_parser_macros()
     t3_accuracy(scores, distinct)
@@ -184,6 +186,19 @@ def main():
     cost_by_task(scores, runs)
     nums += infra_table()
     write("numbers.tex", nums)
+
+
+def nca_tool_use_macros(scores):
+    """\\numNca<Arm>PmxRuns / PmxKnown: runs with >=1 PMxAgent tool call / runs scanned, summed over the NCA tasks.
+    Only arms with at least one scanned run (a tool-call count in scores.csv) get macros."""
+    out = []
+    for a in ARMS:
+        pmx = [int(f(r["pmxagent_tool_calls"])) for task in sorted(NCA) for r in scores.get(task, {}).get(a, [])
+               if f(r.get("pmxagent_tool_calls")) is not None]
+        if pmx:
+            out += [f"\\newcommand{{{macro('Nca', a, 'PmxRuns')}}}{{{sum(n > 0 for n in pmx)}}}",
+                    f"\\newcommand{{{macro('Nca', a, 'PmxKnown')}}}{{{len(pmx)}}}"]
+    return out
 
 
 def tex_int(x):
