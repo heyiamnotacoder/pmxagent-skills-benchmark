@@ -1,6 +1,6 @@
 {
- "created": "2026-11-24T00:41:47+05:30",
- "git_commit": "b37e74f4036ba5bd2a7a7438c336abf678d272d0",
+ "created": "2026-11-24T00:49:14+05:30",
+ "git_commit": "a849c2e58956bb73d876e4863906245be470624a",
  "git_dirty": false,
  "claude_code_versions_all_ledger_rows": [
   "2.1.283",
@@ -219,10 +219,10 @@
   "A4|T3d_oral": 5,
   "A4|T3e_large": 5
  },
- "n_files_in_manifest": 4263,
+ "n_files_in_manifest": 4262,
  "archive": {
-  "file": "pmxbench_evidence_20261124-004147.tar.gz",
-  "sha256": "e25f2dc63bf00650c9b4196c57c58bb9e1e3bca46651fec54ae61c3f0fbe5a33",
-  "bytes": 106168204
+  "file": "pmxbench_evidence_20261124-004914.tar.gz",
+  "sha256": "5ca32a39ef503f8df31bc407d467a6fc090a85a5827e86bd921cb4552625db5d",
+  "bytes": 106167911
  }
 }
