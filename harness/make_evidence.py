@@ -39,7 +39,8 @@ def sha(p):
 
 def read_pins(path=VERSIONS):
     """{task or "default": Claude Code version} from the `claude-code-pin` lines of env/versions.txt."""
-    return {m[1]: m[2] for m in (PIN.match(l) for l in open(path)) if m}
+    with open(path) as f:
+        return {m[1]: m[2] for m in map(PIN.match, f) if m}
 
 
 def scored(rows, excluded):

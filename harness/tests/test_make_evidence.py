@@ -23,7 +23,8 @@ class ClaudeCodeByTask(unittest.TestCase):
     def setUp(self):
         d = tempfile.mkdtemp()
         self.vt = os.path.join(d, "versions.txt")
-        open(self.vt, "w").write(VERSIONS_TXT)
+        with open(self.vt, "w") as f:
+            f.write(VERSIONS_TXT)
 
     def test_pins_read_from_versions_txt(self):
         self.assertEqual(me.read_pins(self.vt), {"T1_nca": "2.1.283", "default": "2.1.310"})
