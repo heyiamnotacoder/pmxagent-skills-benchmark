@@ -169,6 +169,7 @@ def main():
     for r in read("stats_sensitivity.csv"):   # \\numToneAtwoVsAoneIsolatedDiff
         nums += pair_macros(r["task"], r["comparison"], r["regime"].title(), r)
     nums += t2_case(scores["T2_case"])
+    nums += t2_parser_macros()
     t3_accuracy(scores, distinct)
     t3_stats(stats)
     cost_by_task(scores, runs)
@@ -179,55 +180,54 @@ T3 = ["T3a_messy", "T3b_blq", "T3c_units", "T3d_oral", "T3e_large"]
 SHORT = {"T2_case": "T2", "T3a_messy": "T3a", "T3b_blq": "T3b", "T3c_units": "T3c", "T3d_oral": "T3d", "T3e_large": "T3e"}
 
 
-# PMxAgent's own T2 case-study EC50, h·µg/mL: its Claude and Cursor runs (supplement demo/QC_Report_claude.md).
-PMX_EC50 = {"Claude": 2131.1, "Cursor": 2139.5}
+# PMxAgent's own T2 case-study EC50, h·µg/mL, as printed in its supplement (demo/QC_Report_claude.md): its Claude and
+# Cursor runs. Kept as text so the paper quotes the source exactly.
+PMX_EC50 = {"Claude": "2,131.1", "Cursor": "2,139.5"}
+MATCH_TOL = 0.01   # the benchmark's 1% agreement rule (T1 metric, T2 consistency)
 
 
-def ec_fmt(x):
-    """4 significant digits, LaTeX thousands separator."""
-    s = f"{x:.4g}"
-    if "e" in s or abs(x) < 1000:
-        return s
-    return f"{round(x):,}".replace(",", "{,}")
+def matches_pmx_ec50(r):
+    """One run's EC50, converted to h·µg/mL, within 1% of either published PMxAgent value; None if not converted.
+    A per-run comparison with a fixed external value: nothing is averaged or ranged across runs (§24, §25)."""
+    v = f(r.get("ec50_h_ug_ml"))
+    if v is None:
+        return None
+    return any(abs(v - p) / p < MATCH_TOL for p in (float(x.replace(",", "")) for x in PMX_EC50.values()))
+
+
+def t2_parser_macros():
+    """\\numTtwoParser{N,Agree,Fixed} from results/t2_parser_check.csv (scoring/check_t2_parser.py, §25)."""
+    rows = list(csv.DictReader(open(os.path.join(RES, "t2_parser_check.csv"))))
+    return [f"\\newcommand{{\\numTtwoParserN}}{{{len(rows)}}}",
+            f"\\newcommand{{\\numTtwoParserAgree}}{{{sum(r['agree'] == 'True' for r in rows)}}}",
+            f"\\newcommand{{\\numTtwoParserFixed}}{{{sum(r['unparseable_before'] == 'True' for r in rows)}}}"]
 
 
 def t2_case(by_arm):
     """T2 has no ground truth (SPEC.md): completion, internal consistency, and spread of EC50 across runs.
     EC50 depends on the PK parameters and units each run chose (the prompt gives neither), so it is summarised as the
     number of distinct values (3 significant digits) and the size of the largest group of identical values, never
-    averaged across runs. For the descriptive comparison with PMxAgent's own case-study EC50 (issue #7, §25), the range
-    of EC50 converted to h·µg/mL is given for runs whose unit could be converted, overall and for runs whose summary
-    was fully consistent with their own simulated data. Writes tab_t2_T2_case.tex; returns \\numTtwo<Arm>{Completed,
-    ConsChecked,Cons,ConsAny,EcDistinct,EcModal,EcConv,EcLo,EcHi,EcConsN,EcConsLo,EcConsHi,EcModalVal}, \\numTtwoPmxEc<Run> and
-    \\numTtwoParser{N,Agree,Fixed} (results/t2_parser_check.csv), \\numTtwoRuns."""
+    averaged across runs (§24). The descriptive comparison with PMxAgent's own case-study EC50 (issue #7, §25) counts
+    runs whose converted EC50 is within 1% of a published value. Writes tab_t2_T2_case.tex; returns
+    \\numTtwo<Arm>{Completed,ConsChecked,Cons,ConsAny,EcDistinct,EcModal,EcConv,EcPmx}, \\numTtwoPmxEc<Run>, \\numTtwoRuns."""
     L = ["\\begin{tabular}{l r r r r r r r r}", "\\toprule",
          "Arm & $n$ & Completed & Checked & Consistent (\\%) & Either rule (\\%)$^\\dagger$ & "
-         "Distinct EC$_{50}$ & Largest identical group & EC$_{50}$, h$\\cdot\\mu$g/mL$^\\S$ \\\\", "\\midrule"]
-    nums = [f"\\newcommand{{\\numTtwoPmxEc{k}}}{{{ec_fmt(v)}}}" for k, v in PMX_EC50.items()]
-    chk = list(csv.DictReader(open(os.path.join(RES, "t2_parser_check.csv"))))   # scoring/check_t2_parser.py
-    nums += [f"\\newcommand{{\\numTtwoParserN}}{{{len(chk)}}}",
-             f"\\newcommand{{\\numTtwoParserAgree}}{{{sum(r['agree'] == 'True' for r in chk)}}}",
-             f"\\newcommand{{\\numTtwoParserFixed}}{{{sum(r['unparseable_before'] == 'True' for r in chk)}}}"]
+         "Distinct EC$_{50}$ & Largest identical group & Within 1\\% of PMxAgent$^\\S$ \\\\", "\\midrule"]
+    nums = [f"\\newcommand{{\\numTtwoPmxEc{k}}}{{{v.replace(',', '{,}')}}}" for k, v in PMX_EC50.items()]
     for a in [a for a in ARMS if by_arm.get(a)]:
         rs = by_arm[a]
         cons = [f(r["summary_consistent_pct"]) for r in rs if f(r.get("summary_consistent_pct")) is not None]
         anyr = [f(r["summary_consistent_any_rule_pct"]) for r in rs
                 if f(r.get("summary_consistent_any_rule_pct")) is not None]
         ec = Counter(f"{f(r['ec50']):.3g}" for r in rs if f(r.get("ec50")) is not None)
-        conv = [f(r["ec50_h_ug_ml"]) for r in rs if f(r.get("ec50_h_ug_ml")) is not None]
-        conv_ok = [f(r["ec50_h_ug_ml"]) for r in rs if f(r.get("ec50_h_ug_ml")) is not None
-                   and f(r.get("summary_consistent_pct")) == 100.0]
+        pmx = [m for m in map(matches_pmx_ec50, rs) if m is not None]
         vals = {"Completed": str(sum(r["completed"] == "True" for r in rs)), "ConsChecked": str(len(cons)),
                 "Cons": f"{st.mean(cons):.1f}" if cons else "--", "ConsAny": f"{st.mean(anyr):.1f}" if anyr else "--",
                 "EcDistinct": str(len(ec)), "EcModal": str(max(ec.values(), default=0)),
-                "EcConv": str(len(conv)), "EcLo": ec_fmt(min(conv)) if conv else "--",
-                "EcHi": ec_fmt(max(conv)) if conv else "--", "EcConsN": str(len(conv_ok)),
-                "EcConsLo": ec_fmt(min(conv_ok)) if conv_ok else "--",
-                "EcConsHi": ec_fmt(max(conv_ok)) if conv_ok else "--",
-                "EcModalVal": Counter(ec_fmt(x) for x in conv).most_common(1)[0][0] if conv else "--"}
-        rng = f"{vals['EcLo']}--{vals['EcHi']} ({vals['EcConv']})" if conv else "--"
+                "EcConv": str(len(pmx)), "EcPmx": str(sum(pmx))}
         L.append(f"{a} & {len(rs)} & " + " & ".join(vals[k] for k in
-                 ("Completed", "ConsChecked", "Cons", "ConsAny", "EcDistinct", "EcModal")) + f" & {rng} \\\\")
+                 ("Completed", "ConsChecked", "Cons", "ConsAny", "EcDistinct", "EcModal"))
+                 + f" & {vals['EcPmx']} of {vals['EcConv']} \\\\")
         nums += [f"\\newcommand{{{macro('T2_case', a, k)}}}{{{v}}}" for k, v in vals.items()]
     nums.append(f"\\newcommand{{\\numTtwoRuns}}{{{sum(len(by_arm[a]) for a in ARMS if by_arm.get(a))}}}")
     L += ["\\bottomrule", "\\end{tabular}"]

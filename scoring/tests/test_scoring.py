@@ -148,12 +148,12 @@ class Ec50Units(unittest.TestCase):
         cases = {"mg*h/L": 1, "mg/L*h (AUClast at 50% response probability)": 1, "h*mg/L (AUClast units)": 1,
                  "(mg/L)*h": 1, "h·mg/L (AUC 0-last)": 1, "h*ug/mL": 1, "µg·h/mL (AUClast)": 1, "h·µg/mL": 1,
                  "mg*day/L": 24, "mg·day/L (AUClast)": 24, "ng*h/mL": 0.001, "ng·h/mL (AUC)": 0.001,
-                 "AUC (ng/mL * h)": 0.001, "h*ng/mL": 0.001}
+                 "AUC (ng/mL * h)": 0.001, "h*ng/mL": 0.001, "mg h/L": 1}
         for units, k in cases.items():
             self.assertAlmostEqual(score_all.ec50_h_ug_per_ml(10.0, units), 10.0 * k, msg=units)
 
     def test_not_an_auc_unit_is_none(self):
-        for units in ("dose_unit/L (mg/L)", "", None, "mg/L", "h"):
+        for units in ("dose_unit/L (mg/L)", "", None, "mg/L", "h", "ng/mL/h", "mg/(L*h)", "mg/L/day"):
             self.assertIsNone(score_all.ec50_h_ug_per_ml(10.0, units), msg=units)
         self.assertIsNone(score_all.ec50_h_ug_per_ml(None, "mg*h/L"))
 

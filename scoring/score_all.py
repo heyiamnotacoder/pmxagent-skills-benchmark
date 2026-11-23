@@ -184,7 +184,8 @@ def read_sim(path):
     if not rows:
         return None
     cols = list(rows[0])
-    idc, tc, cc, dc = sim_columns(cols).values()
+    sc = sim_columns(cols)
+    idc, tc, cc, dc = sc["id"], sc["time"], sc["conc"], sc["dose"]
     ev = find_col(cols, "evid")
     if not (idc and tc and cc and dc):
         return None
@@ -209,16 +210,18 @@ _TIME_H = {"h": 1.0, "hr": 1.0, "day": 24.0, "days": 24.0}
 
 def ec50_h_ug_per_ml(value, units):
     """EC50 converted to h·µg/mL (the unit of PMxAgent's own case-study EC50), or None when `units` is not one
-    mass/volume·time AUC unit. Only units are converted; the value is never re-derived (deviations §25)."""
+    mass/volume·time AUC unit. Only units are converted; the value is never re-derived (deviations §25).
+    Accepted: one mass, one time, one volume, a single `/` with the volume right after it and time not divided
+    (mg*h/L, mg/L*h, (mg/L)*h, h*ng/mL, "AUC (ng/mL * h)"); rates such as ng/mL/h or mg/(L*h) are rejected."""
     try:
         v = float(value)
     except (TypeError, ValueError):
         return None
-    s = re.sub(r"\s+", "", str(units or "").lower().replace("µ", "u").replace("μ", "u").replace("·", "*"))
+    s = re.sub(r"\s+", "*", str(units or "").strip().lower().replace("µ", "u").replace("μ", "u").replace("·", "*"))
     mass = re.findall(r"(?<![a-z])(mg|ug|ng)(?![a-z])", s)
-    vol = re.findall(r"/\(?(ml|l)(?![a-z])", s)
+    vol = re.findall(r"/\*?(ml|l)(?![a-z])", s)
     time = re.findall(r"(?<![a-z])(h|hr|days?)(?![a-z])", s)
-    if len(mass) != 1 or len(vol) != 1 or len(time) != 1:
+    if len(mass) != 1 or len(vol) != 1 or len(time) != 1 or s.count("/") != 1:
         return None
     return float(f"{v * _MASS_UG[mass[0]] / _VOL_ML[vol[0]] * _TIME_H[time[0]]:.6g}")
 
