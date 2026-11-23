@@ -400,3 +400,31 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
 - **Cross-task tables.** `paper/tables.py` also writes `tab_accuracy_T3.tex` (accuracy and distinct value sets, all T3
   tasks), `tab_stats_T3.tex` (the pre-specified comparisons for all T3 tasks; T3d marked exploratory, as in SPEC.md)
   and `tab_cost_T2T3.tex`. Same data as the per-task tables; layout only.
+
+### §25 T2 parser check by hand; `SUBJID` naming fix; EC50 compared with PMxAgent's published value (2026-11-23)
+- **Why.** Issue #7 (written 16 Nov, before any T2 run) asks for the T2 parser to be checked on at least 2 real runs
+  per arm, with any change logged, and for EC50 to be compared descriptively with the PMxAgent paper's value.
+  Both were still open after §24.
+- **Parser check.** `scoring/check_t2_parser.py` → `logs/t2_parser_check.txt`, `results/t2_parser_check.csv`.
+  Sample fixed by rule, not by score: the first two valid T2 reps of each arm (lowest rep numbers) plus every valid
+  run the scorer could not parse (the 3 A2 runs counted in §24; 2 of them are also A2's first two reps), 11 runs.
+  For each one, the simulated-data file and its subject/time/concentration/dose columns were picked by reading the
+  file, and per-dose mean Cmax and AUClast (lin-up/log-down) were recomputed with separate pandas/numpy code.
+- **Finding and fix.** All 3 A2 failures named the subject column `SUBJID` (CDISC), which `read_sim` had no
+  pattern for. `subjid` added to the subject-column patterns (`score_all.SIM_COLS`, test
+  `test_cdisc_subjid_column_is_read`). A naming fix only: re-scoring all T2 runs changed no existing value; the
+  only changed rows are those 3 runs, now read (60 subjects each, consistent 100%). A2 T2 is now checked in 10 of
+  10 runs (was 7). After the fix the scorer agrees with the hand check on 11 of 11 runs (file, subjects,
+  consistency %; results.json fields copied to `scores.csv` match in all 11). In `A4_T2_case_r12` the scorer keys
+  subjects by `subject` within dose rather than `global_id` (same 60 subjects); its two concentration columns give
+  the same consistency (50%).
+- **Timing.** The fix was made after the T2 results had been seen, including the A2 consistency of 100% over 7 runs
+  (§24); it is labelled that way in the paper.
+- **EC50 comparison.** The reference is PMxAgent's own case-study EC50 from its supplement
+  (`demo/QC_Report_claude.md`): 2,131.1 h·µg/mL (Claude run) and 2,139.5 h·µg/mL (Cursor run). The `~2146` in
+  issue #7 was not found in the supplement and is not used. `score_case_run` adds `ec50_h_ug_ml`: the run's EC50
+  with its reported unit converted to h·µg/mL (mass/volume·time units only; e.g. "dose_unit/L (mg/L)" is not
+  converted, 1 A4 run). The value is never re-derived. `paper/tables.py` reports the converted range per arm,
+  the range over fully consistent runs, and the converted value of the largest identical group. Descriptive only, no
+  test. Converting the unit for this comparison was decided after the T2 data were seen; the comparison itself was
+  planned in #7.

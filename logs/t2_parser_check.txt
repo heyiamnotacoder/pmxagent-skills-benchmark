@@ -1,0 +1,105 @@
+T2 parser check (issue #7). Sample rule: first two valid reps per arm by rep number + every run the scorer
+could not parse before this check. Columns picked by hand; consistency recomputed with independent code.
+consistency = % of the 6 per-dose checks (mean AUClast lin-up/log-down, mean Cmax) within 1% of results.json.
+
+A0_T2_case_r11_20261116-215941
+  file      hand output/simulated_pk.csv | scorer output/simulated_pk.csv
+  columns   hand subject_id/time_h/conc/dose_mg | scorer subject_id/time_h/conc/dose_mg
+  subjects  hand 60 | scorer 60
+  consistent hand 50.0 | scorer now 50.0 | scores.csv 50.0
+  per dose (|RE| hand vs results.json): auc@10: 5.07%, cmax@10: 0.00%, auc@30: 4.88%, cmax@30: 0.00%, auc@100: 5.09%, cmax@100: 0.00%
+  results.json fields in scores.csv (ec50, units, seed, n_timepoints) match: True
+  scorer agrees with hand check: True
+
+A0_T2_case_r12_20261116-221549
+  file      hand output/pk_simulated.csv | scorer output/pk_simulated.csv
+  columns   hand subject_id/time_h/conc/dose_mg | scorer subject_id/time_h/conc/dose_mg
+  subjects  hand 60 | scorer 60
+  consistent hand 100.0 | scorer now 100.0 | scores.csv 100.0
+  per dose (|RE| hand vs results.json): auc@10: 0.01%, cmax@10: 0.03%, auc@30: 0.00%, cmax@30: 0.00%, auc@100: 0.00%, cmax@100: 0.00%
+  results.json fields in scores.csv (ec50, units, seed, n_timepoints) match: True
+  scorer agrees with hand check: True
+
+A1_T2_case_r14_20261121-123011
+  file      hand output/pk_simulated_data.csv | scorer output/pk_simulated_data.csv
+  columns   hand USUBJID/TIME/CONC/DOSE | scorer USUBJID/TIME/CONC/DOSE
+  subjects  hand 60 | scorer 60
+  consistent hand 100.0 | scorer now 100.0 | scores.csv 100.0
+  per dose (|RE| hand vs results.json): auc@10: 0.00%, cmax@10: 0.00%, auc@30: 0.00%, cmax@30: 0.00%, auc@100: 0.00%, cmax@100: 0.00%
+  results.json fields in scores.csv (ec50, units, seed, n_timepoints) match: True
+  scorer agrees with hand check: True
+
+A1_T2_case_r15_20261121-123306
+  file      hand output/pk_simulation.csv | scorer output/pk_simulation.csv
+  columns   hand USUBJID/TIME/CONC/DOSE | scorer USUBJID/TIME/CONC/DOSE
+  subjects  hand 60 | scorer 60
+  consistent hand 50.0 | scorer now 50.0 | scores.csv 50.0
+  per dose (|RE| hand vs results.json): auc@10: 94.15%, cmax@10: 0.63%, auc@30: 94.31%, cmax@30: 0.52%, auc@100: 94.42%, cmax@100: 0.54%
+  results.json fields in scores.csv (ec50, units, seed, n_timepoints) match: True
+  scorer agrees with hand check: True
+
+A2_T2_case_r11_20261121-220918
+  file      hand output/pk_simulated.csv | scorer output/pk_simulated.csv
+  columns   hand SUBJID/time/CONC/DOSE_MG | scorer SUBJID/time/CONC/DOSE_MG
+  subjects  hand 60 | scorer 60
+  consistent hand 100.0 | scorer now 100.0 | scores.csv 100.0
+  per dose (|RE| hand vs results.json): auc@10: 0.00%, cmax@10: 0.00%, auc@30: 0.00%, cmax@30: 0.00%, auc@100: 0.00%, cmax@100: 0.00%
+  results.json fields in scores.csv (ec50, units, seed, n_timepoints) match: True
+  scorer agrees with hand check: True
+
+A2_T2_case_r12_20261121-221419
+  file      hand output/simulated_pk.csv | scorer output/simulated_pk.csv
+  columns   hand SUBJID/TIME/CONC/DOSE | scorer SUBJID/TIME/CONC/DOSE
+  subjects  hand 60 | scorer 60
+  consistent hand 100.0 | scorer now 100.0 | scores.csv 100.0
+  per dose (|RE| hand vs results.json): auc@10: 0.00%, cmax@10: 0.00%, auc@30: 0.00%, cmax@30: 0.00%, auc@100: 0.00%, cmax@100: 0.00%
+  results.json fields in scores.csv (ec50, units, seed, n_timepoints) match: True
+  scorer agrees with hand check: True
+
+A3_T2_case_r11_20261122-132223
+  file      hand output/pk_simulation.csv | scorer output/pk_simulation.csv
+  columns   hand USUBJID/TIME/CONC/DOSE | scorer USUBJID/TIME/CONC/DOSE
+  subjects  hand 60 | scorer 60
+  consistent hand 100.0 | scorer now 100.0 | scores.csv 100.0
+  per dose (|RE| hand vs results.json): auc@10: 0.00%, cmax@10: 0.00%, auc@30: 0.00%, cmax@30: 0.00%, auc@100: 0.00%, cmax@100: 0.00%
+  results.json fields in scores.csv (ec50, units, seed, n_timepoints) match: True
+  scorer agrees with hand check: True
+
+A3_T2_case_r12_20261122-132323
+  file      hand output/pk_simulation.csv | scorer output/pk_simulation.csv
+  columns   hand USUBJID/TIME/CONC/DOSE | scorer USUBJID/TIME/CONC/DOSE
+  subjects  hand 60 | scorer 60
+  consistent hand 100.0 | scorer now 100.0 | scores.csv 100.0
+  per dose (|RE| hand vs results.json): auc@10: 0.00%, cmax@10: 0.00%, auc@30: 0.00%, cmax@30: 0.00%, auc@100: 0.00%, cmax@100: 0.00%
+  results.json fields in scores.csv (ec50, units, seed, n_timepoints) match: True
+  scorer agrees with hand check: True
+
+A4_T2_case_r11_20261122-213144
+  file      hand output/pksim_results/pk_simulation.csv | scorer output/pksim_results/pk_simulation.csv
+  columns   hand USUBJID/TIME/CONC/DOSE | scorer USUBJID/TIME/CONC/DOSE
+  subjects  hand 60 | scorer 60
+  consistent hand 66.7 | scorer now 66.7 | scores.csv 66.7
+  per dose (|RE| hand vs results.json): auc@10: 9.93%, cmax@10: 0.01%, auc@30: 2.38%, cmax@30: 0.01%, auc@100: 0.00%, cmax@100: 0.00%
+  results.json fields in scores.csv (ec50, units, seed, n_timepoints) match: True
+  scorer agrees with hand check: True
+
+A4_T2_case_r12_20261122-213411
+  file      hand output/simulated_pk_data.csv | scorer output/simulated_pk_data.csv
+  columns   hand global_id/time_h/conc_ng_ml/dose_mg | scorer subject/time_h/conc_ng_ml/dose_mg
+  subjects  hand 60 | scorer 60
+  consistent hand 50.0 | scorer now 50.0 | scores.csv 50.0
+  per dose (|RE| hand vs results.json): auc@10: 16.98%, cmax@10: 0.00%, auc@30: 16.50%, cmax@30: 0.00%, auc@100: 16.70%, cmax@100: 0.00%
+  results.json fields in scores.csv (ec50, units, seed, n_timepoints) match: True
+  scorer agrees with hand check: True
+  alt conc column conc_actual: consistent 50.0 (auc@10: 18.71%, cmax@10: 0.00%, auc@30: 15.64%, cmax@30: 0.00%, auc@100: 17.10%, cmax@100: 0.00%)
+
+A2_T2_case_r21_20261121-224053
+  file      hand output/simulated_pk.csv | scorer output/simulated_pk.csv
+  columns   hand SUBJID/TIME/CONC/DOSE | scorer SUBJID/TIME/CONC/DOSE
+  subjects  hand 60 | scorer 60
+  consistent hand 100.0 | scorer now 100.0 | scores.csv 100.0
+  per dose (|RE| hand vs results.json): auc@10: 0.00%, cmax@10: 0.00%, auc@30: 0.00%, cmax@30: 0.00%, auc@100: 0.00%, cmax@100: 0.00%
+  results.json fields in scores.csv (ec50, units, seed, n_timepoints) match: True
+  scorer agrees with hand check: True
+
+scorer agrees with the hand check on 11 of 11 sampled runs

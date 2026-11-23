@@ -179,28 +179,57 @@ T3 = ["T3a_messy", "T3b_blq", "T3c_units", "T3d_oral", "T3e_large"]
 SHORT = {"T2_case": "T2", "T3a_messy": "T3a", "T3b_blq": "T3b", "T3c_units": "T3c", "T3d_oral": "T3d", "T3e_large": "T3e"}
 
 
+# PMxAgent's own T2 case-study EC50, h·µg/mL: its Claude and Cursor runs (supplement demo/QC_Report_claude.md).
+PMX_EC50 = {"Claude": 2131.1, "Cursor": 2139.5}
+
+
+def ec_fmt(x):
+    """4 significant digits, LaTeX thousands separator."""
+    s = f"{x:.4g}"
+    if "e" in s or abs(x) < 1000:
+        return s
+    return f"{round(x):,}".replace(",", "{,}")
+
+
 def t2_case(by_arm):
     """T2 has no ground truth (SPEC.md): completion, internal consistency, and spread of EC50 across runs.
     EC50 depends on the PK parameters and units each run chose (the prompt gives neither), so it is summarised as the
     number of distinct values (3 significant digits) and the size of the largest group of identical values, never
-    averaged across runs. Writes tab_t2_T2_case.tex; returns \\numTtwo<Arm>{Completed,ConsChecked,Cons,ConsAny,
-    EcDistinct,EcModal} macros."""
-    L = ["\\begin{tabular}{l r r r r r r r}", "\\toprule",
+    averaged across runs. For the descriptive comparison with PMxAgent's own case-study EC50 (issue #7, §25), the range
+    of EC50 converted to h·µg/mL is given for runs whose unit could be converted, overall and for runs whose summary
+    was fully consistent with their own simulated data. Writes tab_t2_T2_case.tex; returns \\numTtwo<Arm>{Completed,
+    ConsChecked,Cons,ConsAny,EcDistinct,EcModal,EcConv,EcLo,EcHi,EcConsN,EcConsLo,EcConsHi,EcModalVal}, \\numTtwoPmxEc<Run> and
+    \\numTtwoParser{N,Agree,Fixed} (results/t2_parser_check.csv), \\numTtwoRuns."""
+    L = ["\\begin{tabular}{l r r r r r r r r}", "\\toprule",
          "Arm & $n$ & Completed & Checked & Consistent (\\%) & Either rule (\\%)$^\\dagger$ & "
-         "Distinct EC$_{50}$ & Largest identical group \\\\", "\\midrule"]
-    nums = []
+         "Distinct EC$_{50}$ & Largest identical group & EC$_{50}$, h$\\cdot\\mu$g/mL$^\\S$ \\\\", "\\midrule"]
+    nums = [f"\\newcommand{{\\numTtwoPmxEc{k}}}{{{ec_fmt(v)}}}" for k, v in PMX_EC50.items()]
+    chk = list(csv.DictReader(open(os.path.join(RES, "t2_parser_check.csv"))))   # scoring/check_t2_parser.py
+    nums += [f"\\newcommand{{\\numTtwoParserN}}{{{len(chk)}}}",
+             f"\\newcommand{{\\numTtwoParserAgree}}{{{sum(r['agree'] == 'True' for r in chk)}}}",
+             f"\\newcommand{{\\numTtwoParserFixed}}{{{sum(r['unparseable_before'] == 'True' for r in chk)}}}"]
     for a in [a for a in ARMS if by_arm.get(a)]:
         rs = by_arm[a]
         cons = [f(r["summary_consistent_pct"]) for r in rs if f(r.get("summary_consistent_pct")) is not None]
         anyr = [f(r["summary_consistent_any_rule_pct"]) for r in rs
                 if f(r.get("summary_consistent_any_rule_pct")) is not None]
         ec = Counter(f"{f(r['ec50']):.3g}" for r in rs if f(r.get("ec50")) is not None)
+        conv = [f(r["ec50_h_ug_ml"]) for r in rs if f(r.get("ec50_h_ug_ml")) is not None]
+        conv_ok = [f(r["ec50_h_ug_ml"]) for r in rs if f(r.get("ec50_h_ug_ml")) is not None
+                   and f(r.get("summary_consistent_pct")) == 100.0]
         vals = {"Completed": str(sum(r["completed"] == "True" for r in rs)), "ConsChecked": str(len(cons)),
                 "Cons": f"{st.mean(cons):.1f}" if cons else "--", "ConsAny": f"{st.mean(anyr):.1f}" if anyr else "--",
-                "EcDistinct": str(len(ec)), "EcModal": str(max(ec.values(), default=0))}
+                "EcDistinct": str(len(ec)), "EcModal": str(max(ec.values(), default=0)),
+                "EcConv": str(len(conv)), "EcLo": ec_fmt(min(conv)) if conv else "--",
+                "EcHi": ec_fmt(max(conv)) if conv else "--", "EcConsN": str(len(conv_ok)),
+                "EcConsLo": ec_fmt(min(conv_ok)) if conv_ok else "--",
+                "EcConsHi": ec_fmt(max(conv_ok)) if conv_ok else "--",
+                "EcModalVal": Counter(ec_fmt(x) for x in conv).most_common(1)[0][0] if conv else "--"}
+        rng = f"{vals['EcLo']}--{vals['EcHi']} ({vals['EcConv']})" if conv else "--"
         L.append(f"{a} & {len(rs)} & " + " & ".join(vals[k] for k in
-                 ("Completed", "ConsChecked", "Cons", "ConsAny", "EcDistinct", "EcModal")) + " \\\\")
+                 ("Completed", "ConsChecked", "Cons", "ConsAny", "EcDistinct", "EcModal")) + f" & {rng} \\\\")
         nums += [f"\\newcommand{{{macro('T2_case', a, k)}}}{{{v}}}" for k, v in vals.items()]
+    nums.append(f"\\newcommand{{\\numTtwoRuns}}{{{sum(len(by_arm[a]) for a in ARMS if by_arm.get(a))}}}")
     L += ["\\bottomrule", "\\end{tabular}"]
     write("tab_t2_T2_case.tex", L)
     return nums

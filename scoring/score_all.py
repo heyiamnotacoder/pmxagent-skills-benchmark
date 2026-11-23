@@ -164,16 +164,27 @@ def find_col(cols, *pats):
     return None
 
 
+# Column-name patterns for an agent's simulated-data CSV, tried in order (first pattern that matches any column wins).
+SIM_COLS = {
+    "id": ("usubjid", "subjid", "id", "subject", "subj", "subject_id", "sim.?id"),
+    "time": ("time", "atptn", "t", "time_?h", "time_?d(ays?)?", "nfrlt", "afrlt"),
+    "conc": ("conc", "aval", "cp", "dv", "ipred", "c", "concentration", "cc", "conc_.*"),
+    "dose": ("dose", "dosegrp", "dose_?mg", "dose_?group", "dose_level", "grp", "group"),
+}
+
+
+def sim_columns(cols):
+    """The id, time, conc and dose columns read_sim would use (None where no pattern matches)."""
+    return {k: find_col(cols, *p) for k, p in SIM_COLS.items()}
+
+
 def read_sim(path):
     with open(path, newline="", encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
     if not rows:
         return None
     cols = list(rows[0])
-    idc = find_col(cols, "usubjid", "id", "subject", "subj", "subject_id", "sim.?id")
-    tc = find_col(cols, "time", "atptn", "t", "time_?h", "time_?d(ays?)?", "nfrlt", "afrlt")
-    cc = find_col(cols, "conc", "aval", "cp", "dv", "ipred", "c", "concentration", "cc", "conc_.*")
-    dc = find_col(cols, "dose", "dosegrp", "dose_?mg", "dose_?group", "dose_level", "grp", "group")
+    idc, tc, cc, dc = sim_columns(cols).values()
     ev = find_col(cols, "evid")
     if not (idc and tc and cc and dc):
         return None
@@ -189,6 +200,27 @@ def read_sim(path):
         key = (dose, r[idc])
         subj[key]["t"].append(t); subj[key]["c"].append(c); subj[key]["dose"] = dose
     return subj
+
+
+_MASS_UG = {"mg": 1e3, "ug": 1.0, "ng": 1e-3}
+_VOL_ML = {"l": 1e3, "ml": 1.0}
+_TIME_H = {"h": 1.0, "hr": 1.0, "day": 24.0, "days": 24.0}
+
+
+def ec50_h_ug_per_ml(value, units):
+    """EC50 converted to h·µg/mL (the unit of PMxAgent's own case-study EC50), or None when `units` is not one
+    mass/volume·time AUC unit. Only units are converted; the value is never re-derived (deviations §25)."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return None
+    s = re.sub(r"\s+", "", str(units or "").lower().replace("µ", "u").replace("μ", "u").replace("·", "*"))
+    mass = re.findall(r"(?<![a-z])(mg|ug|ng)(?![a-z])", s)
+    vol = re.findall(r"/\(?(ml|l)(?![a-z])", s)
+    time = re.findall(r"(?<![a-z])(h|hr|days?)(?![a-z])", s)
+    if len(mass) != 1 or len(vol) != 1 or len(time) != 1:
+        return None
+    return float(f"{v * _MASS_UG[mass[0]] / _VOL_ML[vol[0]] * _TIME_H[time[0]]:.6g}")
 
 
 def candidate_csvs(run_dir, declared):
@@ -228,6 +260,7 @@ def score_case_run(run_dir):
         return out
     gs = {float(re.sub(r"[^0-9.]", "", str(g.get("dose_mg")))): g for g in j.get("group_summary", [])}
     out.update(completed=sorted(gs) == [10.0, 30.0, 100.0], ec50=j.get("ec50"), ec50_units=j.get("ec50_units"),
+               ec50_h_ug_ml=ec50_h_ug_per_ml(j.get("ec50"), j.get("ec50_units")),
                seed=j.get("seed"), n_timepoints=j.get("n_timepoints_per_subject"),
                pk_parameters=json.dumps(j.get("pk_parameters"), separators=(",", ":")))
     try:
