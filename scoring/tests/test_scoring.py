@@ -123,6 +123,40 @@ class ScoreCase(unittest.TestCase):
         self.assertEqual(r["auc_method"], "none")
         self.assertIsNone(r["summary_consistent_pct"])
 
+    def test_cdisc_subjid_column_is_read(self):
+        """SUBJID (CDISC) names the subject in 3 A2 T2 runs that were 'sim file not parseable' (deviations §25)."""
+        times = [0, 1, 2, 4, 8, 24]
+        with tempfile.TemporaryDirectory() as run:
+            os.makedirs(os.path.join(run, "output"))
+            rows = [{"SUBJID": s, "DOSE_MG": d, "time": t, "CONC": c}
+                    for d in (10, 30, 100) for s, t, c in bolus_profiles(d, 20, times)]
+            write_csv(os.path.join(run, "output", "sim.csv"), rows)
+            gs = []
+            for d in (10, 30, 100):
+                t, c = zip(*[(t, c) for _, t, c in bolus_profiles(d, 1, times)])
+                gs.append({"dose_mg": d, "mean_AUClast": score_all.auclast_lulog(t, c), "mean_Cmax": max(c)})
+            json.dump({"group_summary": gs, "ec50": 20.0}, open(os.path.join(run, "output", "results.json"), "w"))
+            r = score_all.score_case_run(run)
+        self.assertEqual(r["n_subjects_sim"], 60)
+        self.assertEqual(r["summary_consistent_pct"], 100.0)
+
+
+class Ec50Units(unittest.TestCase):
+    """EC50 in h·µg/mL (= h·mg/L), the unit of PMxAgent's case-study result, for a descriptive comparison (§25).
+    Cases are unit strings the T2 runs actually wrote."""
+    def test_converts_auc_units(self):
+        cases = {"mg*h/L": 1, "mg/L*h (AUClast at 50% response probability)": 1, "h*mg/L (AUClast units)": 1,
+                 "(mg/L)*h": 1, "h·mg/L (AUC 0-last)": 1, "h*ug/mL": 1, "µg·h/mL (AUClast)": 1, "h·µg/mL": 1,
+                 "mg*day/L": 24, "mg·day/L (AUClast)": 24, "ng*h/mL": 0.001, "ng·h/mL (AUC)": 0.001,
+                 "AUC (ng/mL * h)": 0.001, "h*ng/mL": 0.001, "mg h/L": 1}
+        for units, k in cases.items():
+            self.assertAlmostEqual(score_all.ec50_h_ug_per_ml(10.0, units), 10.0 * k, msg=units)
+
+    def test_not_an_auc_unit_is_none(self):
+        for units in ("dose_unit/L (mg/L)", "", None, "mg/L", "h", "ng/mL/h", "mg/(L*h)", "mg/L/day"):
+            self.assertIsNone(score_all.ec50_h_ug_per_ml(10.0, units), msg=units)
+        self.assertIsNone(score_all.ec50_h_ug_per_ml(None, "mg*h/L"))
+
 
 class UnscorableNca(unittest.TestCase):
     """A completed NCA run whose individual file has no subject keys scores 0 on every parameter (SPEC: every

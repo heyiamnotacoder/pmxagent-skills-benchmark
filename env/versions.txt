@@ -33,3 +33,9 @@ docker: Docker version 29.9.2 via colima 0.10.3 (vz + rosetta, 6 cpu, 8 GB); PMx
 # (default ~/.local/share/pmxbench/claude), else `claude` on PATH, and refuses a version that is not the pin.
 claude-code-pin T1_nca: 2.1.283
 claude-code-pin default: 2.1.310
+
+# Analysis Python packages (2026-11-23, logs/deviations.md §25): scoring/check_t2_parser.py (numpy, pandas >= 2.2),
+# scoring/figures.py (matplotlib). The rest of scoring/ uses only the standard library.
+numpy: 2.5.5
+pandas: 3.1.1
+matplotlib: 3.11.2

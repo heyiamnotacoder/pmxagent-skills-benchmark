@@ -177,7 +177,9 @@ before any A1b run but after the A0--A4 T1 results were known. A1b is reported a
 The same five comparisons were pre-specified for each NCA stress task (T3a, T3b, T3c, T3e); for T3d they are
 exploratory. For T2, the measure of EC$_{50}$ spread (the number of distinct values and the largest group of runs
 with an identical value, without averaging values whose parameters and units differ between runs) was chosen after
-the T2 data were seen.
+the T2 data were seen. A descriptive comparison with the EC$_{50}$ from PMxAgent's own case-study runs was planned before
+the T2 runs; converting each run's EC$_{50}$ to h$\cdot\mu$g/mL from the unit the run reported, and applying the
+1\% rule of the other endpoints to it, were chosen after the data were seen.
 
 \subsection{Further tasks}
 Task~2 (T2) is the case study from the PMxAgent paper \cite{bloomingdale2026pmxagent}, with its prompt used verbatim:
@@ -190,7 +192,13 @@ values used. T2 has no reference answer and was reported descriptively, as pre-s
 (AUC$_\mathrm{last}$ and $C_\mathrm{max}$ for each dose) within 1\% of the means recomputed from the run's own
 simulated data, with AUC$_\mathrm{last}$ recomputed by the linear-up/log-down rule; and the spread of EC$_{50}$ across
 runs. Because the prompt names no AUC rule, consistency under either the linear or the linear-up/log-down rule was added
-before any T2 run was scored and is reported as a sensitivity analysis. Each arm had 10 runs.
+before any T2 run was scored and is reported as a sensitivity analysis. Each arm had 10 runs. Runs named their files
+and columns freely, so the scorer finds the simulated-data file by column-name patterns. This was checked by hand on
+\numTtwoParserN\ runs chosen by a fixed rule (the first two valid runs of each arm, and every run the scorer at first
+could not read): the file and columns were picked by reading each file, and the group means were recomputed with separate
+code. The check found a naming gap (the CDISC subject column \texttt{SUBJID}), fixed after the first T2 results had
+been seen; the fix changed no value already computed and let the scorer read the \numTtwoParserFixed\ runs it had missed.
+After the fix the scorer agreed with the hand check in \numTtwoParserAgree\ of \numTtwoParserN\ runs.
 
 Task~3 (T3) has five variants with 5 runs per arm. Four are built from the T1 benchmark and scored with the T1 metric.
 T3a: 30 drugs (300 subjects) reshaped into an Excel workbook with one sheet per drug, patients in rows, ``$<$LLOQ''
@@ -308,8 +316,7 @@ were the cheapest and fastest arms.
 Every run of every arm completed T2 and reported all three dose groups (Table~\ref{tab:t2}). T2 is the workflow that
 PMxAgent's tools were demonstrated on, and A1 called a PMxAgent tool in \numTtwoAonePmxRuns\ of \numTtwoAonePmxKnown\
 runs. Under the pre-specified check, the reported group means matched the run's own simulated data in
-\numTtwoAthreeCons\% of comparisons for A3 and \numTtwoAtwoCons\% for A2 (checked in \numTtwoAtwoConsChecked\ of
-\numTtwoAtwoN\ A2 runs; in the others the scorer could not read the simulated-data file), against \numTtwoAzeroCons\%
+\numTtwoAthreeCons\% of comparisons for A3 and \numTtwoAtwoCons\% for A2, against \numTtwoAzeroCons\%
 for A0, \numTtwoAoneCons\% for A1 and \numTtwoAfourCons\% for A4. Accepting either AUC rule (sensitivity analysis) raised
 A0 to \numTtwoAzeroConsAny\% and A4 to \numTtwoAfourConsAny\%; A1 stayed at \numTtwoAoneConsAny\%, because in some of its
 runs the reported mean AUC$_\mathrm{last}$ matched neither rule.
@@ -324,13 +331,25 @@ seed, yet A1 gave \numTtwoAoneEcDistinct\ distinct values, the largest group of 
 simulated data (above); the other runs differed only slightly, through the sampling times they chose. In A0 and A4 every run gave a different value, and A4
 reported EC$_{50}$ in different units from run to run.
 
+PMxAgent's supplement reports an EC$_{50}$ of \numTtwoPmxEcClaude\ and \numTtwoPmxEcCursor\ h$\cdot\mu$g/mL from its
+own two case-study runs, made with Claude and with Cursor \cite{bloomingdale2026pmxagent}. Each run's EC$_{50}$,
+converted to that unit, was compared with these values on its own (Table~\ref{tab:t2}). It was within 1\% of a
+published value in \numTtwoAthreeEcPmx\ of \numTtwoAthreeEcConv\ A3 runs and \numTtwoAtwoEcPmx\ of
+\numTtwoAtwoEcConv\ A2 runs. A1, whose runs used PMxAgent's default parameter set and seed, matched in
+\numTtwoAoneEcPmx\ of \numTtwoAoneEcConv\ runs; A0 and A4, with parameters chosen by the agent, in
+\numTtwoAzeroEcPmx\ of \numTtwoAzeroEcConv\ and \numTtwoAfourEcPmx\ of \numTtwoAfourEcConv. This comparison is
+descriptive only: the prompt fixes neither the parameter values nor the sampling times, so a run reproduces the
+published value only if it makes the same choices.
+
 \begin{table}[t]
 \centering\small
 \caption{T2 case study per arm. Completed: \texttt{results.json} with all three dose groups. Checked: runs whose
 simulated data the scorer could read. Consistent: mean percentage of reported group means (AUC$_\mathrm{last}$,
 $C_\mathrm{max}$) within 1\% of the means recomputed from the run's own simulated data (AUC$_\mathrm{last}$ by the
 linear-up/log-down rule). $^\dagger$Either AUC rule accepted (sensitivity analysis). EC$_{50}$ values are compared at
-three significant digits; the summary was chosen after the T2 data were seen.}
+three significant digits; the summary was chosen after the T2 data were seen. $^\S$Runs whose EC$_{50}$, converted to
+h$\cdot\mu$g/mL, lies within 1\% of either value in PMxAgent's supplement, of the runs whose unit could be converted;
+descriptive, chosen after the T2 data were seen.}
 \label{tab:t2}
 \resizebox{\linewidth}{!}{\input{tables/tab_t2_T2_case.tex}}
 \end{table}
@@ -429,8 +448,9 @@ A1's agent did not call PMxAgent's tools, so A1 reflects PMxAgent as offered to 
 endpoint. A1b was specified after the A0--A4 T1 results were known and run about eight weeks after the A0 and A2--A4
 runs (same Claude Code version, model and container images); its instruction file was written by PMxAgent's authors
 for this benchmark's workflow. T2 has no reference answer: it shows completion, internal consistency and agreement
-between runs, not correctness. Its EC$_{50}$ summary was chosen after the data were seen, and internal consistency
-could be recomputed for only \numTtwoAtwoConsChecked\ of \numTtwoAtwoN\ A2 runs. T3 used 5 runs per arm, and its T3d
+between runs, not correctness. Its EC$_{50}$ summary, and the unit conversion and 1\% rule for the comparison with
+PMxAgent's published EC$_{50}$, were chosen after the data were seen, and the scorer's reading of the agents' files was checked by
+hand on \numTtwoParserN\ of the \numTtwoRuns\ runs. T3 used 5 runs per arm, and its T3d
 comparisons are exploratory. T2 and T3 ran on a later Claude Code version than T1; comparisons within a task are not
 affected.
 
