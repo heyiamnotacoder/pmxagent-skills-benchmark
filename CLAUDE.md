@@ -18,7 +18,7 @@ Goal: test how much of PMxAgent's architecture (Docker + R Plumber + FastMCP) is
 - `results/` — `runs.csv` (run ledger, append-only), `exclusions.csv` (protocol exclusions: runid, reason, deviation §), `scores.csv`, `summary.*`, `isolation_audit.csv`, `t2_parser_check.csv` (read by `paper/tables.py`), `T1_report.md`, `evidence/` (`MANIFEST.sha256`, `provenance.json`). `results/raw/` is git-ignored; raw T1 evidence is on Zenodo (doi:10.5281/zenodo.23019418).
 - `logs/` — `deviations.md` (protocol deviations), `skill_changes.md` (post-freeze skill changes), `calibration.txt`; `*.log` git-ignored.
 - `env/versions.txt` — pinned tool and package versions.
-- `paper/` — bioRxiv preprint: `SPEC.md` (spec, decisions log, pre-specified analysis; work tracked as GitHub sub-issues), `main.tex`, `references.bib`; tables/numbers from `paper/tables.py`, figures from `scoring/figures.py`. Never type a result number by hand.
+- `paper/` — bioRxiv preprint: `SPEC.md` (spec, decisions log, pre-specified analysis; work tracked as GitHub sub-issues), `main.tex`, `references.bib`; tables/numbers from `paper/tables.py`, figures from `scoring/figures.py` (Fig 1, the architecture diagram: TikZ `paper/figures/fig_arch.tex`, build command at its top). Never type a result number by hand.
 
 ## Rules
 - Same pinned model for every arm in a comparison; one pinned Claude Code version per task (`env/versions.txt` `claude-code-pin`; harness-owned binaries in `~/.local/share/pmxbench/claude/`).

@@ -123,7 +123,7 @@ Added 2026-11-17, before any T2 score was computed and before A1 T1 runs 4–10 
   (`claude-code-pin T1_nca: 2.1.283`, `claude-code-pin default: 2.1.310`). `run_arm.py` runs the pinned binary from
   `~/.local/share/pmxbench/claude/<version>/` (immune to the native installer's updates) and refuses any other
   version; `--allow-version-drift` overrides by hand and must be logged. Same pinned models and PMxAgent image digests.
-- **No hand-typed numbers.** Tables and number macros come from `paper/tables.py`; figures from `scoring/figures.py`;
+- **No hand-typed numbers.** Tables and number macros come from `paper/tables.py`; figures from `scoring/figures.py` (Fig 1: TikZ source `paper/figures/fig_arch.tex`, arm colours kept in step by `scoring/tests/test_fig_arch.py`);
   comparisons from `scoring/stats.py`. The manuscript only `\input`s them.
 - **Pipeline:** `score_all.py → summarize.py → stats.py → figures.py → paper/tables.py → latexmk`.
 - **Concurrency and exclusion** as for T1 (`logs/deviations.md` §2–3): at most 2 Claude Code sessions, `--until`
