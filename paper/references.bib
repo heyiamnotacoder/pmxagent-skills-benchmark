@@ -1,5 +1,11 @@
 % Journal articles below were checked against PubMed metadata on 2026-11-16 (DOI, volume, pages).
-% Entries marked VERIFY (software, web documents) still need checking against the source before posting.
+% Software and web entries were checked against their primary sources on 2026-11-24 (#13):
+%   PKNCA, mrgsolve: CRAN DESCRIPTION authors with the "aut" role and Date/Publication of the installed version (env/versions.txt);
+%     CRAN DOIs resolve. PKanalix: vendor, version and place exactly as reference 10 of the PMxAgent paper
+%     (Europe PMC PMC13733377). MCP: the revision PMxAgent 1.0.0 serves (pmxagent-main v1.0.0: docker-compose.yml,
+%     tests/test_mcp_protocol.py PROTOCOL_VERSION); the PMxAgent paper cites "Version 2025-11-05", a URL that returns 404.
+%   Agent Skills, Claude Code: page titles and URLs as served on the access date. Zenodo: title, creators and date from
+%     the record (zenodo.org/api/records/23019418); the DOI resolves.
 
 @article{bloomingdale2026pmxagent,
   author  = {Bloomingdale, Peter and Khot, Antari},
@@ -89,59 +95,63 @@
   doi     = {10.1002/psp4.70317}
 }
 
-% ---- software and specifications (VERIFY each against the source) ----
+% ---- software and specifications ----
 
 @misc{pknca,
-  author       = {Denney, William S. and Buckeridge, Clare and Duvvuri, Sridhar},
+  author       = {Denney, William S. and Buckeridge, Clare and Rodriguez, Gerardo Jose},
   title        = {{PKNCA}: Perform Pharmacokinetic Non-Compartmental Analysis},
-  note         = {R package version 0.12.1. VERIFY author list and CRAN URL},
-  howpublished = {\url{https://CRAN.R-project.org/package=PKNCA}},
-  year         = {2026}
+  howpublished = {R package version 0.12.1},
+  url          = {https://CRAN.R-project.org/package=PKNCA},
+  doi          = {10.32614/CRAN.package.PKNCA},
+  year         = {2025}
 }
 
 @misc{mrgsolve,
   author       = {Baron, Kyle T.},
   title        = {mrgsolve: Simulate from {ODE}-Based Models},
-  note         = {R package version 2.0.1. VERIFY},
-  howpublished = {\url{https://CRAN.R-project.org/package=mrgsolve}},
+  howpublished = {R package version 2.0.1},
+  url          = {https://CRAN.R-project.org/package=mrgsolve},
+  doi          = {10.32614/CRAN.package.mrgsolve},
   year         = {2026}
 }
 
 @misc{pkanalix,
-  author       = {{Simulations Plus}},
-  title        = {{PKanalix} 2024R1},
-  note         = {VERIFY vendor name and version as stated in the PMxAgent paper},
-  howpublished = {\url{https://monolixsuite.slp-software.com/pkanalix}},
+  author       = {{Lixoft (A Simulations Plus company)}},
+  title        = {{PKanalix}, Version {2024R1}},
+  howpublished = {Antony, France: Lixoft},
+  url          = {https://monolixsuite.slp-software.com/pkanalix/2024R1},
   year         = {2024}
 }
 
 @misc{mcp,
-  author       = {{Anthropic}},
-  title        = {Model Context Protocol specification},
-  note         = {VERIFY version/date used by PMxAgent 1.0.0},
-  howpublished = {\url{https://modelcontextprotocol.io/specification}},
-  year         = {2025}
+  author       = {{Model Context Protocol}},
+  title        = {{Model Context Protocol} Specification, Version 2026-07-28},
+  note         = {The revision served by PMxAgent 1.0.0. Accessed 2026-11-24},
+  url          = {https://modelcontextprotocol.io/specification/2026-07-28},
+  year         = {2026}
 }
 
 @misc{agentskills,
   author       = {{Anthropic}},
-  title        = {Agent Skills},
-  note         = {Claude Code documentation. VERIFY URL and access date},
-  howpublished = {\url{https://code.claude.com/docs/en/skills}},
-  year         = {2025}
+  title        = {Extend {Claude} with skills},
+  howpublished = {Claude Code documentation},
+  note         = {Accessed 2026-11-24},
+  url          = {https://code.claude.com/docs/en/skills},
+  year         = {2026}
 }
 
 @misc{claudecode,
   author       = {{Anthropic}},
-  title        = {Claude Code},
-  note         = {Version 2.1.283 used for all runs. VERIFY URL},
-  howpublished = {\url{https://code.claude.com/docs}},
+  title        = {{Claude Code}},
+  howpublished = {Claude Code documentation},
+  note         = {Versions 2.1.283 (T1) and 2.1.310 (T2, T3) were used. Accessed 2026-11-24},
+  url          = {https://code.claude.com/docs/en/overview},
   year         = {2026}
 }
 
 @misc{zenodo_evidence,
   author       = {Pandya, Dhruvik and Singh, Surjit},
-  title        = {Agent Skills vs {PMxAgent}: {NCA} benchmark evidence (transcripts, outputs, logs)},
+  title        = {Evidence archive: {Agent Skills} vs {PMxAgent} on the {CPT:PSP} {NCA} benchmark},
   howpublished = {Zenodo},
   doi          = {10.5281/zenodo.23019418},
   year         = {2026}
