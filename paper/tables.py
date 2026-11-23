@@ -7,7 +7,8 @@ tab_effort_<task>.tex    cost, wall time, turns, tool calls, tool errors per run
 tab_infra.tex            infrastructure footprint per stack (results/infra.csv, harness/count_infra.py; issue #11)
 numbers.tex              \\num... macros; per arm also `Distinct`/`DistinctFiles` (parameter-value / output-file sets),
                          `NptsRuns`/`NptsMatch`/`LzErr`/`LzErrDiffer`/`LzErrNone`/`LzErrMatch` (terminal-point match, NCA tasks; §26),
-                         `PmxRuns`/`PmxKnown` (runs with >=1 PMxAgent tool call / runs scanned), and, from stats.py,
+                         `PmxRuns`/`PmxKnown` (runs with >=1 PMxAgent tool call / runs scanned; summed over the
+                         NCA tasks as \\numNca<Arm>PmxRuns/PmxKnown), and, from stats.py,
                          `Unscorable`/`AccPostHoc` (post hoc, logs/deviations.md §17; only where a run was unscorable),
                          `Acc<Regime>`/`N<Regime>` and `...Vs...<Regime>Diff/CI` (isolation-regime sensitivity, §15);
                          \\numInfra<Stack><Measure> (infrastructure footprint).
@@ -108,9 +109,9 @@ def main():
             if ph:
                 vals["Unscorable"] = ph["n_dropped"]
                 vals["AccPostHoc"] = f"{float(ph['mean']):.2f}" if ph["mean"] else "--"
-            pmx = [int(f(r["pmxagent_tool_calls"])) for r in rs if f(r.get("pmxagent_tool_calls")) is not None]
-            if pmx:
-                vals["PmxRuns"], vals["PmxKnown"] = str(sum(n > 0 for n in pmx)), str(len(pmx))
+            used, known = pmx_run_counts(rs)
+            if known:
+                vals["PmxRuns"], vals["PmxKnown"] = str(used), str(known)
             http = [int(f(r["pmxagent_http_calls"])) for r in rs if f(r.get("pmxagent_http_calls")) is not None]
             if http:
                 vals["PmxHttpRuns"] = str(sum(n > 0 for n in http))
@@ -177,6 +178,7 @@ def main():
                  f"\\newcommand{{{macro(r['task'], r['arm'], 'N' + reg)}}}{{{r['n']}}}"]
     for r in read("stats_sensitivity.csv"):   # \\numToneAtwoVsAoneIsolatedDiff
         nums += pair_macros(r["task"], r["comparison"], r["regime"].title(), r)
+    nums += nca_tool_use_macros(scores)
     nums += t2_case(scores["T2_case"])
     nums += t2_parser_macros()
     t3_accuracy(scores, distinct)
@@ -184,6 +186,23 @@ def main():
     cost_by_task(scores, runs)
     nums += infra_table()
     write("numbers.tex", nums)
+
+
+def pmx_run_counts(rows):
+    """(runs with >=1 PMxAgent tool call, runs scanned); a run without a tool-call count is not scanned."""
+    pmx = [int(f(r["pmxagent_tool_calls"])) for r in rows if f(r.get("pmxagent_tool_calls")) is not None]
+    return sum(n > 0 for n in pmx), len(pmx)
+
+
+def nca_tool_use_macros(scores):
+    """\\numNca<Arm>PmxRuns / PmxKnown: pmx_run_counts summed over the NCA tasks, for arms with a scanned run."""
+    out = []
+    for a in ARMS:
+        used, known = pmx_run_counts([r for task in sorted(NCA) for r in scores.get(task, {}).get(a, [])])
+        if known:
+            out += [f"\\newcommand{{{macro('Nca', a, 'PmxRuns')}}}{{{used}}}",
+                    f"\\newcommand{{{macro('Nca', a, 'PmxKnown')}}}{{{known}}}"]
+    return out
 
 
 def tex_int(x):
