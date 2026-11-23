@@ -500,6 +500,7 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4â€
   `results/runs.csv.bak-20260928` and the T1-era `logs/*.log` (matrix, lanes, installs). The v1 archive was downloaded,
   its SHA-256 matched the committed v1 `provenance.json`, and only those 14 files were extracted, each matching the v1
   manifest, without overwriting anything. With them, v2's manifest holds every v1 file; the only v1 hashes that change
-  are the ledger, scores and other files rewritten since T1 (all under `results/` and `logs/`), none in `results/raw/`.
+  are files rewritten since T1 (`results/runs.csv`, `scores.csv`, `summary.{csv,md}`, `isolation_audit.csv`,
+  `logs/deviations.md`, `env/versions.txt`), none in `results/raw/`.
 - **Credentials.** Before deposit, `results/raw/` was searched for API-key, OAuth and bearer-token patterns and for the
   exact Zenodo and subscription-pool tokens: no hit.
