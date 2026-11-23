@@ -49,17 +49,19 @@ class TerminalPoints(unittest.TestCase):
     """Per-arm pooling of score_nca.terminal_point_breakdown (descriptive; logs/deviations.md §26)."""
 
     def test_pools_subjects_over_reporting_runs_only(self):
-        b1 = {"subjects": 10, "match": 9, "lz_match_n": 36, "lz_match_err": 0, "lz_differ_n": 4, "lz_differ_err": 2}
-        b2 = {"subjects": 10, "match": 8, "lz_match_n": 32, "lz_match_err": 1, "lz_differ_n": 8, "lz_differ_err": 3}
+        b1 = {"subjects": 10, "match": 9, "lz_match_n": 36, "lz_match_err": 0, "lz_differ_n": 4, "lz_differ_err": 2,
+              "lz_none_n": 0, "lz_none_err": 0}
+        b2 = {"subjects": 10, "match": 8, "lz_match_n": 32, "lz_match_err": 1, "lz_differ_n": 4, "lz_differ_err": 3,
+              "lz_none_n": 4, "lz_none_err": 4}
         self.assertEqual(stats.terminal_points([b1, None, b2]),
-                         {"npts_runs": 2, "npts_match_pct": 85.0, "lz_errors": 6, "lz_errors_npts_differ": 5,
-                          "lz_errors_npts_match": 1})
+                         {"npts_runs": 2, "npts_match_pct": 85.0, "lz_errors": 10, "lz_errors_npts_differ": 5,
+                          "lz_errors_npts_none": 4, "lz_errors_npts_match": 1})
 
     def test_no_run_reported_points_is_na(self):
         na = {"npts_runs": 0, "npts_match_pct": "n/a", "lz_errors": "n/a", "lz_errors_npts_differ": "n/a",
-              "lz_errors_npts_match": "n/a"}
+              "lz_errors_npts_none": "n/a", "lz_errors_npts_match": "n/a"}
         self.assertEqual(stats.terminal_points([None, None]), na)
-        empty = dict.fromkeys(("subjects", "match", "lz_match_n", "lz_match_err", "lz_differ_n", "lz_differ_err"), 0)
+        empty = dict.fromkeys(stats.sn.BREAKDOWN_KEYS, 0)
         self.assertEqual(stats.terminal_points([empty])["npts_match_pct"], "n/a")
 
 

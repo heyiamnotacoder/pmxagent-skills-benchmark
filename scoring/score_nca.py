@@ -113,23 +113,28 @@ def _npts_subjects(ref):
     return [s for s in sorted({s for s, _ in ref}) if (s, "NPTS") in ref and _r2_ok(ref, s)]
 
 
+BREAKDOWN_KEYS = ("subjects", "match", "lz_match_n", "lz_match_err", "lz_differ_n", "lz_differ_err",
+                  "lz_none_n", "lz_none_err")
+
+
 def terminal_point_breakdown(agent, ref):
     """Terminal-point match and where the lambda-z-dependent errors fall, for one run (descriptive; not in `overall`).
     None if the run reported no terminal-point count for any subject. Otherwise, over subjects scored for lambda-z:
-    `subjects`, `match` (same number of points as PKanalix; a missing count is a difference), and for the
-    lambda-z-dependent values (AUCINF_obs, HL, CL, Vz) in matching vs differing subjects, the number scored
-    (`lz_match_n`, `lz_differ_n`) and the number outside 1% (`lz_match_err`, `lz_differ_err`)."""
+    `subjects` and `match` (same number of points as PKanalix). Each subject falls in one group: `match`, `differ`
+    (a count other than PKanalix's) or `none` (no count for that subject); per group, the lambda-z-dependent values
+    (AUCINF_obs, HL, CL, Vz) scored (`lz_<group>_n`) and outside 1% (`lz_<group>_err`). Keys: BREAKDOWN_KEYS."""
     if not any(p == "NPTS" for _, p in agent):
         return None
-    b = dict.fromkeys(("subjects", "match", "lz_match_n", "lz_match_err", "lz_differ_n", "lz_differ_err"), 0)
+    b = dict.fromkeys(BREAKDOWN_KEYS, 0)
     for s in _npts_subjects(ref):
-        side = "match" if agent.get((s, "NPTS")) == ref[(s, "NPTS")] else "differ"
+        n = agent.get((s, "NPTS"))
+        group = "none" if n is None or math.isnan(n) else "match" if n == ref[(s, "NPTS")] else "differ"
         b["subjects"] += 1
-        b["match"] += side == "match"
+        b["match"] += group == "match"
         for p in LZ_DEP:
             if (s, p) in ref:
-                b[f"lz_{side}_n"] += 1
-                b[f"lz_{side}_err"] += rel_err(agent.get((s, p)), ref[(s, p)]) >= 0.01
+                b[f"lz_{group}_n"] += 1
+                b[f"lz_{group}_err"] += rel_err(agent.get((s, p)), ref[(s, p)]) >= 0.01
     return b
 
 

@@ -80,15 +80,15 @@ def terminal_points(breakdowns):
     """Pool score_nca.terminal_point_breakdown over an arm's runs (None = run reported no terminal-point count, left
     out). Descriptive, decided after the results were seen (logs/deviations.md §26): `npts_runs` runs reporting,
     `npts_match_pct` of their subjects with PKanalix's number of points, `lz_errors` lambda-z-dependent values outside
-    1%, and how many of those are in subjects whose points differ / match (`lz_errors_npts_differ` / `_match`)."""
+    1%, and how many of those are in subjects whose count differs / is missing / matches
+    (`lz_errors_npts_differ` / `_none` / `_match`)."""
     bs = [b for b in breakdowns if b is not None]
-    tot = {k: sum(b[k] for b in bs) for k in (bs[0] if bs else {})}
-    if not tot.get("subjects"):
-        return {"npts_runs": len(bs), **dict.fromkeys(
-            ("npts_match_pct", "lz_errors", "lz_errors_npts_differ", "lz_errors_npts_match"), "n/a")}
+    tot = {k: sum(b[k] for b in bs) for k in sn.BREAKDOWN_KEYS}
+    split = {f"lz_errors_npts_{g}": tot[f"lz_{g}_err"] for g in ("differ", "none", "match")}
+    if not tot["subjects"]:
+        return {"npts_runs": len(bs), **dict.fromkeys(("npts_match_pct", "lz_errors", *split), "n/a")}
     return {"npts_runs": len(bs), "npts_match_pct": round(100 * tot["match"] / tot["subjects"], 2),
-            "lz_errors": tot["lz_match_err"] + tot["lz_differ_err"], "lz_errors_npts_differ": tot["lz_differ_err"],
-            "lz_errors_npts_match": tot["lz_match_err"]}
+            "lz_errors": sum(split.values()), **split}
 
 
 @functools.lru_cache(maxsize=None)

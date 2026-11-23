@@ -445,12 +445,13 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   when the run's file has no terminal-point count at all, so 0.0 there means "not reported", not "all different"
   (checked: each 0.0 T1 run has no `NPTS` row). The paper instead reports the match pooled over subjects of the runs
   that did report a count (`stats.terminal_points`; run count shown in the accuracy table when not all runs did).
-  Within a reporting run, a subject without a count counts as differing. Subjects: PKanalix adjusted R² ≥ 0.80, as
+  Within a reporting run, a subject without a count counts as not matching. Subjects: PKanalix adjusted R² ≥ 0.80, as
   for the λz-dependent parameters. Not part of `overall`; no accuracy number changes.
 - **Error split (post hoc, descriptive).** For each arm and NCA task, the λz-dependent values (AUCINF_obs, HL, CL,
-  Vz) outside 1% are counted separately for subjects whose points matched and subjects whose points differed
-  (`score_nca.terminal_point_breakdown` → `results/stats_arms.csv` `lz_errors`, `lz_errors_npts_differ`,
-  `lz_errors_npts_match`; "n/a" where the task's reference is not built). Chosen
+  Vz) outside 1% are counted separately for subjects whose points matched, subjects with a different count and
+  subjects without a count (`score_nca.terminal_point_breakdown` → `results/stats_arms.csv` `lz_errors`,
+  `lz_errors_npts_differ`, `lz_errors_npts_none`, `lz_errors_npts_match`; "n/a" where the task's reference is not
+  built). Chosen
   after all T1–T3 results had been seen, and after an exploratory run of the same count; labelled descriptive and
   post hoc in the paper. No run is selected or excluded by it.
 - **Numbers.** Generated only (`paper/tables.py` → `\num…NptsMatch`, `…LzErr`, `…LzErrDiffer`, `…LzErrMatch`). The
@@ -459,3 +460,8 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   98.64% "the ceiling" of the metric; the PR review pointed out that A2 scored higher (98.70 in some runs) with the
   same terminal-point matches, so that claim was removed before merge. A1b's errors are mostly in subjects whose
   points matched, because two of its runs had no AUCINF_obs, CL or Vz rows; the paper says so.
+- **Second review (same PR).** The first version put subjects without a count in the "differed" group, so the paper
+  called all of A3's T1 errors "a different number of points". In every A3/A4 T1 run, 2 subjects (miltefosine_9,
+  tislelizumab_2) have no count and no λz values (80 of A3's 1,420 errors). They are now their own group, and the
+  paper says the script returned no terminal phase for them. The Discussion claim is now limited to T1: with the
+  script, A4 also had errors in subjects whose points matched on T3c and T3a, and the paper says so.

@@ -5,7 +5,7 @@ tab_accuracy_<task>.tex  per-parameter + overall accuracy, mean over runs (NCA t
 tab_stats_<task>.tex     pre-specified comparisons (results/stats.csv, from scoring/stats.py)
 tab_effort_<task>.tex    cost, wall time, turns, tool calls, tool errors per run (results/runs.csv, valid runs)
 numbers.tex              \\num... macros; per arm also `Distinct`/`DistinctFiles` (parameter-value / output-file sets),
-                         `NptsRuns`/`NptsMatch`/`LzErr`/`LzErrDiffer`/`LzErrMatch` (terminal-point match, NCA tasks; §26),
+                         `NptsRuns`/`NptsMatch`/`LzErr`/`LzErrDiffer`/`LzErrNone`/`LzErrMatch` (terminal-point match, NCA tasks; §26),
                          `PmxRuns`/`PmxKnown` (runs with >=1 PMxAgent tool call / runs scanned), and, from stats.py,
                          `Unscorable`/`AccPostHoc` (post hoc, logs/deviations.md §17; only where a run was unscorable),
                          `Acc<Regime>`/`N<Regime>` and `...Vs...<Regime>Diff/CI` (isolation-regime sensitivity, §15).
@@ -187,13 +187,14 @@ def tex_int(x):
 
 
 def terminal_point_macros(r):
-    """`NptsRuns`, `NptsMatch`, `LzErr`, `LzErrDiffer`, `LzErrMatch` from one stats_arms.csv row (stats.terminal_points; descriptive,
-    post hoc, logs/deviations.md §26); nothing without raw files or for non-NCA tasks."""
+    """`NptsRuns`, `NptsMatch`, `LzErr`, `LzErrDiffer`, `LzErrNone`, `LzErrMatch` from one stats_arms.csv row
+    (stats.terminal_points; descriptive, post hoc, logs/deviations.md §26); nothing without raw files or for non-NCA
+    tasks."""
     if r.get("npts_match_pct") in (None, "", "n/a"):
         return {}
     return {"NptsRuns": r["npts_runs"], "NptsMatch": f"{float(r['npts_match_pct']):.1f}",
             "LzErr": tex_int(r["lz_errors"]), "LzErrDiffer": tex_int(r["lz_errors_npts_differ"]),
-            "LzErrMatch": tex_int(r["lz_errors_npts_match"])}
+            "LzErrNone": tex_int(r["lz_errors_npts_none"]), "LzErrMatch": tex_int(r["lz_errors_npts_match"])}
 
 
 def terminal_point_cell(r):

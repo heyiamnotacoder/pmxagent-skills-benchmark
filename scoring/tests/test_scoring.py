@@ -192,11 +192,14 @@ class TerminalPointBreakdown(unittest.TestCase):
     def test_errors_split_by_whether_terminal_points_match(self):
         b = score_all.sn.terminal_point_breakdown(self.agent(s1=3.0, s2=5.0, s3=9.0), self.REF)
         self.assertEqual(b, {"subjects": 2, "match": 1, "lz_match_n": 4, "lz_match_err": 0,
-                             "lz_differ_n": 4, "lz_differ_err": 2})
+                             "lz_differ_n": 4, "lz_differ_err": 2, "lz_none_n": 0, "lz_none_err": 0})
 
-    def test_subject_without_npts_in_a_reporting_run_counts_as_differing(self):
-        b = score_all.sn.terminal_point_breakdown(self.agent(s1=3.0), self.REF)
-        self.assertEqual((b["subjects"], b["match"], b["lz_differ_err"]), (2, 1, 2))
+    def test_subject_without_npts_in_a_reporting_run_is_its_own_group(self):
+        b = score_all.sn.terminal_point_breakdown(self.agent(s1=3.0, s2=math.nan), self.REF)
+        self.assertEqual((b["subjects"], b["match"], b["lz_differ_err"], b["lz_none_n"], b["lz_none_err"]),
+                         (2, 1, 0, 4, 2))
+        b = score_all.sn.terminal_point_breakdown(self.agent(s1=3.0), self.REF)   # absent, not NaN
+        self.assertEqual((b["lz_none_n"], b["lz_none_err"]), (4, 2))
 
     def test_run_that_reports_no_npts_is_none(self):
         self.assertIsNone(score_all.sn.terminal_point_breakdown(self.agent(), self.REF))
