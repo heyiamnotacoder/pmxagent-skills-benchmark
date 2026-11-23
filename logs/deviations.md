@@ -492,7 +492,11 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   not scored: 10 runs excluded under §20, and `A1_T3a_messy_r12_20261122-002104`, a usage-limit stop
   (`failed_ratelimit_midrun`) with the same pattern as §23 (`ls` of the run area and a `find` from the PMxAgent
   deployment root, while reading its own `data/<runid>/` folder). No other pattern had a hit. No change to the audit or
-  to `results/exclusions.csv`.
+  to `results/exclusions.csv`. The audit has 11 transcripts with no ledger row: 9 harness self-test reps
+  (`results/raw/A0/_test_artifacts/`, 17 Nov), 1 A1 preflight (`A1_T1_nca_r00_20260928-122217`) and
+  `A1_T3a_messy_r08_20261121-120430`, a rep cut off before the harness wrote its ledger row (the transcript ends after
+  a tool result with no result event; no output; rep 8 was re-run as `A1_T3a_messy_r08_20261121-222544`). None is
+  flagged, none is scored; all are in the archive.
 - **Claude Code per task.** `results/evidence/provenance.json` now reports, per task, the pin and the versions of the
   scored (valid) runs: T1 2.1.283, T2 and T3 2.1.310, each a single version equal to its pin (§15, issue #3). The
   earlier field (versions over all ledger rows, including preflights and 429 stops) is kept under a new name.

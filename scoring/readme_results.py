@@ -29,7 +29,7 @@ def table(by, models, tasks, cell, title, note):
     """One markdown table: a row per arm that has any of `tasks`, a column per task, cell(by[arm, task]);
     `models` = {(arm, task): model} from summary.csv."""
     arms = [a for a in ARMS if any((a, t) in by for t in tasks)]
-    model = {a: next(models[a, t] for t in ALL if (a, t) in models) for a in arms}
+    model = {a: next((models[a, t] for t in ALL if (a, t) in models), DASH) for a in arms}
     L = [f"### {title}", note, "",
          "| Arm | Setup | Model | " + " | ".join(SHORT[t] for t in tasks) + " |",
          "|---|---|---|" + "---|" * len(tasks)]
@@ -44,7 +44,7 @@ def render(rows, arm_stats):
     models = {k: r["model"] for k, r in by.items()}
     sets = {(r["arm"], r["task"]): r for r in arm_stats if r["distinct_value_sets"] not in ("", "n/a")}
     acc = lambda r: f"{r['accuracy_overall']} ({r['n_runs']})" if r["accuracy_overall"] else DASH
-    cost = lambda r: f"{float(r['cost_usd_per_run'].split(' ± ')[0]):.2f}" if r["cost_usd_per_run"] else DASH
+    cost = lambda r: f"{float(r['cost_usd_total']) / int(r['n_runs']):.2f}" if r["cost_usd_total"] else DASH
     L = table(by, models, ACCURACY, acc, "Accuracy",
               "Mean ± SD over valid runs (n). NCA tasks: the paper's metric (% of subject-parameters within 1% of "
               "PKanalix, mean of 7 parameters). T3d: % of 3 typical values within 1% of the analytical truth.")

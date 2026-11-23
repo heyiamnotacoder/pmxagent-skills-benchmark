@@ -41,7 +41,7 @@ Mean list-price cost per run, USD (estimated from token use; runs used a subscri
 | Arm | Setup | Model | T1 | T2 | T3a | T3b | T3c | T3e | T3d |
 |---|---|---|---|---|---|---|---|---|---|
 | A0 | No tools | claude-sonnet-4-6 | 0.38 | 0.23 | 0.58 | 0.46 | 0.63 | 0.56 | 0.12 |
-| A1 | PMxAgent 1.0.0 (MCP) offered | claude-sonnet-4-6 | 0.73 | 0.66 | 1.12 | 0.79 | 0.82 | 0.86 | 0.17 |
+| A1 | PMxAgent 1.0.0 (MCP) offered | claude-sonnet-4-6 | 0.73 | 0.66 | 1.12 | 0.79 | 0.82 | 0.86 | 0.18 |
 | A1b | A1 + PMxAgent's shipped CLAUDE.md | claude-sonnet-4-6 | 1.01 | – | – | – | – | – | – |
 | A2 | Skills, knowledge only | claude-sonnet-4-6 | 0.50 | 0.54 | 0.62 | 0.51 | 0.43 | 0.44 | 0.21 |
 | A3 | Skills + script | claude-sonnet-4-6 | 0.20 | 0.24 | 0.54 | 0.18 | 0.37 | 0.23 | 0.16 |

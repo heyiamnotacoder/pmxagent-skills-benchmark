@@ -7,25 +7,17 @@ Usage: zenodo_upload.py --new-version RECORD_ID [--sandbox]
                                          (creators, licence, links), replaces its files with the current archive,
                                          MANIFEST.sha256 and provenance.json, updates title/description/version;
                                          prints the new version's reserved DOI, the concept DOI and the edit URL
-       zenodo_upload.py --new-record [--sandbox]
-                                      -> a new, separate record (new concept DOI); only for a first deposit
        zenodo_upload.py --publish ID [--sandbox]
                                       -> publishes that deposition (irreversible)
 The T1 archive is record 23019418 (concept 10.5281/zenodo.23019417); issue #14 deposits T1-T3 as its next version.
 Stdlib only.
 """
-import datetime, json, os, sys, urllib.request
+import datetime, functools, hashlib, json, os, sys, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EV = os.path.join(ROOT, "results", "evidence")
 USER_AGENT = "pmxbench-zenodo-upload/1.0"
 
-CREATORS = [{"name": "Pandya, Dhruvik", "affiliation": "Department of Pharmacology, AIIMS Jodhpur, India"}]
-LINKS = [
-    {"identifier": "10.1002/psp4.70325", "relation": "references", "scheme": "doi"},
-    {"identifier": "https://github.com/heyiamnotacoder/pmxagent-skills-benchmark", "relation": "isSupplementTo",
-     "scheme": "url"},
-]
 # What the T1-T3 version changes; everything else is inherited from the previous version.
 V2 = {
     "title": "Evidence archive: Agent Skills vs PMxAgent on pharmacometrics agent tasks (NCA, simulation case study, "
@@ -48,12 +40,7 @@ V2 = {
         "<p>Benchmark input data derive from the Supporting Information of the article above (Creative Commons "
         "Attribution-NonCommercial).</p>"),
 }
-NEW_RECORD = {"upload_type": "dataset", "creators": CREATORS, "access_right": "open", "license": "cc-by-nc-4.0",
-              "keywords": ["pharmacometrics", "noncompartmental analysis", "AI agents", "agent skills", "MCP",
-                           "reproducibility"],
-              "related_identifiers": LINKS, "prereserve_doi": True, **V2}
-
-
+@functools.cache
 def token():
     return os.environ.get("ZENODO_TOKEN") or open(os.path.expanduser("~/.zenodo_token")).read().strip()
 
@@ -89,20 +76,23 @@ def new_version(call, api, record_id, files, changes):
         call("DELETE", f"{api}/deposit/depositions/{draft['id']}/files/{f['id']}")
     upload(call, draft["links"]["bucket"], files)
     meta = {k: v for k, v in draft["metadata"].items() if k != "doi"}   # the previous version's DOI
-    meta.update(changes, publication_date=changes.get("publication_date", datetime.date.today().isoformat()))
+    meta.update(changes, publication_date=datetime.date.today().isoformat())
+    if not isinstance(meta.get("prereserve_doi"), dict):   # no version DOI reserved yet: ask for one
+        meta["prereserve_doi"] = True
     return summary(call("PUT", draft["links"]["self"], json.dumps({"metadata": meta}).encode()), files)
 
 
-def new_record(call, api, files, meta):
-    dep = call("POST", f"{api}/deposit/depositions", json.dumps({}).encode())
-    upload(call, dep["links"]["bucket"], files)
-    return summary(call("PUT", f"{api}/deposit/depositions/{dep['id']}", json.dumps({"metadata": meta}).encode()), files)
-
-
 def evidence_files():
+    """The archive named in provenance.json (refused unless its SHA-256 matches), the manifest and provenance."""
     prov = json.load(open(os.path.join(EV, "provenance.json")))
-    return [os.path.expanduser(f"~/pmxbench_evidence/{prov['archive']['file']}"),
-            os.path.join(EV, "MANIFEST.sha256"), os.path.join(EV, "provenance.json")]
+    tgz = os.path.expanduser(f"~/pmxbench_evidence/{prov['archive']['file']}")
+    h = hashlib.sha256()
+    with open(tgz, "rb") as f:
+        for b in iter(lambda: f.read(1 << 20), b""):
+            h.update(b)
+    if h.hexdigest() != prov["archive"]["sha256"]:
+        sys.exit(f"{tgz}: SHA-256 does not match results/evidence/provenance.json; re-run harness/make_evidence.py")
+    return [tgz, os.path.join(EV, "MANIFEST.sha256"), os.path.join(EV, "provenance.json")]
 
 
 def main(argv):
@@ -113,8 +103,6 @@ def main(argv):
         print("published:", r.get("doi"), r.get("links", {}).get("html"))
     elif "--new-version" in argv:
         print(json.dumps(new_version(http, api, arg("--new-version"), evidence_files(), V2), indent=1))
-    elif "--new-record" in argv:
-        print(json.dumps(new_record(http, api, evidence_files(), NEW_RECORD), indent=1))
     else:
         sys.exit(__doc__)
 

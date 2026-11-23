@@ -12,21 +12,19 @@ Writes (not committed; for a data deposit such as Zenodo/OSF):
   and its sha256 in results/evidence/ so the deposited archive can be matched to this repo.
 Usage: make_evidence.py
 """
-import csv, datetime, hashlib, json, os, re, subprocess, sys, tarfile
+import csv, datetime, hashlib, json, os, subprocess, sys, tarfile
 from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import ledger, run_arm   # noqa: E402  (the one valid-run rule; the pinned PMxAgent CLAUDE.md hash)
+import ledger, run_arm   # noqa: E402  (the one valid-run rule; Claude Code pins, pinned PMxAgent CLAUDE.md hash)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = os.path.join(ROOT, "results")
 EV = os.path.join(RES, "evidence")
-VERSIONS = os.path.join(ROOT, "env", "versions.txt")
 OUTDIR = os.path.expanduser("~/pmxbench_evidence")
 # Besides results/raw/ and logs/: every file directly under results/ (ledger, exclusions, scores, summaries, stats,
 # audits, checks, reports) and the pins.
 EXTRA = ["env/versions.txt", "skills/FROZEN.sha256"]
-PIN = re.compile(r"^claude-code-pin (\S+): (\S+)")
 
 
 def sha(p):
@@ -35,12 +33,6 @@ def sha(p):
         for b in iter(lambda: f.read(1 << 20), b""):
             h.update(b)
     return h.hexdigest()
-
-
-def read_pins(path=VERSIONS):
-    """{task or "default": Claude Code version} from the `claude-code-pin` lines of env/versions.txt."""
-    with open(path) as f:
-        return {m[1]: m[2] for m in map(PIN.match, f) if m}
 
 
 def scored(rows, excluded):
@@ -59,6 +51,12 @@ def claude_code_by_task(rows, excluded, pins):
     return out
 
 
+def plain_files(folder):
+    """Files directly in `folder` (relative to the repo), sorted; no sub-folders (e.g. a lane lock) or dotfiles."""
+    d = os.path.join(ROOT, folder)
+    return sorted(f"{folder}/{f}" for f in os.listdir(d) if not f.startswith(".") and os.path.isfile(os.path.join(d, f)))
+
+
 def run(cmd):
     return subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT).stdout.strip()
 
@@ -69,8 +67,7 @@ def main():
     os.makedirs(EV, exist_ok=True); os.makedirs(OUTDIR, exist_ok=True)
     files = sorted(os.path.relpath(os.path.join(dp, f), ROOT)
                    for dp, _, fs in os.walk(os.path.join(RES, "raw")) for f in fs)
-    top = sorted(f"results/{f}" for f in os.listdir(RES) if os.path.isfile(os.path.join(RES, f)))
-    logs = sorted(f"logs/{f}" for f in os.listdir(os.path.join(ROOT, "logs")))
+    top, logs = plain_files("results"), plain_files("logs")
     files += [p for p in top + EXTRA + logs if os.path.exists(os.path.join(ROOT, p)) and p not in files]
     with open(os.path.join(EV, "MANIFEST.sha256"), "w") as m:
         for p in files:
@@ -78,19 +75,19 @@ def main():
     rows = list(csv.DictReader(open(ledger.LEDGER, newline="")))
     excluded = ledger.exclusions()
     counts = Counter((r["arm"], r["task"], r["status"]) for r in rows if r["rep"] != "0")
-    valid = Counter((r["arm"], r["task"]) for r in scored(rows, excluded))
-    by_task = claude_code_by_task(rows, excluded, read_pins())
+    valid_rows = scored(rows, excluded)
+    valid = Counter((r["arm"], r["task"]) for r in valid_rows)
+    by_task = claude_code_by_task(rows, excluded, run_arm.read_pins())
     prov = {
         "created": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
         "git_commit": commit,
         "git_dirty": dirty,
         "claude_code_versions_all_ledger_rows": sorted({r["claude_version"] for r in rows}),
         "claude_code_by_task": by_task,
-        "models_seen_per_arm": {a: sorted({r["model_seen"] for r in scored(rows, excluded)
-                                           if r["arm"] == a and r["model_seen"]})
-                                for a in sorted({r["arm"] for r in scored(rows, excluded)})},
+        "models_seen_per_arm": {a: sorted({r["model_seen"] for r in valid_rows if r["arm"] == a and r["model_seen"]})
+                                for a in sorted({r["arm"] for r in valid_rows})},
         "skills_frozen_sha256": sha(os.path.join(ROOT, "skills", "FROZEN.sha256")),
-        "pmxagent_images": [l.strip() for l in open(VERSIONS) if "sha256:" in l],
+        "pmxagent_images": [l.strip() for l in open(run_arm.VERSIONS) if "sha256:" in l],
         "pmxagent_claude_md_sha256": run_arm.PMX_CLAUDE_MD_SHA256,
         "run_counts": {f"{a}|{t}|{s}": n for (a, t, s), n in sorted(counts.items())},
         "valid_run_counts": {f"{a}|{t}": n for (a, t), n in sorted(valid.items())},

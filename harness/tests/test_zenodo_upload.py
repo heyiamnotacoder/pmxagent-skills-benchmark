@@ -34,6 +34,12 @@ class FakeZenodo:
 
 
 class NewVersion(unittest.TestCase):
+    def deposit(self, draft_has_reserved_doi=True):
+        self.z = FakeZenodo()
+        if not draft_has_reserved_doi:
+            del self.z.draft["metadata"]["prereserve_doi"]
+        self.out = zu.new_version(self.z, API, 100, self.files, {"title": "v2 title", "version": "2"})
+
     def setUp(self):
         d = tempfile.mkdtemp()
         self.files = []
@@ -42,8 +48,7 @@ class NewVersion(unittest.TestCase):
             with open(p, "w") as fh:
                 fh.write(n)
             self.files.append(p)
-        self.z = FakeZenodo()
-        self.out = zu.new_version(self.z, API, 100, self.files, {"title": "v2 title", "version": "2"})
+        self.deposit()
 
     def test_versions_the_existing_record(self):
         self.assertEqual(self.z.requests[0][:2], ("POST", f"{API}/deposit/depositions/100/actions/newversion"))
@@ -64,6 +69,12 @@ class NewVersion(unittest.TestCase):
         self.assertEqual(meta["version"], "2")
         self.assertEqual([c["name"] for c in meta["creators"]], ["Pandya, Dhruvik", "Singh, Surjit"])
         self.assertNotIn("doi", meta)   # the previous version's DOI must not be sent with the new version
+
+    def test_asks_for_a_version_doi_when_the_draft_has_none(self):
+        self.deposit(draft_has_reserved_doi=False)
+        meta = [b for m, u, b in self.z.requests if m == "PUT" and u == f"{API}/deposit/depositions/101"][-1]["metadata"]
+        self.assertIs(meta["prereserve_doi"], True)
+        self.assertEqual(self.out["reserved_doi"], "10.5281/zenodo.101")
 
     def test_reports_both_dois_and_never_publishes(self):
         self.assertEqual(self.out["reserved_doi"], "10.5281/zenodo.101")

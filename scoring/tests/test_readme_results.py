@@ -8,13 +8,13 @@ import readme_results as rr
 
 def row(arm, task, **kw):
     base = {"arm": arm, "task": task, "model": "claude-sonnet-4-6", "n_runs": "5", "accuracy_overall": "",
-            "n_distinct_outputs": "5", "cost_usd_per_run": "0.200 ± 0.010", "t2_completed": "",
+            "n_distinct_outputs": "5", "cost_usd_total": "1.0", "t2_completed": "",
             "t2_summary_consistent_pct": ""}
     return {**base, **kw}
 
 
 ROWS = [row("A0", "T1_nca", n_runs="10", accuracy_overall="93.21 ± 1.13", n_distinct_outputs="10",
-            cost_usd_per_run="0.381 ± 0.123"),
+            cost_usd_total="3.808"),
         row("A3", "T3b_blq", accuracy_overall="98.64 ± 0.00", n_distinct_outputs="3"),
         row("A3", "T2_case", n_runs="10", n_distinct_outputs="4", t2_completed="9",
             t2_summary_consistent_pct="95.0 ± 15.8")]
