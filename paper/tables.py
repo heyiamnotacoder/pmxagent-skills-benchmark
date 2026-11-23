@@ -4,17 +4,21 @@
 tab_accuracy_<task>.tex  per-parameter + overall accuracy, mean over runs (NCA tasks)
 tab_stats_<task>.tex     pre-specified comparisons (results/stats.csv, from scoring/stats.py)
 tab_effort_<task>.tex    cost, wall time, turns, tool calls, tool errors per run (results/runs.csv, valid runs)
+tab_infra.tex            infrastructure footprint per stack (results/infra.csv, harness/count_infra.py; issue #11)
 numbers.tex              \\num... macros; per arm also `Distinct`/`DistinctFiles` (parameter-value / output-file sets),
                          `NptsRuns`/`NptsMatch`/`LzErr`/`LzErrDiffer`/`LzErrNone`/`LzErrMatch` (terminal-point match, NCA tasks; §26),
                          `PmxRuns`/`PmxKnown` (runs with >=1 PMxAgent tool call / runs scanned), and, from stats.py,
                          `Unscorable`/`AccPostHoc` (post hoc, logs/deviations.md §17; only where a run was unscorable),
-                         `Acc<Regime>`/`N<Regime>` and `...Vs...<Regime>Diff/CI` (isolation-regime sensitivity, §15).
+                         `Acc<Regime>`/`N<Regime>` and `...Vs...<Regime>Diff/CI` (isolation-regime sensitivity, §15);
+                         \\numInfra<Stack><Measure> (infrastructure footprint).
 Usage: python3 paper/tables.py   (run scoring/stats.py first)
 """
-import csv, os, statistics as st
+import csv, os, statistics as st, sys
 from collections import Counter, defaultdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, "harness"))
+import count_infra   # noqa: E402  (owns the infra.csv schema and its summary)
 RES = os.path.join(ROOT, "results")
 OUT = os.path.join(ROOT, "paper", "tables")
 ARMS = ["A0", "A1", "A1b", "A2", "A3", "A4"]
@@ -178,6 +182,7 @@ def main():
     t3_accuracy(scores, distinct)
     t3_stats(stats)
     cost_by_task(scores, runs)
+    nums += infra_table()
     write("numbers.tex", nums)
 
 
@@ -314,6 +319,36 @@ def cost_by_task(scores, runs):
         L.append(f"{a} & " + " & ".join(cells) + " \\\\")
     L += ["\\bottomrule", "\\end{tabular}"]
     write("tab_cost_T2T3.tex", L)
+
+
+INFRA_STACKS = [("PMxAgent", "PMxAgent 1.0.0"), ("Skills", "Agent Skills")]
+INFRA_ROWS = [("service", "Services running before the agent starts"), ("container", "Containers"),
+              ("port", "Host network ports"), ("setup", "Setup steps$^a$"), None,
+              ("tool", "\\quad Tool code (Skills: bundled scripts)"),
+              ("serving", "\\quad Serving and infrastructure code$^b$"), ("tests", "\\quad Tests"),
+              ("instructions", "\\quad Agent instructions (\\texttt{CLAUDE.md}; \\texttt{SKILL.md})"),
+              ("lines", "\\quad Total")]
+
+
+def infra_table():
+    """tab_infra.tex from results/infra.csv (count_infra.summary); returns \\numInfra<Stack><Measure> macros,
+    `Lines` being the total of the four line categories. Stops if a stack is missing (the paper cites both)."""
+    s = count_infra.summary(read("infra.csv"))
+    missing = [k for k, _ in INFRA_STACKS if k not in s]
+    if missing:
+        sys.exit(f"results/infra.csv has no {', '.join(missing)} rows: run harness/count_infra.py with pmxagent-main/")
+    L = ["\\begin{tabular}{l r r}", "\\toprule", " & " + " & ".join(lab for _, lab in INFRA_STACKS) + " \\\\",
+         "\\midrule"]
+    for row in INFRA_ROWS:
+        if row is None:
+            L += ["\\addlinespace", "Maintained lines of code \\\\"]
+            continue
+        k, lab = row
+        L.append(f"{lab} & " + " & ".join(tex_int(s[stk][k]) for stk, _ in INFRA_STACKS) + " \\\\")
+    L += ["\\bottomrule", "\\end{tabular}"]
+    write("tab_infra.tex", L)
+    return [f"\\newcommand{{\\numInfra{stk.title()}{k.title()}}}{{{tex_int(v)}}}"
+            for stk, _ in INFRA_STACKS for k, v in s[stk].items()]
 
 
 if __name__ == "__main__":
