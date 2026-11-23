@@ -76,9 +76,11 @@ Full report of the first T1 round (A1 at 3 runs): `results/T1_report.md`. Curren
 - `results/` — ledger (`runs.csv`), per-run scores, summary, isolation audit, evidence manifest and provenance.
 
 ## Evidence
-Raw agent transcripts, output files and logs for every run (including failed runs) are archived on Zenodo:
-**https://doi.org/10.5281/zenodo.23019418**. `results/evidence/MANIFEST.sha256` lists the SHA-256 of every archived file, and
-`results/evidence/provenance.json` holds the archive's own hash, model IDs, Claude Code version and container digests.
+Raw agent transcripts, output files and logs for every run (including failed runs) are archived on Zenodo.
+Version 2 (T1–T3): **https://doi.org/10.5281/zenodo.24478971**. All versions (always resolves to the latest):
+**https://doi.org/10.5281/zenodo.23019417**. Version 1 (T1 only) remains at https://doi.org/10.5281/zenodo.23019418.
+`results/evidence/MANIFEST.sha256` lists the SHA-256 of every archived file, and `results/evidence/provenance.json` holds
+the archive's own hash, the Claude Code version of the scored runs per task, model IDs and container digests.
 
 ## Data and licences
 - The benchmark data (`tasks/T1_nca/inputs/nca_benchmark.csv`) comes from the Supporting Information of the paper
