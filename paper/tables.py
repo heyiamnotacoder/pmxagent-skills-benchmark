@@ -109,9 +109,9 @@ def main():
             if ph:
                 vals["Unscorable"] = ph["n_dropped"]
                 vals["AccPostHoc"] = f"{float(ph['mean']):.2f}" if ph["mean"] else "--"
-            pmx = [int(f(r["pmxagent_tool_calls"])) for r in rs if f(r.get("pmxagent_tool_calls")) is not None]
-            if pmx:
-                vals["PmxRuns"], vals["PmxKnown"] = str(sum(n > 0 for n in pmx)), str(len(pmx))
+            used, known = pmx_run_counts(rs)
+            if known:
+                vals["PmxRuns"], vals["PmxKnown"] = str(used), str(known)
             http = [int(f(r["pmxagent_http_calls"])) for r in rs if f(r.get("pmxagent_http_calls")) is not None]
             if http:
                 vals["PmxHttpRuns"] = str(sum(n > 0 for n in http))
@@ -188,16 +188,20 @@ def main():
     write("numbers.tex", nums)
 
 
+def pmx_run_counts(rows):
+    """(runs with >=1 PMxAgent tool call, runs scanned); a run without a tool-call count is not scanned."""
+    pmx = [int(f(r["pmxagent_tool_calls"])) for r in rows if f(r.get("pmxagent_tool_calls")) is not None]
+    return sum(n > 0 for n in pmx), len(pmx)
+
+
 def nca_tool_use_macros(scores):
-    """\\numNca<Arm>PmxRuns / PmxKnown: runs with >=1 PMxAgent tool call / runs scanned, summed over the NCA tasks.
-    Only arms with at least one scanned run (a tool-call count in scores.csv) get macros."""
+    """\\numNca<Arm>PmxRuns / PmxKnown: pmx_run_counts summed over the NCA tasks, for arms with a scanned run."""
     out = []
     for a in ARMS:
-        pmx = [int(f(r["pmxagent_tool_calls"])) for task in sorted(NCA) for r in scores.get(task, {}).get(a, [])
-               if f(r.get("pmxagent_tool_calls")) is not None]
-        if pmx:
-            out += [f"\\newcommand{{{macro('Nca', a, 'PmxRuns')}}}{{{sum(n > 0 for n in pmx)}}}",
-                    f"\\newcommand{{{macro('Nca', a, 'PmxKnown')}}}{{{len(pmx)}}}"]
+        used, known = pmx_run_counts([r for task in sorted(NCA) for r in scores.get(task, {}).get(a, [])])
+        if known:
+            out += [f"\\newcommand{{{macro('Nca', a, 'PmxRuns')}}}{{{used}}}",
+                    f"\\newcommand{{{macro('Nca', a, 'PmxKnown')}}}{{{known}}}"]
     return out
 
 

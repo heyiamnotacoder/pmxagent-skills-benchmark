@@ -46,7 +46,7 @@ benchmark and open data; state what MCP gives that Skills do not.
 | 2026-11-21 | **Crash/timeout vs HTTP 429 reporting & isolation audit clarity:** separate `n_crash_timeout` from `n_invalid_excluded` (HTTP 429) in `results/summary.{csv,md}` (`harness/ledger.py`, `scoring/summarize.py`), and mark protocol-excluded runs in `results/isolation_audit.csv` so valid vs excluded flagged counts are shown distinctly (§21) | user |
 | 2026-11-21 | **Arm failures count, infrastructure failures repeat:** a rep that did real work and then crashed / timed out / ended in error (no API/auth error) is a valid run scored on what it left; API/auth errors, no-work reps and harness-bug statuses are repeated. Replaces the "relabel only" split of §21, which still re-ran every crash. No valid run changes (the only such rep so far, `A1_T3a_messy_r07`, is already excluded under §20). Also: `A1b` relabelled **post hoc** (specified after A0–A4 T1 results were known), with the doc-authorship and timing disclosures (§22) | user |
 | 2026-11-24 | Manuscript finalised against C1–C5 (#15): "did not use PMxAgent's tools for NCA" softened to "rarely" (A1 called its NCA tool in 1 of 30 NCA-task runs, all in T3a; generated macro `\numNcaAonePmxRuns`); T3 reproducibility claim limited to A3 (A4 varied on T3a); T3d wording corrected (A1 wrote code and did not solve it in every run). Limitations regrouped and extended for T2/T3 | — |
-| 2026-11-24 | Corresponding e-mail: personal Gmail. Funding: no specific grant. CRediT: D.P. conceptualization, methodology, software, investigation, formal analysis, data curation, visualization, writing (original draft, review & editing); S.S. conceptualization, supervision, validation, writing (review & editing). Code cited as GitHub URL + release tag `preprint-v1` (tag created at posting, #16). Use-of-AI statement checked against the bioRxiv FAQ ("How should I acknowledge the use of generative AI", read 2026-11-24): use described in the manuscript, authors accountable, no AI author | user |
+| 2026-11-24 | Corresponding e-mail: personal Gmail. Funding: no specific grant. CRediT: D.P. conceptualization, methodology, software, investigation, formal analysis, data curation, visualization, writing (original draft, review & editing); S.S. conceptualization, supervision, validation, writing (review & editing). Code cited as GitHub URL + release tag `v1.0-preprint` (the name #16 already uses; tag created at posting). Use-of-AI statement checked against the bioRxiv FAQ ("How should I acknowledge the use of generative AI", read 2026-11-24): use described in the manuscript, authors accountable, no AI author | user |
 | _pending_ | Prof. Surjit Singh read and approved the full draft (#15) | S.S. |
 
 ## User stories
@@ -187,7 +187,9 @@ EC50 chosen after the data were seen · scorer's reading of agents' T2 files han
 unscorable-output failure could not recur in T3 · A1 T2/T3 runs made before PMxAgent's shared folders were emptied were
 excluded and repeated (§20, decided from run timing) · T2/T3 spread over two subscription accounts (same model and
 Claude Code version within a task; §19) · the λz error split by terminal-point match is descriptive and post hoc (§26) ·
-Skills written by the study authors (frozen before any run, output not compared with PKanalix before the freeze).
+Skills written by the study authors (frozen before any run, output not compared with PKanalix before the freeze) ·
+one client (Claude Code) as well as one model family · all A1b runs, like A1 runs 4–10, ran isolated · over the five NCA
+tasks A1's agent called a PMxAgent tool in 1 of 30 runs (one T3a run; `\numNcaAonePmxRuns`), so "rarely", not "never".
 
 **Earlier list:** Single benchmark source (paper's 182-drug set, PKanalix as reference, not ground truth) · subscription runs, cost is
 Claude Code's list-price estimate · user-global CLAUDE.md loaded in all T1 arms equally (tool-usage rules only) except A1 runs 4–10, which ran
