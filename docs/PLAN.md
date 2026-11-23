@@ -77,5 +77,6 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 - [x] A1 shared PMxAgent output folders (§20): each A1/A1b rep now starts with them emptied (`harness/pmx_root.py`); all earlier A1 T2/T3 reps excluded (`results/exclusions.csv`, one valid-run rule in `harness/ledger.py`)
 - [x] **A1b T1 secondary arm (§21, post hoc §22):** PMxAgent 1.0.0 MCP + verbatim shipped `v1.0.0` `CLAUDE.md` (SHA-256 pinned), 10 valid reps on `T1_nca` (T1 pin `2.1.283`, isolated), same task prompt; reported alongside primary A1 (`results/stats_secondary.csv`)
 - [x] Paper: figures and tables rebuilt from final results; T2 and T3 Methods and Results drafted (2026-11-23)
+- [x] **Evidence v2 on Zenodo (2026-11-24, S12 #14):** T1–T3, every run; version doi:10.5281/zenodo.24478971, concept (all versions) doi:10.5281/zenodo.23019417; isolation audit and per-task Claude Code in `logs/deviations.md` §28
 - [ ] **Paper finish (open):** S8–S14 in `paper/SPEC.md` "Slices" (#10–#16): reproducibility terminal-point match, infrastructure table, Fig 1, reference check, evidence bundle + Zenodo new version, co-author sign-off, bioRxiv PDF
 - Note: a first A0 probe accidentally ran the full T1 task (harness bug, fixed); it was quarantined in `results/raw/A0/_preflight/`, marked in the ledger, and is excluded.
