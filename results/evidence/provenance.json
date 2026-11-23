@@ -1,15 +1,77 @@
 {
- "created": "2026-09-28T16:37:24+05:30",
- "git_commit": "ae998e17f7109ce71b08448658023b5fdbb37cec",
+ "created": "2026-11-24T00:49:14+05:30",
+ "git_commit": "a849c2e58956bb73d876e4863906245be470624a",
  "git_dirty": false,
- "claude_code_versions": [
-  "2.1.283"
+ "claude_code_versions_all_ledger_rows": [
+  "2.1.283",
+  "2.1.310"
  ],
+ "claude_code_by_task": {
+  "T1_nca": {
+   "pin": "2.1.283",
+   "scored_versions": [
+    "2.1.283"
+   ],
+   "n_scored": 60,
+   "single_version_on_pin": true
+  },
+  "T2_case": {
+   "pin": "2.1.310",
+   "scored_versions": [
+    "2.1.310"
+   ],
+   "n_scored": 50,
+   "single_version_on_pin": true
+  },
+  "T3a_messy": {
+   "pin": "2.1.310",
+   "scored_versions": [
+    "2.1.310"
+   ],
+   "n_scored": 25,
+   "single_version_on_pin": true
+  },
+  "T3b_blq": {
+   "pin": "2.1.310",
+   "scored_versions": [
+    "2.1.310"
+   ],
+   "n_scored": 25,
+   "single_version_on_pin": true
+  },
+  "T3c_units": {
+   "pin": "2.1.310",
+   "scored_versions": [
+    "2.1.310"
+   ],
+   "n_scored": 25,
+   "single_version_on_pin": true
+  },
+  "T3d_oral": {
+   "pin": "2.1.310",
+   "scored_versions": [
+    "2.1.310"
+   ],
+   "n_scored": 25,
+   "single_version_on_pin": true
+  },
+  "T3e_large": {
+   "pin": "2.1.310",
+   "scored_versions": [
+    "2.1.310"
+   ],
+   "n_scored": 25,
+   "single_version_on_pin": true
+  }
+ },
  "models_seen_per_arm": {
   "A0": [
    "claude-sonnet-4-6"
   ],
   "A1": [
+   "claude-sonnet-4-6"
+  ],
+  "A1b": [
    "claude-sonnet-4-6"
   ],
   "A2": [
@@ -27,54 +89,140 @@
   "pmxagent-rapi: ghcr.io/peterbloomingdale/pmxagent-rapi@sha256:98c8d076a7d71aad8105351bcf56659546e35092e774022000329bf83765ae56 (1.0.0, linux/amd64 under Rosetta)",
   "pmxagent-mcp:  ghcr.io/peterbloomingdale/pmxagent-mcp@sha256:44795024bc39c233dc2c971b720ea0b9efa1b7d6d47c7f14bc925c260ffe0384 (1.0.0)"
  ],
+ "pmxagent_claude_md_sha256": "1ebc55d43c4a3142ed50b2c78efcea22c67bed522f3bc4d81a6bf379e295be8c",
  "run_counts": {
   "A0|T1_nca|failed_ratelimit": 6,
   "A0|T1_nca|failed_ratelimit_midrun": 1,
   "A0|T1_nca|ok": 10,
   "A0|T2_case|failed_ratelimit": 10,
+  "A0|T2_case|failed_ratelimit_midrun": 1,
+  "A0|T2_case|ok": 10,
   "A0|T3a_messy|failed_ratelimit": 5,
+  "A0|T3a_messy|failed_ratelimit_midrun": 1,
+  "A0|T3a_messy|ok": 5,
   "A0|T3b_blq|failed_ratelimit": 5,
-  "A0|T3c_units|failed_ratelimit": 5,
+  "A0|T3b_blq|ok": 5,
+  "A0|T3c_units|failed_ratelimit": 6,
+  "A0|T3c_units|ok": 5,
   "A0|T3d_oral|failed_ratelimit": 5,
+  "A0|T3d_oral|failed_ratelimit_midrun": 1,
+  "A0|T3d_oral|ok": 5,
   "A0|T3e_large|failed_ratelimit": 5,
+  "A0|T3e_large|ok": 5,
   "A1|T1_nca|failed_ratelimit": 1,
   "A1|T1_nca|failed_ratelimit_midrun": 1,
-  "A1|T1_nca|ok": 3,
+  "A1|T1_nca|ok": 10,
+  "A1|T2_case|failed_ratelimit_midrun": 5,
+  "A1|T2_case|ok": 20,
+  "A1|T3a_messy|exit1": 1,
   "A1|T3a_messy|failed_ratelimit": 5,
+  "A1|T3a_messy|failed_ratelimit_midrun": 2,
+  "A1|T3a_messy|ok": 6,
   "A1|T3b_blq|failed_ratelimit": 5,
+  "A1|T3b_blq|failed_ratelimit_midrun": 1,
+  "A1|T3b_blq|ok": 5,
   "A1|T3c_units|failed_ratelimit": 5,
+  "A1|T3c_units|failed_ratelimit_midrun": 1,
+  "A1|T3c_units|ok": 5,
+  "A1|T3d_oral|failed_ratelimit_midrun": 1,
+  "A1|T3d_oral|ok": 10,
   "A1|T3e_large|failed_ratelimit": 5,
+  "A1|T3e_large|ok": 5,
+  "A1b|T1_nca|failed_ratelimit_midrun": 1,
+  "A1b|T1_nca|ok": 10,
   "A2|T1_nca|failed_ratelimit": 6,
   "A2|T1_nca|failed_ratelimit_midrun": 1,
   "A2|T1_nca|ok": 10,
   "A2|T2_case|failed_ratelimit": 10,
+  "A2|T2_case|failed_ratelimit_midrun": 1,
+  "A2|T2_case|ok": 10,
   "A2|T3a_messy|failed_ratelimit": 5,
+  "A2|T3a_messy|failed_ratelimit_midrun": 1,
+  "A2|T3a_messy|ok": 5,
   "A2|T3b_blq|failed_ratelimit": 5,
+  "A2|T3b_blq|ok": 5,
   "A2|T3c_units|failed_ratelimit": 5,
+  "A2|T3c_units|ok": 5,
   "A2|T3d_oral|failed_ratelimit": 5,
+  "A2|T3d_oral|ok": 5,
   "A2|T3e_large|failed_ratelimit": 5,
+  "A2|T3e_large|failed_ratelimit_midrun": 1,
+  "A2|T3e_large|ok": 5,
   "A3|T1_nca|failed_ratelimit": 1,
   "A3|T1_nca|failed_ratelimit_midrun": 1,
   "A3|T1_nca|ok": 10,
   "A3|T2_case|failed_ratelimit": 10,
+  "A3|T2_case|failed_ratelimit_midrun": 1,
+  "A3|T2_case|ok": 10,
   "A3|T3a_messy|failed_ratelimit": 5,
+  "A3|T3a_messy|ok": 5,
   "A3|T3b_blq|failed_ratelimit": 5,
+  "A3|T3b_blq|ok": 5,
   "A3|T3c_units|failed_ratelimit": 5,
+  "A3|T3c_units|ok": 5,
   "A3|T3d_oral|failed_ratelimit": 5,
+  "A3|T3d_oral|ok": 5,
   "A3|T3e_large|failed_ratelimit": 5,
+  "A3|T3e_large|failed_ratelimit_midrun": 1,
+  "A3|T3e_large|ok": 5,
   "A4|T1_nca|failed_ratelimit_midrun": 1,
   "A4|T1_nca|ok": 10,
   "A4|T2_case|failed_ratelimit": 10,
+  "A4|T2_case|failed_ratelimit_midrun": 1,
+  "A4|T2_case|ok": 10,
   "A4|T3a_messy|failed_ratelimit": 5,
+  "A4|T3a_messy|ok": 5,
   "A4|T3b_blq|failed_ratelimit": 5,
+  "A4|T3b_blq|ok": 5,
   "A4|T3c_units|failed_ratelimit": 5,
+  "A4|T3c_units|ok": 5,
   "A4|T3d_oral|failed_ratelimit": 5,
-  "A4|T3e_large|failed_ratelimit": 5
+  "A4|T3d_oral|ok": 5,
+  "A4|T3e_large|failed_ratelimit": 5,
+  "A4|T3e_large|ok": 5
  },
- "n_files_in_manifest": 1325,
+ "valid_run_counts": {
+  "A0|T1_nca": 10,
+  "A0|T2_case": 10,
+  "A0|T3a_messy": 5,
+  "A0|T3b_blq": 5,
+  "A0|T3c_units": 5,
+  "A0|T3d_oral": 5,
+  "A0|T3e_large": 5,
+  "A1|T1_nca": 10,
+  "A1|T2_case": 10,
+  "A1|T3a_messy": 5,
+  "A1|T3b_blq": 5,
+  "A1|T3c_units": 5,
+  "A1|T3d_oral": 5,
+  "A1|T3e_large": 5,
+  "A1b|T1_nca": 10,
+  "A2|T1_nca": 10,
+  "A2|T2_case": 10,
+  "A2|T3a_messy": 5,
+  "A2|T3b_blq": 5,
+  "A2|T3c_units": 5,
+  "A2|T3d_oral": 5,
+  "A2|T3e_large": 5,
+  "A3|T1_nca": 10,
+  "A3|T2_case": 10,
+  "A3|T3a_messy": 5,
+  "A3|T3b_blq": 5,
+  "A3|T3c_units": 5,
+  "A3|T3d_oral": 5,
+  "A3|T3e_large": 5,
+  "A4|T1_nca": 10,
+  "A4|T2_case": 10,
+  "A4|T3a_messy": 5,
+  "A4|T3b_blq": 5,
+  "A4|T3c_units": 5,
+  "A4|T3d_oral": 5,
+  "A4|T3e_large": 5
+ },
+ "n_files_in_manifest": 4262,
  "archive": {
-  "file": "pmxbench_evidence_20260928-163724.tar.gz",
-  "sha256": "5519a27acc265efb2e7397d8ed50f43070a0455f584ee9187e6ba3963eff259a",
-  "bytes": 19197468
+  "file": "pmxbench_evidence_20261124-004914.tar.gz",
+  "sha256": "5ca32a39ef503f8df31bc407d467a6fc090a85a5827e86bd921cb4552625db5d",
+  "bytes": 106167911
  }
 }

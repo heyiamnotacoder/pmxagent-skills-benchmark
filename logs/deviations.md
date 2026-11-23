@@ -485,3 +485,26 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
 - **Checks:** the count stops unless every Skills file matches `skills/FROZEN.sha256` (and none is unlisted) and the
   PMxAgent checkout is clean at the recorded tag; it also stops on docker-compose port syntax it cannot read.
 - **Order:** categories and steps were set (and unit-tested) before the new counts were run; the old per-directory `infra.csv` had been seen. No accuracy result is affected.
+
+### §28 Evidence bundle v2: isolation audit, per-task Claude Code, v1 files restored (2026-11-24)
+- **Isolation audit** (`scoring/audit_isolation.py`, every run on this machine: 546 transcripts, every ledger rep
+  included): 1 valid run flagged, `A1_T2_case_r18_20261121-220158`, already investigated and kept (§23). Flagged and
+  not scored: 10 runs excluded under §20, and `A1_T3a_messy_r12_20261122-002104`, a usage-limit stop
+  (`failed_ratelimit_midrun`) with the same pattern as §23 (`ls` of the run area and a `find` from the PMxAgent
+  deployment root, while reading its own `data/<runid>/` folder). No other pattern had a hit. No change to the audit or
+  to `results/exclusions.csv`. The audit has 11 transcripts with no ledger row: 9 harness self-test reps
+  (`results/raw/A0/_test_artifacts/`, 17 Nov), 1 A1 preflight (`A1_T1_nca_r00_20260928-122217`) and
+  `A1_T3a_messy_r08_20261121-120430`, a rep cut off before the harness wrote its ledger row (the transcript ends after
+  a tool result with no result event; no output; rep 8 was re-run as `A1_T3a_messy_r08_20261121-222544`). None is
+  flagged, none is scored; all are in the archive.
+- **Claude Code per task.** `results/evidence/provenance.json` now reports, per task, the pin and the versions of the
+  scored (valid) runs: T1 2.1.283, T2 and T3 2.1.310, each a single version equal to its pin (§15, issue #3). The
+  earlier field (versions over all ledger rows, including preflights and 429 stops) is kept under a new name.
+- **v1 files restored.** 14 files in the v1 archive (doi:10.5281/zenodo.23019418) were no longer on this machine:
+  `results/runs.csv.bak-20260928` and the T1-era `logs/*.log` (matrix, lanes, installs). The v1 archive was downloaded,
+  its SHA-256 matched the committed v1 `provenance.json`, and only those 14 files were extracted, each matching the v1
+  manifest, without overwriting anything. With them, v2's manifest holds every v1 file; the only v1 hashes that change
+  are files rewritten since T1 (`results/runs.csv`, `scores.csv`, `summary.{csv,md}`, `isolation_audit.csv`,
+  `logs/deviations.md`, `env/versions.txt`), none in `results/raw/`.
+- **Credentials.** Before deposit, `results/raw/` was searched for API-key, OAuth and bearer-token patterns and for the
+  exact Zenodo and subscription-pool tokens: no hit.

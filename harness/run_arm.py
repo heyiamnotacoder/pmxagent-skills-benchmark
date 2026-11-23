@@ -274,15 +274,16 @@ def archive(arm, runid):
             shutil.move(src, os.path.join(dest, name))
 
 
+def read_pins(path=VERSIONS):
+    """{task or "default": Claude Code version} from the `claude-code-pin <task>: <version>` lines of env/versions.txt."""
+    with open(path) as f:
+        return {m[1]: m[2] for m in (re.match(r"\s*claude-code-pin\s+(\S+):\s*(\S+)", l) for l in f) if m}
+
+
 def pinned_claude_version(task):
     """Claude Code version pinned for `task`: `claude-code-pin <task>:` line, else `claude-code-pin default:`.
     Every arm of one task runs on one version (logs/deviations.md §15)."""
-    pins = {}
-    with open(VERSIONS) as f:
-        for line in f:
-            m = re.match(r"\s*claude-code-pin\s+(\S+):\s*(\S+)", line)
-            if m:
-                pins[m.group(1)] = m.group(2)
+    pins = read_pins()
     pin = pins.get(task) or pins.get("default")
     if not pin:
         sys.exit(f"no 'claude-code-pin {task}:' or 'claude-code-pin default:' line in {os.path.relpath(VERSIONS, ROOT)}")
