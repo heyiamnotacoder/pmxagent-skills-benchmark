@@ -18,7 +18,7 @@ Goal: test how much of PMxAgent's architecture (Docker + R Plumber + FastMCP) is
 - `results/` — `runs.csv` (run ledger, append-only), `exclusions.csv` (protocol exclusions: runid, reason, deviation §), `scores.csv`, `summary.*`, `isolation_audit.csv`, `t2_parser_check.csv` (read by `paper/tables.py`), `T1_report.md`, `evidence/` (`MANIFEST.sha256`, `provenance.json`). `results/raw/` is git-ignored; raw evidence is on Zenodo: T1–T3 version 2 doi:10.5281/zenodo.24478971, concept (all versions) doi:10.5281/zenodo.23019417; T1-only version 1 doi:10.5281/zenodo.23019418.
 - `logs/` — `deviations.md` (protocol deviations), `skill_changes.md` (post-freeze skill changes), `calibration.txt`; `*.log` git-ignored.
 - `env/versions.txt` — pinned tool and package versions.
-- `paper/` — bioRxiv preprint: `SPEC.md` (spec, decisions log, pre-specified analysis; work tracked as GitHub sub-issues), `main.tex`, `references.bib`; tables/numbers from `paper/tables.py`, figures from `scoring/figures.py` (Fig 1, the architecture diagram: TikZ `paper/figures/fig_arch.tex`, build command at its top). Never type a result number by hand.
+- `paper/` — bioRxiv preprint: `SPEC.md` (spec, decisions log, pre-specified analysis; work tracked as GitHub sub-issues), `main.tex`, `references.bib`, `manuscript/` (manifest, fact sheet, outline from the `manuscript` skill); tables/numbers from `paper/tables.py`, figures from `scoring/figures.py` (Fig 1, the architecture diagram: TikZ `paper/figures/fig_arch.tex`, build command at its top). Never type a result number by hand.
 
 ## Rules
 - Same pinned model for every arm in a comparison; one pinned Claude Code version per task (`env/versions.txt` `claude-code-pin`; harness-owned binaries in `~/.local/share/pmxbench/claude/`).
