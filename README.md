@@ -90,5 +90,5 @@ the archive's own hash, the Claude Code version of the scored runs per task, mod
 - Everything else in this repository: MIT licence (`LICENSE`).
 
 ## Author
-Dr. Dhruvik Pandya and Prof. Surjit Singh, Department of Pharmacology, AIIMS Jodhpur, India.
+Dr. Dhruvik Pandya, Department of Pharmacology, AIIMS Jodhpur, India.
 Claude Code (Anthropic) was used to build the harness and scorer; the author checked all code and results.

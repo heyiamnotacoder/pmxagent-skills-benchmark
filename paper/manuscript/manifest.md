@@ -7,11 +7,10 @@
 - **Reference style:** natbib numbers, `unsrtnat`, `paper/references.bib`.
 - **AI-use policy:** bioRxiv FAQ "How should I acknowledge the use of generative AI" (read 2026-11-24, SPEC log): describe use in the manuscript, authors accountable, no AI author. ICMJE II.A.4.
 - **Source of truth:** `paper/main.tex`; every result number is a `\num…` macro from `paper/tables/numbers.tex` (`paper/tables.py`). No `manuscript.md` / .docx (user decision, 2026-11-24).
-- **Co-author approval:** S.S. approved the pre-rewrite draft (2026-11-24). The rewrite needs a second approval before posting (#16).
+- **Authorship:** sole author, D.P. (user decision, 2026-11-24; `paper/SPEC.md` log). No co-author approval is needed before posting (#16).
 
 ## Authors
-1. Dhruvik Pandya, Department of Pharmacology, AIIMS Jodhpur. Corresponding author.
-2. Surjit Singh, Department of Pharmacology, AIIMS Jodhpur.
+1. Dhruvik Pandya, Department of Pharmacology, AIIMS Jodhpur. Sole and corresponding author.
 
 CRediT and competing interests (none) and funding (no specific grant): `paper/SPEC.md` decisions log, 2026-11-16 and 2026-11-24.
 
