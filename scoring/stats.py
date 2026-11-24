@@ -14,7 +14,11 @@ task used more than one isolation regime (ledger `claude_config`: empty/"user" =
 Post-hoc sensitivity (decided 2026-11-20 after seeing T1 scores; logs/deviations.md §17; labelled post-hoc): in each
 task where a completed run had no scorable individual file (scored 0 under the primary rule), per-arm stats and every
 pair involving an arm that lost runs, recomputed without those runs -> results/stats_posthoc.csv.
-Per-arm rows of both sensitivity analyses: results/stats_{sensitivity,posthoc}_arms.csv (read by paper/tables.py).
+Post-hoc upper bound (decided 2026-11-24 after the peer review; logs/deviations.md §29): each run scored by matching
+drug-only rows in input order is also scored in character order of subject number (1, 10, 2, ...) and the higher
+score kept -> results/stats_charorder{,_arms}.csv. It uses the reference to pick the order, so never the primary rule.
+Distinct value sets: hashed on the seven scored parameters only, empty cells left out (Methods 2.5; §29).
+Per-arm rows of the sensitivity analyses: results/stats_{sensitivity,posthoc,charorder}_arms.csv (read by paper/tables.py).
 Valid runs only (scores.csv already holds only those). Stdlib only.  Usage: stats.py [--b 10000] [--seed 20261116]
 """
 import argparse, csv, functools, glob, hashlib, itertools, math, os, random, statistics as st, sys
@@ -64,15 +68,10 @@ def perm_p(x, y, rng, n_mc=100_000):
     return (hits + 1) / (n_mc + 1), "MC"
 
 
-def load_scored(run_dir, scored_file):
-    """The run's scored individual table {(subject, parameter): value}, or None without the file."""
-    p = os.path.join(run_dir, scored_file)
-    return score_all.load_any(p) if scored_file and os.path.exists(p) else None
-
-
 def value_set_hash(d):
-    """Hash of a scored individual table: (subject, parameter, value at 6 significant digits), sorted."""
-    items = sorted((s, k, "nan" if math.isnan(v) else f"{v:.6g}") for (s, k), v in d.items())
+    """Hash of a scored individual table as Methods 2.5 defines it: (subject, parameter, value at 6 significant
+    digits) for the seven scored parameters, empty cells left out, sorted (peer review S3; logs/deviations.md §29)."""
+    items = sorted((s, k, f"{v:.6g}") for (s, k), v in d.items() if k in sn.PARAMS and not math.isnan(v))
     return hashlib.sha256(repr(items).encode()).hexdigest()
 
 
@@ -160,6 +159,47 @@ def posthoc_unscorable(rows, pairs, b, seed):
     return arms, out
 
 
+def with_replacements(rows, repl, pairs, b, seed):
+    """Post-hoc upper bound (logs/deviations.md §29): rows are scores.csv dicts, `repl` {runid: overall} the scores of
+    runs re-scored another way. Returns (arm stats, pair comparisons) for tasks and arms with a replaced run, and the
+    pairs involving such an arm."""
+    acc, hit = defaultdict(lambda: defaultdict(list)), defaultdict(lambda: defaultdict(int))
+    for r in rows:
+        try:
+            v = float(repl.get(r["runid"], r["overall"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+        acc[r["task"]][r["arm"]].append(v)
+        hit[r["task"]][r["arm"]] += r["runid"] in repl
+    arms, out = [], []
+    for task in sorted(t for t in hit if any(hit[t].values())):
+        for arm in sorted(a for a in hit[task] if hit[task][a]):
+            x = acc[task][arm]
+            arms.append({"task": task, "arm": arm, "n": len(x), "n_replaced": hit[task][arm], "mean": mean(x),
+                         "sd": st.stdev(x) if len(x) > 1 else 0.0})
+        for xa, ya in pairs:
+            if (hit[task][xa] or hit[task][ya]) and acc[task][xa] and acc[task][ya]:
+                rng = random.Random(f"{seed}-{task}-{xa}-{ya}-charorder")
+                out.append({"task": task, "comparison": f"{xa} - {ya}", **compare(acc[task][xa], acc[task][ya], b, rng)})
+    return arms, out
+
+
+def favourable_order_scores(rows):
+    """{runid: overall} for NCA runs scored by row order (note ROW_ORDER) whose drug-only rows score higher when matched
+    in character order of subject number (1, 10, 2, ...), as some agents sorted them. Picking the higher of the two
+    orders uses the reference, so this is an upper bound, labelled post hoc, never the primary rule (§29).
+    Needs results/raw/ and the task reference; runs without them are skipped."""
+    out = {}
+    for r in rows:
+        ref = nca_ref(r["task"]) if r["task"] in score_all.NCA_TASKS else None
+        run_dir = os.path.join(RES, "raw", r["arm"], r["task"], r["runid"])
+        if (r.get("note") or "") == score_all.ROW_ORDER and ref is not None and os.path.isdir(run_dir):
+            alt = score_all.score_nca_dir(run_dir, ref, character_order=True)["overall"]
+            if alt > float(r["overall"]):
+                out[r["runid"]] = alt
+    return out
+
+
 def md_pair(r, *lead):
     """One markdown comparison row: leading cells, then n, difference, CI, p and the equivalence verdict."""
     return "| " + " | ".join([r["comparison"], *lead, f"{r['n_x']} vs {r['n_y']}", f"{r['diff']:+.2f}",
@@ -211,12 +251,13 @@ def main():
             continue
         acc[r["task"]][r["arm"]].append(v)
         by_regime[r["task"]][r["arm"]][regime(ledger.get(r["runid"], {}))].append(v)
-        d = load_scored(os.path.join(RES, "raw", r["arm"], r["task"], r["runid"]), r.get("scored_file"))
+        ref = nca_ref(r["task"]) if r["task"] in score_all.NCA_TASKS else None
+        d = (score_all.load_scored(os.path.join(RES, "raw", r["arm"], r["task"], r["runid"]), r.get("scored_file"), ref)
+             if ref is not None else None)
         if d is not None:
             vsets[r["task"]][r["arm"]].add(value_set_hash(d))
             have_raw[r["task"]][r["arm"]] = True
-            if r["task"] in score_all.NCA_TASKS and nca_ref(r["task"]) is not None:
-                tpts[r["task"]][r["arm"]].append(sn.terminal_point_breakdown(d, nca_ref(r["task"])))
+            tpts[r["task"]][r["arm"]].append(sn.terminal_point_breakdown(d, ref))
 
     out_arm, out_pair, out_sec = [], [], []
     for task in sorted(acc):
@@ -230,6 +271,7 @@ def main():
         out_sec += compare_pairs(acc[task], task, SECONDARY_PAIRS, a.b, a.seed, suffix="-secondary")
     sens_arm, sens_pair = sensitivity(by_regime, PAIRS, a.b, a.seed)
     ph_arm, ph_pair = posthoc_unscorable(rows, PAIRS, a.b, a.seed)
+    co_arm, co_pair = with_replacements(rows, favourable_order_scores(rows), PAIRS + SECONDARY_PAIRS, a.b, a.seed)
 
     write_csv("stats.csv", out_pair, ["task"])
     write_csv("stats_secondary.csv", out_sec, ["task", "comparison"])
@@ -238,6 +280,8 @@ def main():
     write_csv("stats_sensitivity_arms.csv", sens_arm, ["task", "arm", "regime", "n", "mean", "sd"])
     write_csv("stats_posthoc.csv", ph_pair, ["task", "comparison"])
     write_csv("stats_posthoc_arms.csv", ph_arm, ["task", "arm", "n", "n_dropped", "mean", "sd"])
+    write_csv("stats_charorder.csv", co_pair, ["task", "comparison"])
+    write_csv("stats_charorder_arms.csv", co_arm, ["task", "arm", "n", "n_replaced", "mean", "sd"])
 
     md = ["# Pre-specified comparisons", "",
           f"Overall accuracy (paper metric, percentage points). Difference = mean(X) - mean(Y); 95% percentile "
@@ -282,6 +326,17 @@ def main():
                    for r in ph_arm if r["task"] == task]
             md += ["", "| Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |", "|---|---|---|---|---|---|"]
             md += [md_pair(r) for r in ph_pair if r["task"] == task]
+            md.append("")
+        if any(r["task"] == task for r in co_arm):
+            md += [f"### {task}: post-hoc upper bound, drug-only files in character order", "",
+                   "**Post-hoc** (decided after the peer review; logs/deviations.md §29). Runs scored by matching drug-only "
+                   "rows in input order are also matched in character order of subject number (1, 10, 2, ...), and the "
+                   "higher score is kept. Choosing the order uses the reference, so this is an upper bound, never the "
+                   "primary rule.", "", "| Arm | n | Replaced | Mean | SD |", "|---|---|---|---|---|"]
+            md += [f"| {r['arm']} | {r['n']} | {r['n_replaced']} | {fmt(r['mean'])} | {fmt(r['sd'])} |"
+                   for r in co_arm if r["task"] == task]
+            md += ["", "| Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |", "|---|---|---|---|---|---|"]
+            md += [md_pair(r) for r in co_pair if r["task"] == task]
             md.append("")
     open(os.path.join(RES, "stats.md"), "w").write("\n".join(md))
     print("\n".join(md))

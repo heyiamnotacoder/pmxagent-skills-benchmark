@@ -12,12 +12,16 @@ Usage:
   score_nca.py <individual.csv> [--ref REF] [--json]
   score_nca.py --calibrate          # re-score the paper's published CSVs, compare with published numbers
 """
-import argparse, csv, json, math, os, sys
+import argparse, csv, json, math, os, re, sys
+from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BENCH = os.path.join(HERE, "..", "psp470325-sup-0001-appendixs1", "benchmark")
 REF = os.path.join(BENCH, "Single Run Analysis", "nca_results_PKanalix_individual.csv")
 
+# Parameter names, matched through `canonical` (case and `. _ / -` / spaces ignored). Sources: the paper's and
+# PKanalix's names, CDISC PPTESTCD codes, PKNCA's codes (`PKNCA::get.interval.cols()`, observed not predicted), and
+# spellings logged in logs/deviations.md §5. Matching by rule rather than by adding names seen in runs: §29.
 ALIASES = {
     "cmax": "Cmax", "tmax": "Tmax", "auclast": "AUClast",
     "aucinf_obs": "AUCINF_obs", "aucinf": "AUCINF_obs",
@@ -35,6 +39,9 @@ ALIASES = {
     "cl_f_obs": "CL", "vz_f_obs": "Vz", "lamzr2a": "R2ADJ", "adj_r2": "R2ADJ", "adjr2": "R2ADJ",
     "n_lambda_z": "NPTS", "n_terminal": "NPTS",
     "cl/f_obs": "CL", "vz/f_obs": "Vz", "cl/f": "CL", "vz/f": "Vz", "adj_r_squared": "R2ADJ",
+    # PKNCA codes (observed values; `.pred`, `.dn`, `r.squared` and `clast.*` are deliberately absent)
+    "cmax": "Cmax", "tmax": "Tmax", "auclast": "AUClast", "aucinf.obs": "AUCINF_obs", "half.life": "HL",
+    "cl.obs": "CL", "vz.obs": "Vz", "adj.r.squared": "R2ADJ", "lambda.z.n.points": "NPTS",
 }
 ALL_SUBJ = ["Cmax", "Tmax", "AUClast"]
 LZ_DEP = ["AUCINF_obs", "HL", "CL", "Vz"]
@@ -46,11 +53,25 @@ PUBLISHED = {  # file stem -> published overall accuracy (%)
 }
 
 
-def load(path):
-    out = {}
-    with open(path, newline="") as f:
+def _norm(name):
+    return re.sub(r"[._/\-\s]", "", str(name or "").strip().lower())
+
+
+_CANON = {_norm(k): v for k, v in ALIASES.items()}
+
+
+def canonical(name):
+    """The scored parameter (or R2ADJ / NPTS) a column or PPTESTCD name stands for, or None."""
+    return _CANON.get(_norm(name)) if _norm(name) else None
+
+
+def read_rows(path):
+    """Long-format rows (DRUG, PPTESTCD, PPSTRESN[, USUBJID]) as (id, parameter, value) in file order; id is
+    `drug_subject` when a USUBJID column is filled, else DRUG as written (a subject key, or a drug name only)."""
+    rows = []
+    with open(path, newline="", encoding="utf-8-sig") as f:
         for row in csv.DictReader(f):
-            p = ALIASES.get(row["PPTESTCD"].strip().lower())
+            p = canonical(row["PPTESTCD"])
             if p is None:
                 continue
             try:
@@ -60,8 +81,48 @@ def load(path):
             subj = row["DRUG"].strip()
             if row.get("USUBJID"):  # long CDISC format: DRUG + USUBJID -> drug_subject
                 subj = f"{subj}_{row['USUBJID'].strip()}"
-            out[(subj, p)] = v
-    return out
+            rows.append((subj, p, v))
+    return rows
+
+
+def subject_order(ref, character=False):
+    """{drug: [subject keys]} in the reference file's order, which is the task input's order (checked for every NCA
+    task when §29 was decided). `character=True`: subject numbers sorted as text (1, 10, 2, ...), for the post hoc
+    sensitivity only, never the primary rule."""
+    order = defaultdict(list)
+    for s, _ in ref:
+        drug = s.rsplit("_", 1)[0]
+        if s not in order[drug]:
+            order[drug].append(s)
+    if character:
+        return {d: sorted(ss, key=lambda s: s.rsplit("_", 1)[1]) for d, ss in order.items()}
+    return dict(order)
+
+
+def to_table(rows, order=None):
+    """{(subject, parameter): value} from (id, parameter, value) rows. With `order` (subject_order of the reference),
+    rows whose id is a drug name rather than a subject are matched by row order, the same rule for every arm
+    (logs/deviations.md §29): within a drug and parameter the k-th row is the drug's k-th subject, but only when the
+    number of rows equals the drug's number of subjects; otherwise that drug and parameter stay missing.
+    Returns (table, n_matched_by_row_order)."""
+    subjects = {s for ss in (order or {}).values() for s in ss}
+    out, groups = {}, defaultdict(list)
+    for s, p, v in rows:
+        if order and s not in subjects and s in order:
+            groups[(s, p)].append(v)
+        else:
+            out[(s, p)] = v
+    matched = 0
+    for (drug, p), vs in groups.items():
+        if len(vs) == len(order[drug]):
+            for s, v in zip(order[drug], vs):
+                out.setdefault((s, p), v)
+                matched += 1
+    return out, matched
+
+
+def load(path, order=None):
+    return to_table(read_rows(path), order)[0]
 
 
 def rel_err(x, ref):

@@ -31,3 +31,6 @@ paper/figures/*.aux
 paper/figures/*.fdb_latexmk
 paper/figures/*.fls
 paper/figures/*.log
+
+# pre-submission peer review: report, findings, repro scripts and the PMxAgent paper copy stay local
+peer-review/

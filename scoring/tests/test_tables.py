@@ -23,5 +23,24 @@ class NcaToolUse(unittest.TestCase):
                          ["\\newcommand{\\numNcaAonePmxRuns}{1}", "\\newcommand{\\numNcaAonePmxKnown}{19}"])
 
 
+class ScorerV1Snapshot(unittest.TestCase):
+    """Numbers from the previous scorer (results/scorer_v1/, commit 92d614c), so the paper can report what changed
+    without typing a number (logs/deviations.md §29)."""
+
+    def test_arm_and_pair_macros_carry_the_v1_suffix(self):
+        arms = [{"task": "T1_nca", "arm": "A1b", "mean": "59.268"}]
+        pairs = [{"task": "T1_nca", "comparison": "A2 - A1", "diff": "20.0754", "ci_lo": "0.397", "ci_hi": "49.518"}]
+        self.assertEqual(tables.snapshot_macros(arms, pairs, "Vone"),
+                         ["\\newcommand{\\numToneAonebAccVone}{59.27}",
+                          "\\newcommand{\\numToneAtwoVsAoneVoneDiff}{+20.08}",
+                          "\\newcommand{\\numToneAtwoVsAoneVoneCI}{+0.40 to +49.52}"])
+
+
+class RowOrderRuns(unittest.TestCase):
+    def test_counts_runs_scored_by_row_order(self):
+        rows = [{"note": "subjects matched by row order"}, {"note": ""}, {"note": "subjects matched by row order"}, {}]
+        self.assertEqual(tables.row_order_runs(rows), 2)
+
+
 if __name__ == "__main__":
     unittest.main()

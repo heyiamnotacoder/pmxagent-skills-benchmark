@@ -158,22 +158,154 @@ class Ec50Units(unittest.TestCase):
         self.assertIsNone(score_all.ec50_h_ug_per_ml(None, "mg*h/L"))
 
 
-class UnscorableNca(unittest.TestCase):
-    """A completed NCA run whose individual file has no subject keys scores 0 on every parameter (SPEC: every
-    completed run counts), not only on `overall` (logs/deviations.md §17)."""
+CODE = {"Cmax": "CMAX", "Tmax": "TMAX", "AUClast": "AUCLST", "AUCINF_obs": "AUCIFO", "HL": "LAMZHL", "CL": "CLO",
+        "Vz": "VZO"}   # CDISC PPTESTCD codes, as agents write them
 
-    def test_drug_only_ids_score_zero_on_every_parameter(self):
-        with tempfile.TemporaryDirectory() as d:
-            ref = {("abatacept_1", p): 10.0 for p in score_all.sn.PARAMS}
-            ref[("abatacept_1", "R2ADJ")], ref[("abatacept_1", "NPTS")] = 0.99, 3.0
-            run = os.path.join(d, "run"); os.makedirs(os.path.join(run, "output"))
-            write_csv(os.path.join(run, "output", "nca_individual.csv"),
-                      [{"DRUG": "abatacept", "PPTESTCD": "Cmax", "PPSTRESN": 10}])
-            r = score_all.score_nca_dir(run, ref)
+
+def two_subject_ref():
+    """Reference with two subjects of one drug, in file order abatacept_1, abatacept_2 (R2adj >= 0.80)."""
+    ref = {}
+    for s, v in (("abatacept_1", 10.0), ("abatacept_2", 20.0)):
+        ref.update({(s, p): v for p in score_all.sn.PARAMS})
+        ref[(s, "R2ADJ")], ref[(s, "NPTS")] = 0.99, 3.0
+    return ref
+
+
+def run_with(d, files):
+    """A run directory whose output/ holds `files` {name: rows}."""
+    run = os.path.join(d, "run"); os.makedirs(os.path.join(run, "output"))
+    for name, rows in files.items():
+        write_csv(os.path.join(run, "output", name), rows)
+    return run
+
+
+class UnscorableNca(unittest.TestCase):
+    """A completed NCA run with nothing that maps to a subject scores 0 on every parameter (SPEC: every completed run
+    counts), not only on `overall` (logs/deviations.md §17)."""
+
+    def test_drug_only_rows_that_cannot_be_matched_score_zero_on_every_parameter(self):
+        with tempfile.TemporaryDirectory() as d:   # one row per parameter for a drug with two subjects: no match
+            run = run_with(d, {"nca_individual.csv": [{"DRUG": "abatacept", "PPTESTCD": CODE[p], "PPSTRESN": 10}
+                                                      for p in score_all.sn.PARAMS]})
+            r = score_all.score_nca_dir(run, two_subject_ref())
         self.assertEqual((r["scored_file"], r["coverage_pct"], r["overall"]), ("", 0.0, 0.0))
         self.assertEqual(r["note"], "no scorable individual file")
         for p in score_all.sn.PARAMS:
             self.assertEqual(r[f"{p}_pct"], 0.0, p)
+
+
+class CanonicalNames(unittest.TestCase):
+    """Parameter names are matched by rule, not by a list of names seen in runs (logs/deviations.md §29): lower-case,
+    drop `. _ / -` and spaces, then look up CDISC PPTESTCD, PKNCA and PKanalix names."""
+
+    def test_pknca_codes_map_to_scored_parameters(self):
+        c = score_all.sn.canonical
+        self.assertEqual([c(n) for n in ("aucinf.obs", "cl.obs", "vz.obs", "half.life", "adj.r.squared",
+                                         "lambda.z.n.points", "cmax", "tmax", "auclast")],
+                         ["AUCINF_obs", "CL", "Vz", "HL", "R2ADJ", "NPTS", "Cmax", "Tmax", "AUClast"])
+
+    def test_punctuation_and_case_variants_map_alike(self):
+        c = score_all.sn.canonical
+        for n in ("CL.F_obs", "cl.f.obs", "CLF_obs", "cl/f_obs", "CLFO"):
+            self.assertEqual(c(n), "CL", n)
+        for n in ("Vz.F_obs", "vz.f.obs", "VZFOBS"):
+            self.assertEqual(c(n), "Vz", n)
+        self.assertEqual(c("No.Points.Lambda.z"), "NPTS")
+
+    def test_predicted_and_unadjusted_values_are_not_scored(self):
+        c = score_all.sn.canonical
+        for n in ("aucinf.pred", "cl.pred", "vz.pred", "r.squared", "clast.obs", "cmax.dn", "", "foo"):
+            self.assertIsNone(c(n), n)
+
+    def test_pknca_long_file_is_scored(self):
+        with tempfile.TemporaryDirectory() as d:
+            codes = {"Cmax": "cmax", "Tmax": "tmax", "AUClast": "auclast", "AUCINF_obs": "aucinf.obs",
+                     "HL": "half.life", "CL": "cl.obs", "Vz": "vz.obs"}
+            rows = [{"DRUG": s, "PPTESTCD": codes[p], "PPSTRESN": v}
+                    for s, v in (("abatacept_1", 10.0), ("abatacept_2", 20.0)) for p in score_all.sn.PARAMS]
+            rows += [{"DRUG": s, "PPTESTCD": "adj.r.squared", "PPSTRESN": 0.99} for s in ("abatacept_1", "abatacept_2")]
+            r = score_all.score_nca_dir(run_with(d, {"pknca.csv": rows}), two_subject_ref())
+        self.assertEqual(r["overall"], 100.0)
+
+
+class RowOrderMatching(unittest.TestCase):
+    """Equal treatment of drug-only files in every arm (logs/deviations.md §29): within a drug and parameter, the k-th
+    row is the drug's k-th subject in reference order, but only when the row count equals the drug's subject count."""
+
+    def drug_only(self, values=(10.0, 20.0), params=None):
+        return [{"DRUG": "abatacept", "PPTESTCD": CODE[p], "PPSTRESN": v}
+                for p in (params or score_all.sn.PARAMS) for v in values]
+
+    def test_drug_only_rows_are_matched_to_subjects_in_reference_order(self):
+        with tempfile.TemporaryDirectory() as d:
+            r = score_all.score_nca_dir(run_with(d, {"deliverable.csv": self.drug_only()}), two_subject_ref())
+        self.assertEqual((r["scored_file"], r["coverage_pct"], r["overall"]), ("output/deliverable.csv", 77.78, 100.0))   # 14 of 18 keys: no R2adj/NPTS rows
+        self.assertEqual(r["note"], "subjects matched by row order")
+
+    def test_group_with_wrong_row_count_is_missing_and_others_still_match(self):
+        rows = self.drug_only() + [{"DRUG": "abatacept", "PPTESTCD": "Cmax", "PPSTRESN": 30.0}]   # 3 Cmax rows
+        with tempfile.TemporaryDirectory() as d:
+            r = score_all.score_nca_dir(run_with(d, {"deliverable.csv": rows}), two_subject_ref())
+        self.assertEqual(r["Cmax_pct"], 0.0)
+        self.assertEqual(r["Tmax_pct"], 100.0)
+
+    def test_order_comes_from_the_reference_not_from_sorting(self):
+        with tempfile.TemporaryDirectory() as d:   # file lists subject 2's values first: both wrong
+            r = score_all.score_nca_dir(run_with(d, {"deliverable.csv": self.drug_only((20.0, 10.0))}),
+                                        two_subject_ref())
+        self.assertEqual(r["overall"], 0.0)
+
+    def test_file_with_subject_ids_wins_a_tie_with_a_matched_one(self):
+        explicit = [{"DRUG": s, "PPTESTCD": CODE[p], "PPSTRESN": v}
+                    for s, v in (("abatacept_1", 10.0), ("abatacept_2", 20.0)) for p in score_all.sn.PARAMS]
+        with tempfile.TemporaryDirectory() as d:
+            run = run_with(d, {"a_deliverable.csv": self.drug_only(), "z_script.csv": explicit})
+            r = score_all.score_nca_dir(run, two_subject_ref())
+        self.assertEqual((r["scored_file"], r.get("note", "")), ("output/z_script.csv", ""))
+
+    def test_wide_drug_only_file_is_matched_too(self):
+        rows = [{"DRUG": "abatacept", **{CODE[p]: v for p in score_all.sn.PARAMS}} for v in (10.0, 20.0)]
+        with tempfile.TemporaryDirectory() as d:
+            r = score_all.score_nca_dir(run_with(d, {"wide.csv": rows}), two_subject_ref())
+        self.assertEqual(r["overall"], 100.0)
+
+
+class CharacterOrderSensitivity(unittest.TestCase):
+    """Post hoc sensitivity (logs/deviations.md §29): drug-only rows matched in character order of subject number
+    (1, 10, 2, ...), as some agents sorted them. Never the primary rule: choosing an order by score is not allowed."""
+
+    def test_character_order_sorts_subject_numbers_as_text(self):
+        ref = {(f"abatacept_{i}", "Cmax"): float(i) for i in (1, 2, 10)}
+        self.assertEqual(score_all.sn.subject_order(ref)["abatacept"], ["abatacept_1", "abatacept_2", "abatacept_10"])
+        self.assertEqual(score_all.sn.subject_order(ref, character=True)["abatacept"],
+                         ["abatacept_1", "abatacept_10", "abatacept_2"])
+
+    def test_rescoring_a_run_in_character_order(self):
+        rows = [{"DRUG": "abatacept", "PPTESTCD": CODE[p], "PPSTRESN": v}
+                for p in score_all.sn.PARAMS for v in (20.0, 10.0)]   # the file lists subject 2 first
+        ref = two_subject_ref()
+        ref = {(k[0].replace("_1", "_x").replace("_2", "_1").replace("_x", "_2"), k[1]): v for k, v in ref.items()}
+        with tempfile.TemporaryDirectory() as d:   # reference order: abatacept_2, abatacept_1
+            run = run_with(d, {"deliverable.csv": rows})
+            self.assertEqual(score_all.score_nca_dir(run, ref)["overall"], 0.0)
+            self.assertEqual(score_all.score_nca_dir(run, ref, character_order=True)["overall"], 100.0)
+
+
+class StoredPrecision(unittest.TestCase):
+    """Run scores are stored unrounded (6 decimals) and rounded only for display, so means are not biased by
+    rounding each run first (peer review S10)."""
+
+    def test_overall_is_not_rounded_to_two_decimals(self):
+        ref = {}
+        for i in (1, 2, 3):
+            ref.update({(f"abatacept_{i}", p): 10.0 for p in score_all.sn.PARAMS})
+            ref[(f"abatacept_{i}", "R2ADJ")] = 0.99
+        rows = [{"DRUG": f"abatacept_{i}", "PPTESTCD": CODE[p], "PPSTRESN": 10.0 if (p, i) != ("Cmax", 3) else 99.0}
+                for i in (1, 2, 3) for p in score_all.sn.PARAMS]
+        with tempfile.TemporaryDirectory() as d:
+            r = score_all.score_nca_dir(run_with(d, {"x.csv": rows}), ref)
+        self.assertAlmostEqual(r["overall"], 100 * (6 + 2 / 3) / 7, places=6)
+        self.assertAlmostEqual(r["Cmax_pct"], 200 / 3, places=6)
 
 
 class TerminalPointBreakdown(unittest.TestCase):
