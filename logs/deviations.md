@@ -589,3 +589,6 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4â€
   **T2 seeds and sampling-time counts** per arm (`paper/tables/tab_t2_inputs.tex`), a pre-specified T2 outcome
   (spread of seed and number of sampling times, commit `08ea7b3`) that the paper had not reported (review M9).
 - **Tests first:** `DrugOnlyFlag`, `BlqSplit`, `ManuscriptMacros` (scoring/tests).
+- **Late entry: T2 prompt.** `tasks/build_tasks.py` removed the two opening sentences of PMxAgent's
+  `CaseStudyPrompt.md`, which name PMxAgent, for every arm (commit `cfc1949`, before any run). It was not logged at the
+  time and the paper called the prompt verbatim; the paper now says so. No run or score is affected.
