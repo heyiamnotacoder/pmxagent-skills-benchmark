@@ -77,20 +77,22 @@ def load_scored(run_dir, scored_file, ref):
 
 
 def pick_individual(run_dir, ref, order=None):
-    """(file, coverage, matched_by_row_order) for the CSV that covers most reference (subject, parameter) keys, never
+    """(file, coverage, matched_by_row_order, any_drug_only_file) for the CSV that covers most reference (subject,
+    parameter) keys, never
     chosen by accuracy. Coverage counts rows matched by row order (§29; `order` defaults to the reference's); at equal
     coverage a file whose rows carry subject IDs wins, then the first in path order."""
     order = order or sn.subject_order(ref)
-    best, best_key, best_matched = None, (0, 0), 0
+    best, best_key, best_matched, any_matched = None, (0, 0), 0, False
     cands = sorted(glob.glob(os.path.join(run_dir, "output", "**", "*.csv"), recursive=True))
     cands += sorted(glob.glob(os.path.join(run_dir, "pmxagent_data", "**", "*.csv"), recursive=True))
     refkeys = set(ref)
     for c in cands:
         table, matched = sn.to_table(read_any(c), order)
+        any_matched = any_matched or matched > 0
         key = (len(refkeys.intersection(table)), -matched)
         if key[0] and key > best_key:
             best, best_key, best_matched = c, key, matched
-    return best, best_key[0] / len(refkeys) if refkeys else 0, bool(best_matched)
+    return best, best_key[0] / len(refkeys) if refkeys else 0, bool(best_matched), any_matched
 
 
 UNSCORABLE = "no scorable individual file"   # scores.csv `note` of a completed NCA run with nothing to score
@@ -117,11 +119,12 @@ def score_nca_dir(run_dir, ref):
 
 def _score_nca(run_dir, ref, order):
     """(scores.csv fields, scored by row order?) for one run with drug-only rows matched in `order`."""
-    f, cov, by_order = pick_individual(run_dir, ref, order)
+    f, cov, by_order, drug_only = pick_individual(run_dir, ref, order)
     r = sn.score(load_any(f, order) if f else {}, ref)
     row = {"scored_file": os.path.relpath(f, run_dir) if f else "", "coverage_pct": round(100 * cov, 2),
            "overall": round(r["overall"], DIGITS), "npts_match_pct": round(r["terminal_points_match_pct"], DIGITS)}
     row.update({f"{p}_pct": round(r[p]["correct_pct"], DIGITS) for p in sn.PARAMS})
+    row["drug_only_file"] = drug_only   # some output file named the drug without the subject (§30)
     if not f:
         row["note"] = UNSCORABLE
     return row, by_order

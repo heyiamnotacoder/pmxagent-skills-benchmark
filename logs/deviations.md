@@ -572,3 +572,20 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   normalised name (tested), the character-order score is written by `score_all.py` so `stats.py` only reads
   `scores.csv`, and the post hoc analyses share one helper. Results unchanged by the review fixes. The manuscript
   text is updated separately.
+
+### §30 Descriptive numbers added for the manuscript revision (2026-11-24)
+- **When and why.** Post hoc, with all scores known, to answer the pre-submission review without typing numbers into
+  the paper. None changes a score, a comparison or an exclusion; all are descriptive and are labelled as such where
+  reported.
+- **Drug-only files** (`scores.csv` `drug_only_file`): whether a run left any results file that names the drug without
+  the subject, scored or not. It shows that the defect that §17 punished in A1 also occurred in A3 and A4 runs, whose
+  scripts also wrote a file with subject IDs (review M1).
+- **BLQ split** (`results/stats_blq.csv`, T1): the subjects with a BLQ record after Tmax in the T1 input, and, per arm,
+  how many AUClast values outside 1% fall in them. The Skills state the same BLQ rule as the PKanalix reference, which
+  the T1 prompt omits (review C4/M3); this measures how much of A0's loss that rule explains.
+- **A1 and A1b by tool use** (`\num…AccPmxUsed` / `AccPmxNotUsed`): mean accuracy of runs with and without a PMxAgent
+  tool call (review C7).
+- **Run dates** per task, from the run IDs; **number of comparisons** (`stats.csv` + `stats_secondary.csv`); and the
+  **T2 seeds and sampling-time counts** per arm (`paper/tables/tab_t2_inputs.tex`), a pre-specified T2 outcome
+  (spread of seed and number of sampling times, commit `08ea7b3`) that the paper had not reported (review M9).
+- **Tests first:** `DrugOnlyFlag`, `BlqSplit`, `ManuscriptMacros` (scoring/tests).

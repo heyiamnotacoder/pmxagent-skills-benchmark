@@ -18,6 +18,8 @@ Post-hoc upper bound (decided 2026-11-24 after the peer review; logs/deviations.
 drug-only rows in input order is also scored in character order of subject number (1, 10, 2, ...) and the higher
 score kept -> results/stats_charorder{,_arms}.csv. It uses the reference to pick the order, so never the primary rule.
 Distinct value sets: hashed on the seven scored parameters only, empty cells left out (Methods 2.5; §29).
+Descriptive, post hoc (logs/deviations.md §30): where each T1 arm's AUClast errors fall relative to subjects with a
+BLQ record after Tmax -> results/stats_blq.csv.
 Per-arm rows of the sensitivity analyses: results/stats_{sensitivity,posthoc,charorder}_arms.csv (read by paper/tables.py).
 Valid runs only (scores.csv already holds only those). Stdlib only.  Usage: stats.py [--b 10000] [--seed 20261116]
 """
@@ -196,6 +198,50 @@ def favourable_order_scores(rows):
     return out
 
 
+def post_tmax_blq_subjects(input_rows):
+    """Subjects (drug_subject) with a BLQ observation after their Tmax in a task input (DRUG, USUBJID, EVID, ATPTN,
+    AVAL, BLQ). Post hoc, descriptive (logs/deviations.md §30)."""
+    obs = defaultdict(list)
+    for r in input_rows:
+        if r["EVID"] == "0":
+            obs[f"{r['DRUG']}_{r['USUBJID']}"].append((float(r["ATPTN"]), r["AVAL"], r["BLQ"]))
+    out = set()
+    for s, pts in obs.items():
+        vals = [(t, float(a)) for t, a, b in pts if b != "1" and a not in (".", "")]
+        if vals:
+            tmax = max(vals, key=lambda x: x[1])[0]
+            if any(b == "1" and t > tmax for t, _, b in pts):
+                out.add(s)
+    return out
+
+
+def auclast_error_split(run, ref, blq):
+    """(AUClast values outside 1% of the reference, of which in `blq` subjects) for one run's table."""
+    err = [s for s, p in ref if p == "AUClast" and sn.rel_err(run.get((s, p)), ref[(s, p)]) >= 0.01]
+    return len(err), sum(s in blq for s in err)
+
+
+def blq_split(rows, task="T1_nca"):
+    """Per arm: runs, runs with an AUClast error, runs whose AUClast errors all fall in post-Tmax-BLQ subjects, total
+    errors and errors in those subjects; plus the number of such subjects. Needs results/raw/ and the task input."""
+    ref, inp = nca_ref(task), os.path.join(ROOT, "tasks", task, "inputs", "nca_benchmark.csv")
+    if ref is None or not os.path.exists(inp):
+        return []
+    blq = post_tmax_blq_subjects(csv.DictReader(open(inp)))
+    by = defaultdict(lambda: {"runs": 0, "runs_err": 0, "runs_all_blq": 0, "err": 0, "err_blq": 0})
+    for r in rows:
+        if r["task"] != task:
+            continue
+        d = score_all.load_scored(os.path.join(RES, "raw", r["arm"], task, r["runid"]), r.get("scored_file"), ref)
+        if d is None:
+            continue
+        n, nb = auclast_error_split(d, ref, blq)
+        b = by[r["arm"]]
+        b["runs"] += 1; b["runs_err"] += n > 0; b["runs_all_blq"] += n > 0 and n == nb
+        b["err"] += n; b["err_blq"] += nb
+    return [{"task": task, "arm": a, "blq_subjects": len(blq), **by[a]} for a in sorted(by)]
+
+
 def md_pair(r, *lead):
     """One markdown comparison row: leading cells, then n, difference, CI, p and the equivalence verdict."""
     return "| " + " | ".join([r["comparison"], *lead, f"{r['n_x']} vs {r['n_y']}", f"{r['diff']:+.2f}",
@@ -276,6 +322,7 @@ def main():
     write_csv("stats_sensitivity_arms.csv", sens_arm, ["task", "arm", "regime", "n", "mean", "sd"])
     write_csv("stats_posthoc.csv", ph_pair, ["task", "comparison"])
     write_csv("stats_posthoc_arms.csv", ph_arm, ["task", "arm", "n", "n_dropped", "mean", "sd"])
+    write_csv("stats_blq.csv", blq_split(rows), ["task", "arm"])
     write_csv("stats_charorder.csv", co_pair, ["task", "comparison"])
     write_csv("stats_charorder_arms.csv", co_arm, ["task", "arm", "n", "n_replaced", "mean", "sd"])
 

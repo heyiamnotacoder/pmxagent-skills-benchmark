@@ -42,5 +42,24 @@ class RowOrderRuns(unittest.TestCase):
         self.assertEqual(tables.row_order_runs(rows), 2)
 
 
+class ManuscriptMacros(unittest.TestCase):
+    """Numbers the revised manuscript cites, generated rather than typed (logs/deviations.md §30)."""
+
+    def test_accuracy_split_by_pmxagent_tool_use(self):
+        rows = [{"overall": "98", "pmxagent_tool_calls": "3"}, {"overall": "90", "pmxagent_tool_calls": "0"},
+                {"overall": "96", "pmxagent_tool_calls": "1"}, {"overall": "80", "pmxagent_tool_calls": ""},
+                {"overall": "", "pmxagent_tool_calls": "5"}]   # T2: no accuracy
+        self.assertEqual(tables.tool_use_split(rows), {"AccPmxUsed": "97.00", "AccPmxNotUsed": "90.00"})
+
+    def test_run_dates_from_run_ids(self):
+        ids = ["A1_T1_nca_r07_20261120-221734", "A0_T1_nca_r01_20260928-120000", "A1b_T1_nca_r01_20261121-150000"]
+        self.assertEqual(tables.run_dates(ids), ("28 September 2026", "21 November 2026"))
+
+    def test_t2_inputs_rows(self):
+        rows = [{"seed": "42", "n_timepoints": "14"}, {"seed": "42", "n_timepoints": "18"},
+                {"seed": "7", "n_timepoints": ""}]
+        self.assertEqual(tables.t2_inputs(rows), {"seeds": 2, "seed42": 2, "tp": "14--18"})
+
+
 if __name__ == "__main__":
     unittest.main()
