@@ -17,7 +17,7 @@ class FakeZenodo:
                                 "html": "https://zenodo.example/deposit/101"},
                       "files": [{"id": "f-old-tgz", "filename": "old.tar.gz"}, {"id": "f-old-man", "filename": "MANIFEST.sha256"}],
                       "metadata": {"title": "old title", "doi": "10.5281/zenodo.100",
-                                   "creators": [{"name": "Pandya, Dhruvik"}, {"name": "Singh, Surjit"}],
+                                   "creators": [{"name": "Author, First"}, {"name": "Author, Second"}],
                                    "license": "cc-by-nc-4.0", "prereserve_doi": {"doi": "10.5281/zenodo.101"}}}
 
     def __call__(self, method, url, data=None, ctype="application/json"):
@@ -67,7 +67,7 @@ class NewVersion(unittest.TestCase):
         meta = [b for m, u, b in self.z.requests if m == "PUT" and u == f"{API}/deposit/depositions/101"][-1]["metadata"]
         self.assertEqual(meta["title"], "v2 title")
         self.assertEqual(meta["version"], "2")
-        self.assertEqual([c["name"] for c in meta["creators"]], ["Pandya, Dhruvik", "Singh, Surjit"])
+        self.assertEqual([c["name"] for c in meta["creators"]], ["Author, First", "Author, Second"])
         self.assertNotIn("doi", meta)   # the previous version's DOI must not be sent with the new version
 
     def test_asks_for_a_version_doi_when_the_draft_has_none(self):
@@ -81,6 +81,58 @@ class NewVersion(unittest.TestCase):
         self.assertEqual(self.out["concept_doi"], "10.5281/zenodo.99")
         self.assertFalse(self.out["published"])
         self.assertFalse([u for _, u, _ in self.z.requests if u.endswith("/actions/publish")])
+
+
+class FakePublished:
+    """A published deposition 200 with two creators; records every request."""
+    def __init__(self):
+        self.requests = []
+        self.dep = {"id": 200, "links": {"self": f"{API}/deposit/depositions/200",
+                                         "html": "https://zenodo.example/deposit/200"},
+                    "metadata": {"title": "t", "doi": "10.5281/zenodo.200", "version": "2",
+                                 "creators": [{"name": "Author, First", "affiliation": "X"},
+                                              {"name": "Author, Second", "affiliation": "X"}]}}
+
+    def __call__(self, method, url, data=None, ctype="application/json"):
+        body = json.loads(data) if data else None
+        self.requests.append((method, url, body))
+        if method == "PUT":
+            return {**self.dep, "metadata": body["metadata"]}
+        return self.dep
+
+
+class DropCreator(unittest.TestCase):
+    def setUp(self):
+        self.z = FakePublished()
+        self.out = zu.drop_creator(self.z, API, 200, "Author, Second")
+        self.meta = [b for m, _, b in self.z.requests if m == "PUT"][-1]["metadata"]
+
+    def test_unlocks_the_record_before_changing_its_metadata(self):
+        reqs = [(m, u) for m, u, _ in self.z.requests if m != "GET"]
+        self.assertEqual(reqs, [("POST", f"{API}/deposit/depositions/200/actions/edit"),
+                                ("PUT", f"{API}/deposit/depositions/200")])
+
+    def test_removes_only_that_creator_and_keeps_the_rest_of_the_metadata(self):
+        self.assertEqual(self.meta["creators"], [{"name": "Author, First", "affiliation": "X"}])
+        self.assertEqual({k: v for k, v in self.meta.items() if k != "creators"},
+                         {"title": "t", "doi": "10.5281/zenodo.200", "version": "2"})
+
+    def test_leaves_the_edit_unpublished(self):
+        self.assertFalse(self.out["published"])
+        self.assertEqual(self.out["creators"], ["Author, First"])
+        self.assertFalse([u for _, u, _ in self.z.requests if u.endswith("/actions/publish")])
+
+    def test_refuses_an_unknown_name_before_touching_the_record(self):
+        z = FakePublished()
+        with self.assertRaises(SystemExit):
+            zu.drop_creator(z, API, 200, "Nobody, Here")
+        self.assertFalse([r for r in z.requests if r[0] != "GET"])
+
+    def test_refuses_to_remove_the_last_creator(self):
+        z = FakePublished()
+        z.dep["metadata"]["creators"] = z.dep["metadata"]["creators"][:1]
+        with self.assertRaises(SystemExit):
+            zu.drop_creator(z, API, 200, "Author, First")
 
 
 if __name__ == "__main__":
