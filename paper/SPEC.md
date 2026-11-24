@@ -51,6 +51,7 @@ benchmark and open data; state what MCP gives that Skills do not.
 | 2026-11-24 | Manuscript revised with the `manuscript` skill (branch `manuscript-rewrite`): main text cut from 4,927 to about 4,600 words, abstract to about 360; post hoc choices gathered in one Methods paragraph; Discussion adds the comparison with PMxAgent's published no-tool result (94.5%) and a next-study paragraph; each limitation states its likely direction of bias; Shin et al. claims reworded to match their abstracts; "about seven weeks" corrected to "about eight weeks" (ledger: 53 and 54 days). Working files: `paper/manuscript/`. No result number changed. **S.S. to re-approve before posting (#16)** | user |
 | 2026-11-24 | Authorship changed to sole author (D.P.): Surjit Singh's name removed from the manuscript title block, author contributions, README and manifest; "the authors" → "the author" in the declarations; "we" kept as the conventional author voice. Supersedes the co-author rows of 2026-11-16 and 2026-11-24 and the re-approval step for #16. Open: the Zenodo record (doi:10.5281/zenodo.24478971) and its `zenodo_evidence` citation still list both creators | user |
 | 2026-11-24 | Zenodo creators edited to match: Surjit Singh removed from both published versions (v2 doi:10.5281/zenodo.24478971, v1 doi:10.5281/zenodo.23019418) by a metadata-only edit (`harness/zenodo_upload.py --drop-creator`, then `--publish`); files and DOIs unchanged. `zenodo_evidence` citation now lists D.P. only. No acknowledgement added | user |
+| 2026-11-24 | **Scorer revised after the pre-submission peer review (post hoc; `logs/deviations.md` §29).** (1) Drug-only individual files (no subject ID) are matched to subjects by row order, in every arm and task, and this replaces the 2026-11-20 rule that scored them 0 as the **primary** rule: the T1 analysis was never registered and was fixed after 43 of 50 T1 runs, and the old rule treated arms unequally (5 of 10 A3 deliverables were drug-only too, but the script also wrote a file with IDs). A group is matched only when its row count equals the drug's subject count. (2) Parameter names matched by rule (case and `. _ / -` ignored; CDISC, PKNCA and PKanalix names), fixing missed PKNCA codes. (3) Distinct value sets hashed on the seven scored parameters only, as Methods say. (4) Run scores stored unrounded. Previous numbers kept in `results/scorer_v1/` and reported beside the new ones. A character-order upper bound for drug-only files is reported as post hoc only | user |
 
 ## User stories
 1. As a pharmacometrician reading the preprint, I want to see which ingredient (instructions, fixed code, server
@@ -98,8 +99,15 @@ in `logs/deviations.md` with the reason.
   No multiplicity adjustment; the CIs are the result, p-values are secondary.
 - **Reproducibility:** SD of overall accuracy; number of distinct parameter-value sets per arm (hash of the scored
   individual table, sorted, values rounded to 6 significant digits). Distinct *file* sets reported separately.
+  *(2026-11-24, §29: the code also hashed R²/terminal-point columns and empty cells; corrected to match this text.)*
 - **Effort:** cost/run, wall time, turns, tool calls, tool errors (mean ± SD).
 - **Reps:** T1 = 10 per arm (A1 currently 3, see R0), T2 = 10 per arm (A1 included), T3a–e = 5 per arm.
+
+Added 2026-11-24, **post hoc** (after the peer review, with all scores known; `logs/deviations.md` §29). Replaces the rules marked *superseded* below; the previous results stay in `results/scorer_v1/` and are reported:
+- **Drug-only files (primary rule):** rows without a subject ID are matched by row order within each drug and parameter, against the reference file's subject order (= the task input's order), only when the row count equals the drug's subject count; otherwise that drug and parameter are missing. Same rule in every arm and task. At equal coverage a file with subject IDs is scored rather than a matched one.
+- **Parameter names:** matched by rule (`scoring/score_nca.py` `canonical`), not by names seen in runs.
+- **Distinct parameter-value sets:** the seven scored parameters only, empty cells left out (as Methods 2.5 state).
+- **Upper bound (post hoc, never primary):** each row-order-matched run also scored in character order of subject number (1, 10, 2, …), higher score kept (`results/stats_charorder*.csv`).
 
 Added 2026-11-21, **post hoc** (`logs/deviations.md` §21, relabelled in §22): motivated by A1's observed behaviour on
 T1 (0/10 runs called a PMxAgent tool), not by any score, but specified after the T1 results of A0–A4 were known;
@@ -113,7 +121,8 @@ fixed before any `A1b` run. Report `A1b` and its comparisons as post hoc:
   reported per run.
 
 Added 2026-11-20, **post hoc** (after seeing the T1 scores; `logs/deviations.md` §17), at the author's request:
-- **Unscorable-run sensitivity (post-hoc, labelled as such):** in each NCA task where a completed run had no
+- *Superseded 2026-11-24 (§29): with row-order matching no T1 run is unscorable, so this analysis is empty.*
+  **Unscorable-run sensitivity (post-hoc, labelled as such):** in each NCA task where a completed run had no
   scorable individual file (scored 0 above), per-arm stats and the pairs involving an arm that lost runs, repeated
   without those runs (`scoring/stats.py` → `results/stats_posthoc.csv`). The primary analysis is unchanged.
 

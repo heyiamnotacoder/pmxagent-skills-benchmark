@@ -508,3 +508,67 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   `logs/deviations.md`, `env/versions.txt`), none in `results/raw/`.
 - **Credentials.** Before deposit, `results/raw/` was searched for API-key, OAuth and bearer-token patterns and for the
   exact Zenodo and subscription-pool tokens: no hit.
+
+### §29 Scorer revised after the pre-submission peer review: drug-only files matched by row order, parameter names matched by rule (2026-11-24)
+- **When and why.** Post hoc: decided on 2026-11-24, with every score known, after an adversarial pre-submission
+  review (findings M1/S1, M2/S2, S3, S10; the review itself is kept outside the repository). The T1 analysis was never
+  registered and its comparisons were fixed after 43 of 50 T1 runs (§17, SPEC), so the author chose to replace the
+  primary rule rather than add one more sensitivity analysis. The previous statistics are frozen in
+  `results/scorer_v1/` (exact copies from commit `92d614c`) and the paper reports them beside the new ones.
+- **1. Drug-only files (new primary rule; supersedes the 0-score rule of §17).** The T1 prompt asks for
+  `DRUG, PPTESTCD, PPSTRESN` only, and some deliverables wrote the drug name without the subject. The old rule scored
+  such a run 0 when no other file had subject IDs; A3/A4 runs with the same defect (5 of 10 A3 and 1 of 10 A4 T1
+  deliverables) were spared because the bundled script also writes a file with IDs. New rule, the same in every arm
+  and task: within a drug and parameter the k-th row is the drug's k-th subject in the reference file's order (checked
+  equal to the input order in all five NCA tasks, including T3a's workbook); a group is matched only when its row
+  count equals the drug's subject count, otherwise it is missing. At equal coverage a file with subject IDs is scored
+  rather than a matched one. A long-format file whose subject column is named `ID`, `SUBJID` or `SUBJECT` (not only
+  `USUBJID`) is read as subject-level, as wide files already were (no current run is affected). Drug names are
+  compared as written (case-sensitive). Runs scored by row order carry the note `subjects matched by row order`
+  (A1 T1 `r07`, `r11`; A1b T1 `r04`, `r10`, `r11`).
+- **Character order.** A1b `r04` and `r10` listed each drug's subjects in character order of the number (1, 10, 2, …).
+  Under the rule they are matched wrongly and score 16.54; matched in character order they would score 98.29. No
+  accuracy-blind way exists to tell which order a file without IDs used, and choosing the order by score is not
+  allowed, so the rule stays. `scores.csv` also carries `overall_charorder` for every row-order run, and a post hoc
+  **upper bound** keeps the higher of the two orders per run (`results/stats_charorder*.csv`, `results/stats.md`).
+  Here it replaces exactly A1b `r04` and `r10`; A1 `r07`, `r11` and A1b `r11` score higher in input order.
+- **2. Parameter names by rule.** Names are compared after lower-casing and removing `. _ / -` and spaces, against
+  CDISC PPTESTCD codes, PKNCA codes (observed values only: `aucinf.obs`, `cl.obs`, `vz.obs`, `half.life`,
+  `adj.r.squared`, `lambda.z.n.points`; never `.pred`, `.dn`, `r.squared`) and the names logged in §5. The old exact
+  lookup missed PKNCA's own codes: A1b `r08`, `r09` (56.39 → 98.29) and A1 T3b `r08` (80.35 → 96.34). §26's statement
+  that two A1b runs had no AUC∞,obs, CL or Vz rows, and that no 0.0 run had an NPTS row, was wrong: the rows were there
+  under PKNCA names. Terminal points are now also read for A1 `r08` and A1b `r02`, `r03`, `r10`. Point counts written
+  under ad hoc names (A0 `r11` `n_points`, A0 `r16` `n_term`, A1b `r06` `n_terminal_pts`, A2 `r12` `n_lambda`) are still
+  not read: they are not in any of the sources above. Calibration against the published PMxAgent paper is unchanged
+  (max |diff| 0.00 at one decimal).
+- **3. Distinct parameter-value sets** are hashed on the seven scored parameters, empty cells left out, as Methods 2.5
+  and SPEC already said; the code had also hashed R²/terminal-point columns and empty cells.
+- **4. Run scores** are stored at 6 decimals and rounded only for display (T3d A4 mean 73.34 → 73.33).
+- **File choice.** Candidate files are now read in sorted path order. In 11 A3/A4 runs this picks a different file
+  among files with subject IDs and equal coverage; no score changes.
+- **Effect** (previous → now; `results/scorer_v1/` → `results/stats*.csv`):
+
+  | Result | Previous | Now |
+  |---|---|---|
+  | T1 A1 mean | 78.58 | 98.24 |
+  | T1 A2 − A1 | +20.08 (+0.40 to +49.52), not equivalent | +0.41 (+0.35 to +0.50), equivalent |
+  | T1 A3 − A1 | +20.06 (+0.38 to +49.52), not equivalent | +0.41 (+0.35 to +0.48), equivalent |
+  | T1 A1b mean | 59.27 | 79.95 (upper bound 96.30) |
+  | T1 A1b − A1 | −19.31 (−53.32 to +15.82) | −18.28 (−41.62 to −1.16) |
+  | T1 A2 − A1b | +39.38 (+14.43 to +65.79) | +18.70 (+1.55 to +42.06) |
+  | T3b A1 mean | 92.88 | 96.08 |
+  | T3b A3 − A1 | +4.55 (+1.21 to +10.83) | +1.35 (+1.09 to +1.63) |
+  | T3b A2 − A1 | +4.44 (+1.07 to +10.74) | +1.24 (+0.94 to +1.55) |
+  | T1 distinct value sets A0 / A1 / A2 | 7 / 6 / 9 | 4 / 3 / 3 |
+
+  Other arms' means move by at most 0.01, from storing run scores unrounded (change 4; e.g. T3e A1 98.24 → 98.25,
+  A2 98.68 → 98.69). Distinct value sets fall wherever agent-written code had differed only in unscored columns or
+  empty cells, in T3a–T3e too (`results/stats_arms.csv` against `results/scorer_v1/stats_arms.csv`). The post hoc
+  analysis without unscorable runs (§17) is now empty.
+- **Tests first.** `scoring/tests/test_scoring.py` (`CanonicalNames`, `RowOrderMatching`, `CharacterOrderSensitivity`,
+  `StoredPrecision`), `test_stats.py` (`ValueSetHash`, `CharacterOrderSensitivity`) and `test_tables.py`
+  (`ScorerV1Snapshot`, `RowOrderRuns`) were written and seen failing before the code changed (in the working tree;
+  the PR is squashed, so git does not show the order). After code review: the name table holds one entry per
+  normalised name (tested), the character-order score is written by `score_all.py` so `stats.py` only reads
+  `scores.csv`, and the post hoc analyses share one helper. Results unchanged by the review fixes. The manuscript
+  text is updated separately.

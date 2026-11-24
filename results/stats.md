@@ -6,18 +6,18 @@ Overall accuracy (paper metric, percentage points). Difference = mean(X) - mean(
 
 | Arm | n | Mean | SD | Min | Max | Distinct value sets | Runs with terminal points | Terminal points match (%) | λz errors (in differing subjects) |
 |---|---|---|---|---|---|---|---|---|---|
-| A0 | 10 | 93.21 | 1.13 | 91.57 | 95.09 | 7 | 8 | 80.33 | 4944 (3960) |
-| A1 | 10 | 78.58 | 41.41 | 0.00 | 98.29 | 6 | 7 | 95.32 | 1183 (938) |
-| A1b | 10 | 59.27 | 43.96 | 0.00 | 98.29 | 4 | 4 | 95.32 | 9440 (798) |
-| A2 | 10 | 98.65 | 0.06 | 98.58 | 98.70 | 9 | 9 | 95.33 | 1248 (1224) |
+| A0 | 10 | 93.21 | 1.13 | 91.57 | 95.09 | 4 | 8 | 80.33 | 4944 (3960) |
+| A1 | 10 | 98.24 | 0.12 | 97.97 | 98.29 | 3 | 9 | 95.32 | 1509 (1206) |
+| A1b | 10 | 79.95 | 33.67 | 16.54 | 98.29 | 5 | 7 | 85.8 | 6265 (4844) |
+| A2 | 10 | 98.65 | 0.06 | 98.58 | 98.70 | 3 | 9 | 95.33 | 1248 (1224) |
 | A3 | 10 | 98.64 | 0.00 | 98.64 | 98.64 | 1 | 10 | 95.32 | 1420 (1340) |
 | A4 | 10 | 98.64 | 0.00 | 98.64 | 98.64 | 1 | 10 | 95.32 | 1420 (1340) |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
-| A2 - A1 | 10 vs 10 | +20.08 | +0.40 to +49.52 | <0.0001 (exact) | no |
-| A3 - A1 | 10 vs 10 | +20.06 | +0.38 to +49.52 | <0.0001 (exact) | no |
-| A3 - A2 | 10 vs 10 | -0.01 | -0.05 to +0.02 | 0.7577 (exact) | yes |
+| A2 - A1 | 10 vs 10 | +0.41 | +0.35 to +0.50 | <0.0001 (exact) | yes |
+| A3 - A1 | 10 vs 10 | +0.41 | +0.35 to +0.48 | <0.0001 (exact) | yes |
+| A3 - A2 | 10 vs 10 | -0.01 | -0.05 to +0.03 | 0.7577 (exact) | yes |
 | A4 - A3 | 10 vs 10 | +0.00 | +0.00 to +0.00 | 1.0000 (exact) | yes |
 | A0 - A3 | 10 vs 10 | -5.43 | -6.02 to -4.73 | <0.0001 (exact) | no |
 
@@ -27,10 +27,10 @@ Pre-specified before any A1b run (paper/SPEC.md; logs/deviations.md §21). Repor
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
-| A1b - A1 | 10 vs 10 | -19.31 | -53.32 to +15.82 | 0.3434 (exact) | no |
-| A2 - A1b | 10 vs 10 | +39.38 | +14.43 to +65.79 | <0.0001 (exact) | no |
-| A3 - A1b | 10 vs 10 | +39.37 | +14.44 to +66.25 | <0.0001 (exact) | no |
-| A4 - A1b | 10 vs 10 | +39.37 | +14.42 to +64.67 | <0.0001 (exact) | no |
+| A1b - A1 | 10 vs 10 | -18.28 | -41.62 to -1.16 | 0.0681 (exact) | no |
+| A2 - A1b | 10 vs 10 | +18.70 | +1.55 to +42.06 | <0.0001 (exact) | no |
+| A3 - A1b | 10 vs 10 | +18.69 | +1.53 to +42.06 | <0.0001 (exact) | no |
+| A4 - A1b | 10 vs 10 | +18.69 | +1.53 to +41.28 | <0.0001 (exact) | no |
 
 ### T1_nca: sensitivity by isolation regime
 
@@ -38,33 +38,30 @@ Arms whose runs used more than one isolation regime, split by regime (user = use
 
 | Arm | Regime | n | Mean | SD |
 |---|---|---|---|---|
-| A1 | isolated | 7 | 70.17 | 47.94 |
-| A1 | user | 3 | 98.18 | 0.18 |
+| A1 | isolated | 7 | 98.26 | 0.09 |
+| A1 | user | 3 | 98.19 | 0.19 |
 
 | Comparison | Split arm: regime | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|---|
-| A2 - A1 | A1: isolated | 10 vs 7 | +28.48 | +0.38 to +56.61 | <0.0001 (exact) | no |
-| A3 - A1 | A1: isolated | 10 vs 7 | +28.47 | +0.38 to +56.58 | <0.0001 (exact) | no |
+| A2 - A1 | A1: isolated | 10 vs 7 | +0.39 | +0.34 to +0.47 | <0.0001 (exact) | yes |
+| A3 - A1 | A1: isolated | 10 vs 7 | +0.38 | +0.35 to +0.45 | <0.0001 (exact) | yes |
 | A2 - A1 | A1: user | 10 vs 3 | +0.47 | +0.34 to +0.67 | 0.0035 (exact) | yes |
 | A3 - A1 | A1: user | 10 vs 3 | +0.46 | +0.35 to +0.67 | 0.0035 (exact) | yes |
 
-### T1_nca: post-hoc, without runs that had no scorable file
+### T1_nca: post-hoc upper bound, drug-only files in character order
 
-**Post-hoc** (decided after seeing the scores; logs/deviations.md §17). Completed runs whose individual file could not be matched to any subject score 0 in the primary analysis above; here they are left out.
+**Post-hoc** (decided after the peer review; logs/deviations.md §29). Runs scored by matching drug-only rows in input order are also matched in character order of subject number (1, 10, 2, ...), and the higher score is kept. Choosing the order uses the reference, so this is an upper bound, never the primary rule.
 
-| Arm | n | Dropped | Mean | SD |
+| Arm | n | Replaced | Mean | SD |
 |---|---|---|---|---|
-| A0 | 10 | 0 | 93.21 | 1.13 |
-| A1 | 8 | 2 | 98.22 | 0.13 |
-| A1b | 7 | 3 | 84.67 | 19.75 |
-| A2 | 10 | 0 | 98.65 | 0.06 |
-| A3 | 10 | 0 | 98.64 | 0.00 |
-| A4 | 10 | 0 | 98.64 | 0.00 |
+| A1b | 10 | 2 | 96.30 | 4.19 |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
-| A2 - A1 | 10 vs 8 | +0.43 | +0.35 to +0.52 | <0.0001 (exact) | yes |
-| A3 - A1 | 10 vs 8 | +0.42 | +0.35 to +0.51 | <0.0001 (exact) | yes |
+| A1b - A1 | 10 vs 10 | -1.93 | -4.74 to +0.06 | 0.4040 (exact) | no |
+| A2 - A1b | 10 vs 10 | +2.35 | +0.37 to +5.15 | <0.0001 (exact) | no |
+| A3 - A1b | 10 vs 10 | +2.34 | +0.35 to +5.11 | <0.0001 (exact) | no |
+| A4 - A1b | 10 vs 10 | +2.34 | +0.35 to +5.11 | <0.0001 (exact) | no |
 
 ## T3a_messy
 
@@ -72,7 +69,7 @@ Arms whose runs used more than one isolation regime, split by regime (user = use
 |---|---|---|---|---|---|---|---|---|---|
 | A0 | 5 | 92.93 | 1.60 | 91.36 | 94.84 | 4 | 5 | 75.21 | 553 (514) |
 | A1 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 4 | 5 | 95.38 | 110 (110) |
-| A2 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 4 | 5 | 95.21 | 110 (110) |
+| A2 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 2 | 5 | 95.21 | 110 (110) |
 | A3 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 1 | 5 | 95.38 | 110 (110) |
 | A4 | 5 | 92.46 | 8.51 | 82.96 | 98.68 | 4 | 5 | 87.23 | 523 (386) |
 
@@ -88,16 +85,16 @@ Arms whose runs used more than one isolation regime, split by regime (user = use
 
 | Arm | n | Mean | SD | Min | Max | Distinct value sets | Runs with terminal points | Terminal points match (%) | λz errors (in differing subjects) |
 |---|---|---|---|---|---|---|---|---|---|
-| A0 | 5 | 95.53 | 0.51 | 94.61 | 95.76 | 4 | 4 | 81.69 | 564 (564) |
-| A1 | 5 | 92.88 | 7.01 | 80.35 | 96.34 | 5 | 4 | 86.91 | 470 (424) |
-| A2 | 5 | 97.32 | 0.15 | 97.15 | 97.43 | 5 | 4 | 90.56 | 332 (320) |
+| A0 | 5 | 95.53 | 0.52 | 94.61 | 95.76 | 2 | 4 | 81.69 | 564 (564) |
+| A1 | 5 | 96.08 | 0.35 | 95.63 | 96.34 | 3 | 5 | 87.64 | 571 (504) |
+| A2 | 5 | 97.32 | 0.15 | 97.15 | 97.43 | 3 | 4 | 90.56 | 332 (320) |
 | A3 | 5 | 97.43 | 0.00 | 97.43 | 97.43 | 1 | 5 | 90.56 | 400 (400) |
 | A4 | 5 | 97.43 | 0.00 | 97.43 | 97.43 | 1 | 5 | 90.56 | 400 (400) |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
-| A2 - A1 | 5 vs 5 | +4.44 | +1.07 to +10.74 | 0.0079 (exact) | no |
-| A3 - A1 | 5 vs 5 | +4.55 | +1.21 to +10.83 | 0.0079 (exact) | no |
+| A2 - A1 | 5 vs 5 | +1.24 | +0.94 to +1.55 | 0.0079 (exact) | no |
+| A3 - A1 | 5 vs 5 | +1.35 | +1.09 to +1.63 | 0.0079 (exact) | no |
 | A3 - A2 | 5 vs 5 | +0.11 | +0.00 to +0.22 | 0.4444 (exact) | yes |
 | A4 - A3 | 5 vs 5 | +0.00 | +0.00 to +0.00 | 1.0000 (exact) | yes |
 | A0 - A3 | 5 vs 5 | -1.90 | -2.36 to -1.67 | 0.0079 (exact) | no |
@@ -107,18 +104,18 @@ Arms whose runs used more than one isolation regime, split by regime (user = use
 | Arm | n | Mean | SD | Min | Max | Distinct value sets | Runs with terminal points | Terminal points match (%) | λz errors (in differing subjects) |
 |---|---|---|---|---|---|---|---|---|---|
 | A0 | 5 | 93.63 | 2.64 | 91.36 | 98.20 | 3 | 5 | 79.92 | 483 (422) |
-| A1 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 3 | 5 | 95.38 | 110 (110) |
-| A2 | 5 | 98.21 | 0.92 | 96.58 | 98.68 | 5 | 5 | 94.45 | 137 (116) |
+| A1 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 2 | 5 | 95.38 | 110 (110) |
+| A2 | 5 | 98.21 | 0.92 | 96.58 | 98.68 | 4 | 5 | 94.45 | 137 (116) |
 | A3 | 5 | 98.68 | 0.00 | 98.68 | 98.68 | 1 | 5 | 95.38 | 110 (110) |
 | A4 | 5 | 85.51 | 0.00 | 85.51 | 85.51 | 1 | 5 | 95.38 | 810 (120) |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
-| A2 - A1 | 5 vs 5 | -0.47 | -1.31 to +0.00 | 0.4444 (exact) | no |
+| A2 - A1 | 5 vs 5 | -0.47 | -1.30 to +0.00 | 0.4444 (exact) | no |
 | A3 - A1 | 5 vs 5 | +0.00 | +0.00 to +0.00 | 1.0000 (exact) | yes |
-| A3 - A2 | 5 vs 5 | +0.47 | +0.00 to +1.31 | 0.4444 (exact) | no |
+| A3 - A2 | 5 vs 5 | +0.47 | +0.00 to +1.30 | 0.4444 (exact) | no |
 | A4 - A3 | 5 vs 5 | -13.17 | -13.17 to -13.17 | 0.0079 (exact) | no |
-| A0 - A3 | 5 vs 5 | -5.05 | -6.72 to -2.62 | 0.0079 (exact) | no |
+| A0 - A3 | 5 vs 5 | -5.05 | -6.72 to -2.61 | 0.0079 (exact) | no |
 
 ## T3d_oral
 
@@ -128,23 +125,23 @@ Arms whose runs used more than one isolation regime, split by regime (user = use
 | A1 | 5 | 93.33 | 14.91 | 66.67 | 100.00 | n/a |
 | A2 | 5 | 100.00 | 0.00 | 100.00 | 100.00 | n/a |
 | A3 | 5 | 100.00 | 0.00 | 100.00 | 100.00 | n/a |
-| A4 | 5 | 73.34 | 14.91 | 66.67 | 100.00 | n/a |
+| A4 | 5 | 73.33 | 14.91 | 66.67 | 100.00 | n/a |
 
 | Comparison | n | Difference | 95% CI | p (perm.) | Equivalent (±1 pp) |
 |---|---|---|---|---|---|
 | A2 - A1 | 5 vs 5 | +6.67 | +0.00 to +20.00 | 1.0000 (exact) | no |
 | A3 - A1 | 5 vs 5 | +6.67 | +0.00 to +20.00 | 1.0000 (exact) | no |
 | A3 - A2 | 5 vs 5 | +0.00 | +0.00 to +0.00 | 1.0000 (exact) | yes |
-| A4 - A3 | 5 vs 5 | -26.66 | -33.33 to -13.33 | 0.0476 (exact) | no |
+| A4 - A3 | 5 vs 5 | -26.67 | -33.33 to -13.33 | 0.0476 (exact) | no |
 | A0 - A3 | 5 vs 5 | +0.00 | +0.00 to +0.00 | 1.0000 (exact) | yes |
 
 ## T3e_large
 
 | Arm | n | Mean | SD | Min | Max | Distinct value sets | Runs with terminal points | Terminal points match (%) | λz errors (in differing subjects) |
 |---|---|---|---|---|---|---|---|---|---|
-| A0 | 5 | 93.21 | 1.05 | 92.74 | 95.09 | 4 | 4 | 81.4 | 12135 (9285) |
-| A1 | 5 | 98.24 | 0.10 | 98.06 | 98.29 | 3 | 4 | 95.32 | 3350 (2680) |
-| A2 | 5 | 98.68 | 0.04 | 98.62 | 98.70 | 4 | 4 | 95.32 | 2720 (2720) |
+| A0 | 5 | 93.21 | 1.05 | 92.74 | 95.09 | 2 | 4 | 81.4 | 12135 (9285) |
+| A1 | 5 | 98.25 | 0.11 | 98.06 | 98.29 | 2 | 4 | 95.32 | 3350 (2680) |
+| A2 | 5 | 98.69 | 0.03 | 98.62 | 98.70 | 3 | 4 | 95.32 | 2720 (2720) |
 | A3 | 5 | 98.64 | 0.00 | 98.64 | 98.64 | 1 | 5 | 95.32 | 3550 (3350) |
 | A4 | 5 | 98.64 | 0.00 | 98.64 | 98.64 | 1 | 5 | 95.32 | 3550 (3350) |
 

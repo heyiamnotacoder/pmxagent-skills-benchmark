@@ -16,22 +16,22 @@ Mean ± SD over valid runs (n). NCA tasks: the paper's metric (% of subject-para
 
 | Arm | Setup | Model | T1 | T3a | T3b | T3c | T3e | T3d |
 |---|---|---|---|---|---|---|---|---|
-| A0 | No tools | claude-sonnet-4-6 | 93.21 ± 1.13 (10) | 92.93 ± 1.60 (5) | 95.53 ± 0.51 (5) | 93.63 ± 2.64 (5) | 93.21 ± 1.05 (5) | 100.00 ± 0.00 (5) |
-| A1 | PMxAgent 1.0.0 (MCP) offered | claude-sonnet-4-6 | 78.58 ± 41.41 (10) | 98.68 ± 0.00 (5) | 92.88 ± 7.01 (5) | 98.68 ± 0.00 (5) | 98.24 ± 0.10 (5) | 93.33 ± 14.91 (5) |
-| A1b | A1 + PMxAgent's shipped CLAUDE.md | claude-sonnet-4-6 | 59.27 ± 43.96 (10) | – | – | – | – | – |
-| A2 | Skills, knowledge only | claude-sonnet-4-6 | 98.65 ± 0.06 (10) | 98.68 ± 0.00 (5) | 97.32 ± 0.15 (5) | 98.21 ± 0.92 (5) | 98.68 ± 0.04 (5) | 100.00 ± 0.00 (5) |
+| A0 | No tools | claude-sonnet-4-6 | 93.21 ± 1.13 (10) | 92.93 ± 1.60 (5) | 95.53 ± 0.52 (5) | 93.63 ± 2.64 (5) | 93.21 ± 1.05 (5) | 100.00 ± 0.00 (5) |
+| A1 | PMxAgent 1.0.0 (MCP) offered | claude-sonnet-4-6 | 98.24 ± 0.12 (10) | 98.68 ± 0.00 (5) | 96.08 ± 0.35 (5) | 98.68 ± 0.00 (5) | 98.25 ± 0.11 (5) | 93.33 ± 14.91 (5) |
+| A1b | A1 + PMxAgent's shipped CLAUDE.md | claude-sonnet-4-6 | 79.95 ± 33.67 (10) | – | – | – | – | – |
+| A2 | Skills, knowledge only | claude-sonnet-4-6 | 98.65 ± 0.06 (10) | 98.68 ± 0.00 (5) | 97.32 ± 0.15 (5) | 98.21 ± 0.92 (5) | 98.69 ± 0.03 (5) | 100.00 ± 0.00 (5) |
 | A3 | Skills + script | claude-sonnet-4-6 | 98.64 ± 0.00 (10) | 98.68 ± 0.00 (5) | 97.43 ± 0.00 (5) | 98.68 ± 0.00 (5) | 98.64 ± 0.00 (5) | 100.00 ± 0.00 (5) |
-| A4 | Skills + script | claude-haiku-4-5-20251001 | 98.64 ± 0.00 (10) | 92.46 ± 8.51 (5) | 97.43 ± 0.00 (5) | 85.51 ± 0.00 (5) | 98.64 ± 0.00 (5) | 73.34 ± 14.91 (5) |
+| A4 | Skills + script | claude-haiku-4-5-20251001 | 98.64 ± 0.00 (10) | 92.46 ± 8.51 (5) | 97.43 ± 0.00 (5) | 85.51 ± 0.00 (5) | 98.64 ± 0.00 (5) | 73.33 ± 14.91 (5) |
 
 ### Reproducibility
 Distinct sets of NCA parameter values / valid runs (1/n = identical results in every run).
 
 | Arm | Setup | Model | T1 | T3a | T3b | T3c | T3e |
 |---|---|---|---|---|---|---|---|
-| A0 | No tools | claude-sonnet-4-6 | 7/10 | 4/5 | 4/5 | 3/5 | 4/5 |
-| A1 | PMxAgent 1.0.0 (MCP) offered | claude-sonnet-4-6 | 6/10 | 4/5 | 5/5 | 3/5 | 3/5 |
-| A1b | A1 + PMxAgent's shipped CLAUDE.md | claude-sonnet-4-6 | 4/10 | – | – | – | – |
-| A2 | Skills, knowledge only | claude-sonnet-4-6 | 9/10 | 4/5 | 5/5 | 5/5 | 4/5 |
+| A0 | No tools | claude-sonnet-4-6 | 4/10 | 4/5 | 2/5 | 3/5 | 2/5 |
+| A1 | PMxAgent 1.0.0 (MCP) offered | claude-sonnet-4-6 | 3/10 | 4/5 | 3/5 | 2/5 | 2/5 |
+| A1b | A1 + PMxAgent's shipped CLAUDE.md | claude-sonnet-4-6 | 5/10 | – | – | – | – |
+| A2 | Skills, knowledge only | claude-sonnet-4-6 | 3/10 | 2/5 | 3/5 | 4/5 | 3/5 |
 | A3 | Skills + script | claude-sonnet-4-6 | 1/10 | 1/5 | 1/5 | 1/5 | 1/5 |
 | A4 | Skills + script | claude-haiku-4-5-20251001 | 1/10 | 4/5 | 1/5 | 1/5 | 1/5 |
 

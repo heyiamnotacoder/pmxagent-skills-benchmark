@@ -10,6 +10,9 @@ numbers.tex              \\num... macros; per arm also `Distinct`/`DistinctFiles
                          `PmxRuns`/`PmxKnown` (runs with >=1 PMxAgent tool call / runs scanned; summed over the
                          NCA tasks as \\numNca<Arm>PmxRuns/PmxKnown), and, from stats.py,
                          `Unscorable`/`AccPostHoc` (post hoc, logs/deviations.md §17; only where a run was unscorable),
+                         `RowOrder` (runs scored by row-order matching, §29; only where >0), `AccFavourable` /
+                         `FavourableN` and `...Vs...FavourableDiff/CI` (post hoc upper bound, character order, §29),
+                         `AccVone` and `...Vs...Vone[Secondary]Diff/CI` (previous scorer, results/scorer_v1/, §29),
                          `Acc<Regime>`/`N<Regime>` and `...Vs...<Regime>Diff/CI` (isolation-regime sensitivity, §15);
                          \\numInfra<Stack><Measure> (infrastructure footprint).
 Usage: python3 paper/tables.py   (run scoring/stats.py first)
@@ -20,6 +23,8 @@ from collections import Counter, defaultdict
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "harness"))
 import count_infra   # noqa: E402  (owns the infra.csv schema and its summary)
+sys.path.insert(0, os.path.join(ROOT, "scoring"))
+import score_all     # noqa: E402  (owns the scores.csv notes)
 RES = os.path.join(ROOT, "results")
 OUT = os.path.join(ROOT, "paper", "tables")
 ARMS = ["A0", "A1", "A1b", "A2", "A3", "A4"]
@@ -87,6 +92,7 @@ def main():
     distinct = {k: r["distinct_value_sets"] for k, r in arm_stats.items()}
     files = {(r["task"], r["arm"]): r["n_distinct_outputs"] for r in read("summary.csv")}
     ph_arms = {(r["task"], r["arm"]): r for r in read("stats_posthoc_arms.csv")}
+    fav_arms = {(r["task"], r["arm"]): r for r in read("stats_charorder_arms.csv")}
 
     nums = []
     for task, by_arm in sorted(scores.items()):
@@ -105,6 +111,11 @@ def main():
             if files.get((task, a)):
                 vals["DistinctFiles"] = files[(task, a)]
             vals.update(terminal_point_macros(arm_stats.get((task, a), {})))
+            if row_order_runs(rs):
+                vals["RowOrder"] = str(row_order_runs(rs))
+            fav = fav_arms.get((task, a))   # post hoc upper bound, character order (stats.py, §29)
+            if fav:
+                vals["AccFavourable"], vals["FavourableN"] = f"{float(fav['mean']):.2f}", fav["n_replaced"]
             ph = ph_arms.get((task, a))   # only tasks where some run was unscorable (stats.py, post hoc)
             if ph:
                 vals["Unscorable"] = ph["n_dropped"]
@@ -172,6 +183,11 @@ def main():
         nums += pair_macros(r["task"], r["comparison"], "Secondary", r)
     for r in read("stats_posthoc.csv"):   # post hoc (logs/deviations.md §17): \\numToneAtwoVsAonePostHocDiff
         nums += pair_macros(r["task"], r["comparison"], "PostHoc", r)
+    for r in read("stats_charorder.csv"):   # post hoc upper bound (§29): \\numToneAtwoVsAonebFavourableDiff
+        nums += pair_macros(r["task"], r["comparison"], "Favourable", r)
+    nums += snapshot_macros(read(os.path.join("scorer_v1", "stats_arms.csv")),
+                            read(os.path.join("scorer_v1", "stats.csv")), "Vone")
+    nums += snapshot_macros([], read(os.path.join("scorer_v1", "stats_secondary.csv")), "VoneSecondary")
     for r in read("stats_sensitivity_arms.csv"):   # isolation regime (§15): \\numToneAoneAccIsolated, ...NUser
         reg = r["regime"].title()
         nums += [f"\\newcommand{{{macro(r['task'], r['arm'], 'Acc' + reg)}}}{{{float(r['mean']):.2f}}}",
@@ -186,6 +202,20 @@ def main():
     cost_by_task(scores, runs)
     nums += infra_table()
     write("numbers.tex", nums)
+
+
+def row_order_runs(rows):
+    """Runs scored on a drug-only file by row-order matching (scores.csv note; logs/deviations.md §29)."""
+    return sum((r.get("note") or "") == score_all.ROW_ORDER for r in rows)
+
+
+def snapshot_macros(arm_rows, pair_rows, suffix):
+    """\\num<Task><Arm>Acc<suffix> and \\num<Task><X>Vs<Y><suffix>Diff/CI from a frozen stats snapshot
+    (results/scorer_v1/: the previous scorer, §29)."""
+    out = [f"\\newcommand{{{macro(r['task'], r['arm'], 'Acc' + suffix)}}}{{{float(r['mean']):.2f}}}" for r in arm_rows]
+    for r in pair_rows:
+        out += pair_macros(r["task"], r["comparison"], suffix, r)
+    return out
 
 
 def pmx_run_counts(rows):

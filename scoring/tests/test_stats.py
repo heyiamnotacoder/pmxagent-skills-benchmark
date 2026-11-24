@@ -45,6 +45,31 @@ class PostHocUnscorable(unittest.TestCase):
         self.assertEqual(stats.posthoc_unscorable(rows, [("A2", "A1")], b=200, seed=1), ([], []))
 
 
+class CharacterOrderSensitivity(unittest.TestCase):
+    """Post hoc (logs/deviations.md §29): runs scored by row order, re-scored in character order of subject number."""
+
+    def test_recomputes_only_arms_with_a_replaced_run_and_their_pairs(self):
+        rows = [{"runid": "a", "task": "T1_nca", "arm": "A1b", "overall": "16.5"},
+                {"runid": "b", "task": "T1_nca", "arm": "A1b", "overall": "98.0"},
+                {"runid": "c", "task": "T1_nca", "arm": "A3", "overall": "98.6"},
+                {"runid": "d", "task": "T1_nca", "arm": "A3", "overall": "98.6"}]
+        arms, pairs = stats.with_replacements(rows, {"a": 98.0}, [("A3", "A1b"), ("A3", "A2")], b=200, seed=1)
+        self.assertEqual([(r["task"], r["arm"], r["n"], r["n_replaced"], r["mean"]) for r in arms],
+                         [("T1_nca", "A1b", 2, 1, 98.0)])
+        self.assertEqual([r["comparison"] for r in pairs], ["A3 - A1b"])
+        self.assertAlmostEqual(pairs[0]["diff"], 0.6)
+
+    def test_upper_bound_keeps_only_higher_character_order_scores(self):
+        rows = [{"runid": "a", "overall": "16.5", "overall_charorder": "98.3"},
+                {"runid": "b", "overall": "98.3", "overall_charorder": "15.7"},
+                {"runid": "c", "overall": "98.6", "overall_charorder": ""}]
+        self.assertEqual(stats.favourable_order_scores(rows), {"a": 98.3})
+
+    def test_no_replacement_gives_nothing(self):
+        rows = [{"runid": "a", "task": "T1_nca", "arm": "A1", "overall": "98"}]
+        self.assertEqual(stats.with_replacements(rows, {}, [("A2", "A1")], b=200, seed=1), ([], []))
+
+
 class TerminalPoints(unittest.TestCase):
     """Per-arm pooling of score_nca.terminal_point_breakdown (descriptive; logs/deviations.md §26)."""
 
@@ -75,6 +100,22 @@ class WriteCsv(unittest.TestCase):
                 self.assertEqual(open(os.path.join(d, "x.csv")).read().splitlines(), ["task,npts_runs", "T2_case,", "T1_nca,3"])
             finally:
                 stats.RES = old
+
+
+class ValueSetHash(unittest.TestCase):
+    """Distinct value sets are counted on the scored table, as Methods 2.5 says: the seven scored parameters, no
+    R2adj or terminal-point columns, no empty cells (peer review S3; logs/deviations.md §29)."""
+
+    BASE = {("s1", "Cmax"): 10.0, ("s1", "HL"): 5.0}
+
+    def test_unscored_columns_and_empty_cells_do_not_change_the_hash(self):
+        extra = {**self.BASE, ("s1", "R2ADJ"): 0.9512, ("s1", "NPTS"): 3.0, ("s1", "Vz"): float("nan")}
+        self.assertEqual(stats.value_set_hash(self.BASE), stats.value_set_hash(extra))
+
+    def test_a_scored_value_beyond_six_significant_digits_does_not_count(self):
+        self.assertEqual(stats.value_set_hash(self.BASE),
+                         stats.value_set_hash({**self.BASE, ("s1", "Cmax"): 10.0000001}))
+        self.assertNotEqual(stats.value_set_hash(self.BASE), stats.value_set_hash({**self.BASE, ("s1", "Cmax"): 10.01}))
 
 
 class SecondaryPairs(unittest.TestCase):

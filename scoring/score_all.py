@@ -28,22 +28,23 @@ BASH_READONLY_CMD = re.compile(r"^\s*(?:grep|egrep|fgrep|rg|cat|head|tail|less|s
 SUBJ_COLS = ["drug_subject", "drug", "subject", "usubjid", "id"]
 
 
-def load_any(path):
-    """Long (DRUG, PPTESTCD, PPSTRESN) via score_nca.load, else wide (one column per parameter)."""
+def read_any(path):
+    """(id, parameter, value) rows in file order: long (DRUG, PPTESTCD, PPSTRESN) via score_nca.read_rows, else wide
+    (one column per parameter). [] when the file is not a results table."""
     try:
         with open(path, newline="", encoding="utf-8-sig") as f:
             rd = csv.DictReader(f)
             cols = rd.fieldnames or []
             low = {c.strip().lower(): c for c in cols}
             if "pptestcd" in low and "ppstresn" in low and "drug" in low:
-                return sn.load(path)
-            pcols = {c: sn.ALIASES[c.strip().lower()] for c in cols if c.strip().lower() in sn.ALIASES}
+                return sn.read_rows(path)
+            pcols = {c: sn.canonical(c) for c in cols if sn.canonical(c)}
             if not pcols:
-                return {}
+                return []
             rows = list(rd)
     except (UnicodeDecodeError, csv.Error, KeyError):
-        return {}
-    out = {}
+        return []
+    out = []
     for r in rows:
         if "drug" in low and ("usubjid" in low or "subject" in low or "id" in low):
             sc = low.get("usubjid") or low.get("subject") or low.get("id")
@@ -53,30 +54,48 @@ def load_any(path):
         else:
             k = next((low[c] for c in SUBJ_COLS if c in low), None)
             if k is None:
-                return {}
+                return []
             subj = r[k].strip()
         for c, p in pcols.items():
             try:
-                out[(subj, p)] = float(r[c])
+                out.append((subj, p, float(r[c])))
             except (TypeError, ValueError):
-                out[(subj, p)] = math.nan
+                out.append((subj, p, math.nan))
     return out
 
 
-def pick_individual(run_dir, ref):
-    best, best_cov = None, 0
-    cands = glob.glob(os.path.join(run_dir, "output", "**", "*.csv"), recursive=True)
-    cands += glob.glob(os.path.join(run_dir, "pmxagent_data", "**", "*.csv"), recursive=True)
+def load_any(path, order=None):
+    """{(subject, parameter): value} from a results file; `order` (score_nca.subject_order of the reference) turns on
+    row-order matching of drug-only rows (logs/deviations.md §29)."""
+    return sn.to_table(read_any(path), order)[0]
+
+
+def load_scored(run_dir, scored_file, ref):
+    """The table a run was scored on, loaded exactly as scoring loads it; None without the file."""
+    p = os.path.join(run_dir, scored_file or "")
+    return load_any(p, sn.subject_order(ref)) if scored_file and os.path.exists(p) else None
+
+
+def pick_individual(run_dir, ref, order=None):
+    """(file, coverage, matched_by_row_order) for the CSV that covers most reference (subject, parameter) keys, never
+    chosen by accuracy. Coverage counts rows matched by row order (§29; `order` defaults to the reference's); at equal
+    coverage a file whose rows carry subject IDs wins, then the first in path order."""
+    order = order or sn.subject_order(ref)
+    best, best_key, best_matched = None, (0, 0), 0
+    cands = sorted(glob.glob(os.path.join(run_dir, "output", "**", "*.csv"), recursive=True))
+    cands += sorted(glob.glob(os.path.join(run_dir, "pmxagent_data", "**", "*.csv"), recursive=True))
     refkeys = set(ref)
     for c in cands:
-        d = load_any(c)
-        cov = len(refkeys.intersection(d))
-        if cov > best_cov:
-            best, best_cov = c, cov
-    return best, best_cov / len(refkeys) if refkeys else 0
+        table, matched = sn.to_table(read_any(c), order)
+        key = (len(refkeys.intersection(table)), -matched)
+        if key[0] and key > best_key:
+            best, best_key, best_matched = c, key, matched
+    return best, best_key[0] / len(refkeys) if refkeys else 0, bool(best_matched)
 
 
 UNSCORABLE = "no scorable individual file"   # scores.csv `note` of a completed NCA run with nothing to score
+ROW_ORDER = "subjects matched by row order"   # scores.csv `note` of a run scored on a drug-only file (§29)
+DIGITS = 6   # run scores are stored at this precision and rounded only for display (peer review S10; §29)
 
 
 def score_nca_run(run_dir, task):
@@ -84,17 +103,28 @@ def score_nca_run(run_dir, task):
 
 
 def score_nca_dir(run_dir, ref):
-    """Score the run's best-covering individual file. With none (e.g. DRUG holds the drug name only, so no row maps to a
-    subject), score an empty table with the same metric: every parameter and `overall` are 0, since a completed run
-    counts whatever its score (paper/SPEC.md; logs/deviations.md §17)."""
-    f, cov = pick_individual(run_dir, ref)
-    r = sn.score(load_any(f) if f else {}, ref)
+    """Score the run's best-covering individual file. With none (nothing maps to a subject, even by row order), score
+    an empty table with the same metric: every parameter and `overall` are 0, since a completed run counts whatever
+    its score (paper/SPEC.md; logs/deviations.md §17). A run scored by row order (§29) also gets
+    `overall_charorder`: the same file matched in character order of subject number (1, 10, 2, ...), for the post hoc
+    upper bound in stats.py only."""
+    row, by_order = _score_nca(run_dir, ref, sn.subject_order(ref))
+    if by_order:
+        row["note"] = ROW_ORDER
+        row["overall_charorder"] = _score_nca(run_dir, ref, sn.subject_order(ref, character=True))[0]["overall"]
+    return row
+
+
+def _score_nca(run_dir, ref, order):
+    """(scores.csv fields, scored by row order?) for one run with drug-only rows matched in `order`."""
+    f, cov, by_order = pick_individual(run_dir, ref, order)
+    r = sn.score(load_any(f, order) if f else {}, ref)
     row = {"scored_file": os.path.relpath(f, run_dir) if f else "", "coverage_pct": round(100 * cov, 2),
-           "overall": round(r["overall"], 2), "npts_match_pct": round(r["terminal_points_match_pct"], 2)}
-    row.update({f"{p}_pct": round(r[p]["correct_pct"], 2) for p in sn.PARAMS})
+           "overall": round(r["overall"], DIGITS), "npts_match_pct": round(r["terminal_points_match_pct"], DIGITS)}
+    row.update({f"{p}_pct": round(r[p]["correct_pct"], DIGITS) for p in sn.PARAMS})
     if not f:
         row["note"] = UNSCORABLE
-    return row
+    return row, by_order
 
 
 def pmxagent_call_counts(run_dir):
@@ -331,7 +361,7 @@ def score_oral_run(run_dir):
             re_ = math.inf
         out[k + "_re_pct"] = round(100 * re_, 3) if re_ != math.inf else None
         ok += re_ < 0.01
-    out["overall"] = round(100 * ok / 3, 2)
+    out["overall"] = round(100 * ok / 3, DIGITS)
     return out
 
 
