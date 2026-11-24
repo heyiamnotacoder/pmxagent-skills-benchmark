@@ -61,5 +61,15 @@ class ManuscriptMacros(unittest.TestCase):
         self.assertEqual(tables.t2_inputs(rows), {"seeds": 2, "seed42": 2, "tp": "14--18"})
 
 
+class NumbersFile(unittest.TestCase):
+    def test_no_macro_is_defined_twice(self):
+        import re
+        p = os.path.join(ROOT, "paper", "tables", "numbers.tex")
+        if not os.path.exists(p):
+            self.skipTest("numbers.tex not built")
+        names = re.findall(r"\\newcommand\{(\\num\w+)\}", open(p).read())
+        self.assertEqual(len(names), len(set(names)), [n for n in set(names) if names.count(n) > 1])
+
+
 if __name__ == "__main__":
     unittest.main()

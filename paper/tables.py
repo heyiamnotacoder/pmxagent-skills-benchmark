@@ -209,7 +209,8 @@ def main():
                  f"\\newcommand{{{k('BlqErrIn')}}}{{{int(r['err_blq']):,}}}".replace(",", "{,}"),
                  f"\\newcommand{{{k('BlqRunsAll')}}}{{{r['runs_all_blq']}}}",
                  f"\\newcommand{{{k('BlqRunsErr')}}}{{{r['runs_err']}}}"]
-        nums.append(f"\\newcommand{{{macro(r['task'], '', 'BlqSubjects')}}}{{{r['blq_subjects']}}}")
+    for task, n in sorted({(r["task"], r["blq_subjects"]) for r in read("stats_blq.csv")}):
+        nums.append(f"\\newcommand{{{macro(task, '', 'BlqSubjects')}}}{{{n}}}")
     t2_inputs_table(scores["T2_case"])
     nums += nca_tool_use_macros(scores)
     nums += t2_case(scores["T2_case"])

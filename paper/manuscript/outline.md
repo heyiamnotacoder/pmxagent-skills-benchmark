@@ -1,3 +1,5 @@
+> Superseded in part (2026-11-24): the scorer was revised after the pre-submission review (`logs/deviations.md` §29); no T1 run is unscorable and A2−A1 is equivalent. `paper/main.tex` is the current text.
+
 # Outline (rewrite of `main.tex`)
 
 Word budget for the main text, ~4,500 (now 4,927): Intro 300 · Methods 1,450 · Results 1,300 · Discussion 850 · Limitations 450 · Conclusions 90. Abstract 573 → ≤ 350. Evidence: `facts.md` macros (`\num…`) or citations. No claim, number or limitation is dropped; material moves or merges.
