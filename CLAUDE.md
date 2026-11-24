@@ -36,7 +36,7 @@ Goal: test how much of PMxAgent's architecture (Docker + R Plumber + FastMCP) is
 - Score a run: `python3 scoring/score_nca.py <individual.csv>` · score all: `python3 scoring/score_all.py [--arm A3] [--task T1_nca]`
 - Summarize + audit: `python3 scoring/summarize.py` · `python3 scoring/audit_isolation.py` · README results block: `python3 scoring/readme_results.py` (after `summarize.py` and `stats.py`)
 - Build arm repos: `python3 harness/run_arm.py setup <arm>` · probe isolation: `python3 harness/run_arm.py preflight <arm> claude-sonnet-4-6`
-- Paper pipeline: `python3 scoring/stats.py && python3 scoring/figures.py && (cd paper/figures && latexmk -pdf fig_arch.tex) && python3 paper/tables.py && (cd paper && latexmk -pdf main.tex)`
+- Paper pipeline: `python3 scoring/stats.py && python3 scoring/figures.py && (cd paper/figures && latexmk -pdf fig_arch.tex) && python3 paper/tables.py && (cd paper && latexmk -pdf main.tex)` · bioRxiv PDF (same pipeline + readiness gate `paper/check_biorxiv.py`): `bash paper/make_biorxiv.sh`
 - Run an arm: `bash harness/run_arm.sh <A0|A1|A1b|A2|A3|A4> <task> <reps> claude-sonnet-4-6` (A1/A1b need `bash harness/pmxagent.sh up`)
 - Evidence bundle: `python3 harness/make_evidence.py`
 
