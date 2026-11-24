@@ -118,6 +118,24 @@ class ValueSetHash(unittest.TestCase):
         self.assertNotEqual(stats.value_set_hash(self.BASE), stats.value_set_hash({**self.BASE, ("s1", "Cmax"): 10.01}))
 
 
+class BlqSplit(unittest.TestCase):
+    """Post hoc, descriptive (logs/deviations.md §30): T1 subjects with a BLQ record after Tmax, and how many AUClast
+    values outside 1% fall in them (peer review C4/M3: the Skills carry the reference's BLQ rule)."""
+
+    def test_subjects_with_blq_after_tmax(self):
+        rows = [{"DRUG": "d", "USUBJID": "1", "EVID": "0", "ATPTN": t, "AVAL": a, "BLQ": b}
+                for t, a, b in (("1", "5", "0"), ("2", "9", "0"), ("4", ".", "1"))]          # BLQ after Tmax
+        rows += [{"DRUG": "d", "USUBJID": "2", "EVID": "0", "ATPTN": t, "AVAL": a, "BLQ": b}
+                 for t, a, b in (("0.5", ".", "1"), ("2", "9", "0"), ("4", "3", "0"))]       # BLQ before Tmax only
+        rows += [{"DRUG": "d", "USUBJID": "3", "EVID": "1", "ATPTN": "0", "AVAL": ".", "BLQ": "."}]
+        self.assertEqual(stats.post_tmax_blq_subjects(rows), {"d_1"})
+
+    def test_auclast_errors_split_by_blq(self):
+        ref = {("d_1", "AUClast"): 10.0, ("d_2", "AUClast"): 10.0, ("d_3", "AUClast"): 10.0}
+        run = {("d_1", "AUClast"): 12.0, ("d_2", "AUClast"): 10.0, ("d_3", "AUClast"): 15.0}
+        self.assertEqual(stats.auclast_error_split(run, ref, {"d_1"}), (2, 1))
+
+
 class SecondaryPairs(unittest.TestCase):
     def test_a1b_secondary_pairs_are_defined(self):
         self.assertIn(("A1b", "A1"), stats.SECONDARY_PAIRS)

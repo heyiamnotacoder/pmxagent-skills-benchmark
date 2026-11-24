@@ -1,0 +1,7 @@
+task,arm,blq_subjects,runs,runs_err,runs_all_blq,err,err_blq
+T1_nca,A0,220,10,10,7,1056,1002
+T1_nca,A1,220,10,10,0,210,71
+T1_nca,A1b,220,10,10,0,4816,602
+T1_nca,A2,220,10,4,0,16,12
+T1_nca,A3,220,10,0,0,0,0
+T1_nca,A4,220,10,0,0,0,0

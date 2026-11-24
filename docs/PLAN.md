@@ -69,7 +69,7 @@ A skill that bundles a validated script should match PMxAgent on accuracy and re
 - [x] Isolation blocker: T1 accepted the user-CLAUDE.md leak (equal in all arms except A1 runs 4–10; `logs/deviations.md`). T2/T3 and A1b remove it: workspaces outside `~`, per-rep empty `HOME` + `CLAUDE_CONFIG_DIR`, env scrub + explicit `--allowedTools`, subscription token pool (§11, §16, §19).
 - [x] **T1 complete (2026-09-28):** A0–A4, `results/T1_report.md`; evidence on Zenodo (doi:10.5281/zenodo.23019418). Scope decision: arms only, T1 first.
 - [x] Preprint branch merged into the T2 work (2026-11-17): `paper/SPEC.md`, stats/figures/tables pipeline, per-task Claude Code pin (`logs/deviations.md` §15)
-- [x] A1 T1 top-up to 10 runs (T1 pin 2.1.283, isolated; sensitivity by isolation regime). The A1 agent called no PMxAgent tool in any T1 run; 2 runs unscorable (`logs/deviations.md` §17)
+- [x] A1 T1 top-up to 10 runs (T1 pin 2.1.283, isolated; sensitivity by isolation regime). The A1 agent called no PMxAgent tool in any T1 run; 2 runs unscorable (`logs/deviations.md` §17) Re-scored after the pre-submission review: drug-only rows matched by row order, so no run is unscorable (`logs/deviations.md` §29).
 - [x] S2 BLQ check passed; T3b runs as built (§18)
 - [x] Token pool: reps may run on several subscription accounts, `~/.config/pmxbench/tokens/acct<N>` (`harness/tokens.py`, §19)
 - [x] **T2 complete (2026-11-23):** case study, 10 valid runs per arm (A0–A4, A1 post-§20), scored by `score_case_run` (primary = pre-specified lin-up/log-down consistency) → `results/summary.*`, `results/stats.*`. `A1_T2_case_r18` kept after the isolation audit (§23); EC50 spread reported as counts (§24)

@@ -311,6 +311,26 @@ class CharacterOrderSensitivity(unittest.TestCase):
             self.assertNotIn("overall_charorder", score_all.score_nca_dir(run_with(d, {"x.csv": rows}), two_subject_ref()))
 
 
+class DrugOnlyFlag(unittest.TestCase):
+    """scores.csv `drug_only_file`: the run left at least one drug-only results file, scored or not (peer review M1:
+    A3 deliverables had the defect too, but the script's file with IDs was scored; logs/deviations.md §30)."""
+
+    def test_flag_is_set_even_when_a_file_with_ids_is_scored(self):
+        explicit = [{"DRUG": s, "PPTESTCD": CODE[p], "PPSTRESN": v}
+                    for s, v in (("abatacept_1", 10.0), ("abatacept_2", 20.0)) for p in score_all.sn.PARAMS]
+        drug_only = [{"DRUG": "abatacept", "PPTESTCD": CODE[p], "PPSTRESN": v}
+                     for p in score_all.sn.PARAMS for v in (10.0, 20.0)]
+        with tempfile.TemporaryDirectory() as d:
+            r = score_all.score_nca_dir(run_with(d, {"deliverable.csv": drug_only, "script.csv": explicit}),
+                                        two_subject_ref())
+        self.assertEqual((r["scored_file"], r["drug_only_file"]), ("output/script.csv", True))
+
+    def test_flag_is_false_with_ids_only(self):
+        rows = [{"DRUG": "abatacept_1", "PPTESTCD": CODE[p], "PPSTRESN": 10.0} for p in score_all.sn.PARAMS]
+        with tempfile.TemporaryDirectory() as d:
+            self.assertFalse(score_all.score_nca_dir(run_with(d, {"x.csv": rows}), two_subject_ref())["drug_only_file"])
+
+
 class StoredPrecision(unittest.TestCase):
     """Run scores are stored unrounded (6 decimals) and rounded only for display, so means are not biased by
     rounding each run first (peer review S10)."""

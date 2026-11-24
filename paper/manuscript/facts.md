@@ -7,21 +7,21 @@ Every result number in `main.tex` is a macro from `paper/tables/numbers.tex` (ge
 | Macro | Value | Source |
 |---|---|---|
 | `\numToneAzeroAcc` | 93.21 | results/scores.csv → stats_arms.csv |
-| `\numToneAoneAcc` | 78.58 | results/scores.csv → stats_arms.csv |
+| `\numToneAoneAcc` | 98.24 | results/scores.csv → stats_arms.csv |
 | `\numToneAoneN` | 10 | results/scores.csv → stats_arms.csv |
 | `\numToneAtwoAcc` | 98.65 | results/scores.csv → stats_arms.csv |
 | `\numToneAthreeAcc` | 98.64 | results/scores.csv → stats_arms.csv |
 | `\numToneAonePmxRuns` | 0 | results/scores.csv (pmxagent_tool_calls) |
 | `\numToneAonePmxKnown` | 10 | results/scores.csv (pmxagent_tool_calls) |
-| `\numToneAoneUnscorable` | 2 | results/scores.csv → stats_arms.csv |
-| `\numToneAtwoVsAoneDiff` | +20.08 | results/stats.csv |
-| `\numToneAtwoVsAoneCI` | +0.40 to +49.52 | results/stats.csv |
-| `\numToneAoneAccPostHoc` | 98.22 | results/stats_posthoc*.csv (post hoc, §17) |
-| `\numToneAtwoVsAonePostHocDiff` | +0.43 | results/stats_posthoc*.csv (post hoc, §17) |
-| `\numToneAtwoVsAonePostHocCI` | +0.35 to +0.52 | results/stats_posthoc*.csv (post hoc, §17) |
-| `\numToneAonebAcc` | 59.27 | results/scores.csv → stats_arms.csv |
-| `\numToneAonebVsAoneSecondaryDiff` | $-$19.31 | results/stats_secondary.csv (post hoc, §21) |
-| `\numToneAonebVsAoneSecondaryCI` | $-$53.32 to +15.82 | results/stats_secondary.csv (post hoc, §21) |
+| `\numToneAoneUnscorable` | (removed, deviations §29) | results/scores.csv → stats_arms.csv |
+| `\numToneAtwoVsAoneDiff` | +0.41 | results/stats.csv |
+| `\numToneAtwoVsAoneCI` | +0.35 to +0.50 | results/stats.csv |
+| `\numToneAoneAccPostHoc` | (removed, deviations §29) | results/stats_posthoc*.csv (post hoc, §17) |
+| `\numToneAtwoVsAonePostHocDiff` | (removed, deviations §29) | results/stats_posthoc*.csv (post hoc, §17) |
+| `\numToneAtwoVsAonePostHocCI` | (removed, deviations §29) | results/stats_posthoc*.csv (post hoc, §17) |
+| `\numToneAonebAcc` | 79.95 | results/scores.csv → stats_arms.csv |
+| `\numToneAonebVsAoneSecondaryDiff` | $-$18.28 | results/stats_secondary.csv (post hoc, §21) |
+| `\numToneAonebVsAoneSecondaryCI` | $-$41.62 to $-$1.16 | results/stats_secondary.csv (post hoc, §21) |
 | `\numToneAoneCost` | 0.73 | results/runs.csv (valid runs) |
 | `\numToneAthreeCost` | 0.20 | results/runs.csv (valid runs) |
 | `\numToneAfourCost` | 0.09 | results/runs.csv (valid runs) |
@@ -34,15 +34,15 @@ Every result number in `main.tex` is a macro from `paper/tables/numbers.tex` (ge
 | `\numTtwoParserFixed` | 3 | results/t2_parser_check.csv |
 | `\numTtwoParserAgree` | 11 | results/t2_parser_check.csv |
 | `\numToneAzeroAccSD` | 1.13 | results/scores.csv → stats_arms.csv |
-| `\numToneAoneAccSD` | 41.41 | results/scores.csv → stats_arms.csv |
+| `\numToneAoneAccSD` | 0.12 | results/scores.csv → stats_arms.csv |
 | `\numToneAoneNIsolated` | 7 | results/stats_sensitivity*.csv (§15) |
-| `\numToneAoneAccIsolated` | 70.17 | results/stats_sensitivity*.csv (§15) |
-| `\numToneAoneAccUser` | 98.18 | results/stats_sensitivity*.csv (§15) |
+| `\numToneAoneAccIsolated` | 98.26 | results/stats_sensitivity*.csv (§15) |
+| `\numToneAoneAccUser` | 98.19 | results/stats_sensitivity*.csv (§15) |
 | `\numToneAoneNUser` | 3 | results/stats_sensitivity*.csv (§15) |
 | `\numToneAtwoVsAoneUserDiff` | +0.47 | results/stats_sensitivity*.csv (§15) |
 | `\numToneAtwoVsAoneUserCI` | +0.34 to +0.67 | results/stats_sensitivity*.csv (§15) |
 | `\numToneAthreeVsAtwoDiff` | $-$0.01 | results/stats.csv |
-| `\numToneAthreeVsAtwoCI` | $-$0.05 to +0.02 | results/stats.csv |
+| `\numToneAthreeVsAtwoCI` | $-$0.05 to +0.03 | results/stats.csv |
 | `\numToneAfourVsAthreeDiff` | +0.00 | results/stats.csv |
 | `\numToneAthreeN` | 10 | results/scores.csv → stats_arms.csv |
 | `\numToneAthreeNptsMatch` | 95.3 | results/stats_arms.csv |
@@ -57,26 +57,26 @@ Every result number in `main.tex` is a macro from `paper/tables/numbers.tex` (ge
 | `\numToneAtwoLzErrDiffer` | 1{,}224 | results/stats_arms.csv |
 | `\numToneAtwoLzErrNone` | 0 | results/stats_arms.csv |
 | `\numToneAtwoLzErrMatch` | 24 | results/stats_arms.csv |
-| `\numToneAoneLzErrDiffer` | 938 | results/stats_arms.csv |
-| `\numToneAoneLzErrNone` | 56 | results/stats_arms.csv |
-| `\numToneAoneLzErrMatch` | 189 | results/stats_arms.csv |
+| `\numToneAoneLzErrDiffer` | 1{,}206 | results/stats_arms.csv |
+| `\numToneAoneLzErrNone` | 72 | results/stats_arms.csv |
+| `\numToneAoneLzErrMatch` | 231 | results/stats_arms.csv |
 | `\numToneAzeroLzErrDiffer` | 3{,}960 | results/stats_arms.csv |
 | `\numToneAzeroLzErrNone` | 0 | results/stats_arms.csv |
 | `\numToneAzeroLzErrMatch` | 984 | results/stats_arms.csv |
-| `\numToneAonebLzErr` | 9{,}440 | results/stats_arms.csv |
-| `\numToneAonebLzErrMatch` | 8{,}610 | results/stats_arms.csv |
-| `\numToneAonebAccSD` | 43.96 | results/scores.csv → stats_arms.csv |
+| `\numToneAonebLzErr` | 6{,}265 | results/stats_arms.csv |
+| `\numToneAonebLzErrMatch` | 1{,}241 | results/stats_arms.csv |
+| `\numToneAonebAccSD` | 33.67 | results/scores.csv → stats_arms.csv |
 | `\numToneAonebN` | 10 | results/scores.csv → stats_arms.csv |
 | `\numToneAonebPmxRuns` | 5 | results/scores.csv (pmxagent_tool_calls) |
 | `\numToneAonebPmxKnown` | 10 | results/scores.csv (pmxagent_tool_calls) |
-| `\numToneAonebUnscorable` | 3 | results/scores.csv → stats_arms.csv |
-| `\numToneAonebAccPostHoc` | 84.67 | results/stats_posthoc*.csv (post hoc, §17) |
-| `\numToneAtwoVsAonebSecondaryDiff` | +39.38 | results/stats_secondary.csv (post hoc, §21) |
-| `\numToneAtwoVsAonebSecondaryCI` | +14.43 to +65.79 | results/stats_secondary.csv (post hoc, §21) |
-| `\numToneAthreeVsAonebSecondaryDiff` | +39.37 | results/stats_secondary.csv (post hoc, §21) |
-| `\numToneAthreeVsAonebSecondaryCI` | +14.44 to +66.25 | results/stats_secondary.csv (post hoc, §21) |
-| `\numToneAfourVsAonebSecondaryDiff` | +39.37 | results/stats_secondary.csv (post hoc, §21) |
-| `\numToneAfourVsAonebSecondaryCI` | +14.42 to +64.67 | results/stats_secondary.csv (post hoc, §21) |
+| `\numToneAonebUnscorable` | (removed, deviations §29) | results/scores.csv → stats_arms.csv |
+| `\numToneAonebAccPostHoc` | (removed, deviations §29) | results/stats_posthoc*.csv (post hoc, §17) |
+| `\numToneAtwoVsAonebSecondaryDiff` | +18.70 | results/stats_secondary.csv (post hoc, §21) |
+| `\numToneAtwoVsAonebSecondaryCI` | +1.55 to +42.06 | results/stats_secondary.csv (post hoc, §21) |
+| `\numToneAthreeVsAonebSecondaryDiff` | +18.69 | results/stats_secondary.csv (post hoc, §21) |
+| `\numToneAthreeVsAonebSecondaryCI` | +1.53 to +42.06 | results/stats_secondary.csv (post hoc, §21) |
+| `\numToneAfourVsAonebSecondaryDiff` | +18.69 | results/stats_secondary.csv (post hoc, §21) |
+| `\numToneAfourVsAonebSecondaryCI` | +1.53 to +41.28 | results/stats_secondary.csv (post hoc, §21) |
 | `\numToneAthreeAccSD` | 0.00 | results/scores.csv → stats_arms.csv |
 | `\numToneAfourAccSD` | 0.00 | results/scores.csv → stats_arms.csv |
 | `\numToneAfourN` | 10 | results/scores.csv → stats_arms.csv |
@@ -84,10 +84,10 @@ Every result number in `main.tex` is a macro from `paper/tables/numbers.tex` (ge
 | `\numToneAfourDistinct` | 1 | results/stats_arms.csv / summary.csv |
 | `\numToneAthreeDistinctFiles` | 5 | results/stats_arms.csv / summary.csv |
 | `\numToneAfourDistinctFiles` | 4 | results/stats_arms.csv / summary.csv |
-| `\numToneAzeroDistinct` | 7 | results/stats_arms.csv / summary.csv |
+| `\numToneAzeroDistinct` | 4 | results/stats_arms.csv / summary.csv |
 | `\numToneAtwoAccSD` | 0.06 | results/scores.csv → stats_arms.csv |
-| `\numToneAtwoDistinct` | 9 | results/stats_arms.csv / summary.csv |
-| `\numToneAoneDistinct` | 6 | results/stats_arms.csv / summary.csv |
+| `\numToneAtwoDistinct` | 3 | results/stats_arms.csv / summary.csv |
+| `\numToneAoneDistinct` | 3 | results/stats_arms.csv / summary.csv |
 | `\numToneAonebCost` | 1.01 | results/runs.csv (valid runs) |
 | `\numTtwoAonePmxRuns` | 10 | results/scores.csv (pmxagent_tool_calls) |
 | `\numTtwoAonePmxKnown` | 10 | results/scores.csv (pmxagent_tool_calls) |
@@ -116,14 +116,14 @@ Every result number in `main.tex` is a macro from `paper/tables/numbers.tex` (ge
 | `\numTtwoAzeroEcConv` | 10 | results/scores.csv (T2 rows) via tables.t2_case |
 | `\numTtwoAfourEcPmx` | 0 | results/scores.csv (T2 rows) via tables.t2_case |
 | `\numTtwoAfourEcConv` | 9 | results/scores.csv (T2 rows) via tables.t2_case |
-| `\numTthreebAthreeVsAoneDiff` | +4.55 | results/stats.csv |
-| `\numTthreebAthreeVsAoneCI` | +1.21 to +10.83 | results/stats.csv |
+| `\numTthreebAthreeVsAoneDiff` | +1.35 | results/stats.csv |
+| `\numTthreebAthreeVsAoneCI` | +1.09 to +1.63 | results/stats.csv |
 | `\numTthreeaAonePmxRuns` | 1 | results/scores.csv (pmxagent_tool_calls) |
 | `\numTthreeaAonePmxKnown` | 5 | results/scores.csv (pmxagent_tool_calls) |
 | `\numTthreeaAfourVsAthreeDiff` | $-$6.22 | results/stats.csv |
 | `\numTthreeaAfourVsAthreeCI` | $-$12.50 to +0.00 | results/stats.csv |
 | `\numTthreecAfourVsAthreeDiff` | $-$13.17 | results/stats.csv |
-| `\numTthreedAfourAcc` | 73.34 | results/scores.csv → stats_arms.csv |
+| `\numTthreedAfourAcc` | 73.33 | results/scores.csv → stats_arms.csv |
 | `\numTthreedAonePmxRuns` | 0 | results/scores.csv (pmxagent_tool_calls) |
 | `\numTthreedAonePmxKnown` | 5 | results/scores.csv (pmxagent_tool_calls) |
 | `\numInfraPmxagentService` | 3 | results/infra.csv (harness/count_infra.py) |

@@ -111,6 +111,10 @@ def main():
             if files.get((task, a)):
                 vals["DistinctFiles"] = files[(task, a)]
             vals.update(terminal_point_macros(arm_stats.get((task, a), {})))
+            if task in NCA and any(str(r.get("drug_only_file")) == "True" for r in rs):
+                vals["DrugOnly"] = str(sum(str(r.get("drug_only_file")) == "True" for r in rs))
+            if a in ("A1", "A1b"):
+                vals.update(tool_use_split(rs))
             if row_order_runs(rs):
                 vals["RowOrder"] = str(row_order_runs(rs))
             fav = fav_arms.get((task, a))   # post hoc upper bound, character order (stats.py, §29)
@@ -194,6 +198,20 @@ def main():
                  f"\\newcommand{{{macro(r['task'], r['arm'], 'N' + reg)}}}{{{r['n']}}}"]
     for r in read("stats_sensitivity.csv"):   # \\numToneAtwoVsAoneIsolatedDiff
         nums += pair_macros(r["task"], r["comparison"], r["regime"].title(), r)
+    for task, by_arm in sorted(scores.items()):   # run dates (§30): \\numToneFirstDate, \\numToneLastDate
+        first, last = run_dates([r["runid"] for rs in by_arm.values() for r in rs])
+        t = macro(task, "", "")
+        nums += [f"\\newcommand{{{t}FirstDate}}{{{first}}}", f"\\newcommand{{{t}LastDate}}{{{last}}}"]
+    nums.append(f"\\newcommand{{\\numComparisons}}{{{len(stats) + len(sec_stats)}}}")
+    for r in read("stats_blq.csv"):   # BLQ split (§30): \\numToneAzeroBlqErr, ...BlqErrIn, ...BlqRunsAll, ...BlqRunsErr
+        k = lambda w: macro(r["task"], r["arm"], w)
+        nums += [f"\\newcommand{{{k('BlqErr')}}}{{{int(r['err']):,}}}".replace(",", "{,}"),
+                 f"\\newcommand{{{k('BlqErrIn')}}}{{{int(r['err_blq']):,}}}".replace(",", "{,}"),
+                 f"\\newcommand{{{k('BlqRunsAll')}}}{{{r['runs_all_blq']}}}",
+                 f"\\newcommand{{{k('BlqRunsErr')}}}{{{r['runs_err']}}}"]
+    for task, n in sorted({(r["task"], r["blq_subjects"]) for r in read("stats_blq.csv")}):
+        nums.append(f"\\newcommand{{{macro(task, '', 'BlqSubjects')}}}{{{n}}}")
+    t2_inputs_table(scores["T2_case"])
     nums += nca_tool_use_macros(scores)
     nums += t2_case(scores["T2_case"])
     nums += t2_parser_macros()
@@ -202,6 +220,48 @@ def main():
     cost_by_task(scores, runs)
     nums += infra_table()
     write("numbers.tex", nums)
+
+
+MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+          "November", "December"]
+
+
+def tool_use_split(rows):
+    """Mean overall accuracy of runs with and without a PMxAgent tool call (runs without a count are left out; §30)."""
+    scored = [r for r in rows if f(r.get("overall")) is not None and f(r.get("pmxagent_tool_calls")) is not None]
+    used = [f(r["overall"]) for r in scored if f(r["pmxagent_tool_calls"]) > 0]
+    not_used = [f(r["overall"]) for r in scored if f(r["pmxagent_tool_calls"]) == 0]
+    out = {}
+    if used:
+        out["AccPmxUsed"] = f"{st.mean(used):.2f}"
+    if not_used:
+        out["AccPmxNotUsed"] = f"{st.mean(not_used):.2f}"
+    return out
+
+
+def run_dates(runids):
+    """(first, last) run date as '28 September 2026', from the YYYYMMDD stamp in run IDs."""
+    days = sorted(rid.rsplit("_", 1)[1][:8] for rid in runids)
+    fmt_ = lambda d: f"{int(d[6:8])} {MONTHS[int(d[4:6]) - 1]} {d[:4]}"
+    return fmt_(days[0]), fmt_(days[-1])
+
+
+def t2_inputs(rows):
+    """T2 inputs chosen by the runs of one arm: distinct seeds, runs with seed 42, range of sampling-time counts."""
+    seeds = [r["seed"] for r in rows if r.get("seed") not in (None, "")]
+    tp = sorted(int(f(r["n_timepoints"])) for r in rows if f(r.get("n_timepoints")) is not None)
+    return {"seeds": len(set(seeds)), "seed42": sum(s == "42" for s in seeds),
+            "tp": (f"{tp[0]}--{tp[-1]}" if tp[0] != tp[-1] else str(tp[0])) if tp else "--"}
+
+
+def t2_inputs_table(by_arm):
+    """tab_t2_inputs.tex: seeds and sampling-time counts the T2 runs chose (pre-specified spread; §30)."""
+    L = ["\\begin{tabular}{l r r r}", "\\toprule", "Arm & Runs & Distinct seeds (seed 42) & Sampling times \\\\",
+         "\\midrule"]
+    for a in [a for a in ARMS if by_arm.get(a)]:
+        t = t2_inputs(by_arm[a])
+        L.append(f"{a} & {len(by_arm[a])} & {t['seeds']} ({t['seed42']}) & {t['tp']} \\\\")
+    write("tab_t2_inputs.tex", L + ["\\bottomrule", "\\end{tabular}"])
 
 
 def row_order_runs(rows):
