@@ -38,7 +38,7 @@ class ScorerV1Snapshot(unittest.TestCase):
 
 class RowOrderRuns(unittest.TestCase):
     def test_counts_runs_scored_by_row_order(self):
-        rows = [{"note": "subjects matched by row order"}, {"note": ""}, {"note": "subjects matched by row order"}, {}]
+        rows = [{"note": tables.score_all.ROW_ORDER}, {"note": ""}, {"note": tables.score_all.ROW_ORDER}, {}]
         self.assertEqual(tables.row_order_runs(rows), 2)
 
 

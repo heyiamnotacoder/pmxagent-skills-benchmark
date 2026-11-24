@@ -132,6 +132,24 @@ def sensitivity(by, pairs, b, seed):
     return arms, out
 
 
+def subset_stats(acc, affected, pairs, b, seed, tag, count_key, all_arms):
+    """Arm stats and pair comparisons for the tasks where `affected[task][arm]` (a count) is non-zero. acc[task][arm]
+    = accuracies to use. Arms: every arm of such a task (`all_arms`) or only the affected ones; pairs: those involving
+    an affected arm. Shared by the post hoc analyses below; `tag` keeps each one's bootstrap stream apart."""
+    arms, out = [], []
+    for task in sorted(t for t in affected if any(affected[t].values())):
+        names = set(acc[task]) | set(affected[task]) if all_arms else {a for a, k in affected[task].items() if k}
+        for arm in sorted(names):
+            x = acc[task][arm]
+            arms.append({"task": task, "arm": arm, "n": len(x), count_key: affected[task][arm],
+                         "mean": mean(x) if x else None, "sd": st.stdev(x) if len(x) > 1 else 0.0})
+        for xa, ya in pairs:
+            if (affected[task][xa] or affected[task][ya]) and acc[task][xa] and acc[task][ya]:
+                rng = random.Random(f"{seed}-{task}-{xa}-{ya}-{tag}")
+                out.append({"task": task, "comparison": f"{xa} - {ya}", **compare(acc[task][xa], acc[task][ya], b, rng)})
+    return arms, out
+
+
 def posthoc_unscorable(rows, pairs, b, seed):
     """rows: scores.csv dicts. Returns (arm stats, pair comparisons) without runs noted UNSCORABLE, only for tasks
     where at least one such run exists, and only pairs involving an arm that lost runs."""
@@ -145,18 +163,7 @@ def posthoc_unscorable(rows, pairs, b, seed):
             dropped[r["task"]][r["arm"]] += 1
         else:
             kept[r["task"]][r["arm"]].append(v)
-    arms, out = [], []
-    for task in sorted(t for t in dropped if any(dropped[t].values())):
-        for arm in sorted(set(kept[task]) | set(dropped[task])):
-            x = kept[task][arm]
-            arms.append({"task": task, "arm": arm, "n": len(x), "n_dropped": dropped[task][arm],
-                         "mean": mean(x) if x else None, "sd": st.stdev(x) if len(x) > 1 else 0.0})
-        for xa, ya in pairs:
-            if not (dropped[task][xa] or dropped[task][ya]) or not kept[task][xa] or not kept[task][ya]:
-                continue
-            rng = random.Random(f"{seed}-{task}-{xa}-{ya}-posthoc")
-            out.append({"task": task, "comparison": f"{xa} - {ya}", **compare(kept[task][xa], kept[task][ya], b, rng)})
-    return arms, out
+    return subset_stats(kept, dropped, pairs, b, seed, "posthoc", "n_dropped", all_arms=True)
 
 
 def with_replacements(rows, repl, pairs, b, seed):
@@ -171,32 +178,21 @@ def with_replacements(rows, repl, pairs, b, seed):
             continue
         acc[r["task"]][r["arm"]].append(v)
         hit[r["task"]][r["arm"]] += r["runid"] in repl
-    arms, out = [], []
-    for task in sorted(t for t in hit if any(hit[t].values())):
-        for arm in sorted(a for a in hit[task] if hit[task][a]):
-            x = acc[task][arm]
-            arms.append({"task": task, "arm": arm, "n": len(x), "n_replaced": hit[task][arm], "mean": mean(x),
-                         "sd": st.stdev(x) if len(x) > 1 else 0.0})
-        for xa, ya in pairs:
-            if (hit[task][xa] or hit[task][ya]) and acc[task][xa] and acc[task][ya]:
-                rng = random.Random(f"{seed}-{task}-{xa}-{ya}-charorder")
-                out.append({"task": task, "comparison": f"{xa} - {ya}", **compare(acc[task][xa], acc[task][ya], b, rng)})
-    return arms, out
+    return subset_stats(acc, hit, pairs, b, seed, "charorder", "n_replaced", all_arms=False)
 
 
 def favourable_order_scores(rows):
-    """{runid: overall} for NCA runs scored by row order (note ROW_ORDER) whose drug-only rows score higher when matched
-    in character order of subject number (1, 10, 2, ...), as some agents sorted them. Picking the higher of the two
-    orders uses the reference, so this is an upper bound, labelled post hoc, never the primary rule (§29).
-    Needs results/raw/ and the task reference; runs without them are skipped."""
+    """{runid: overall_charorder} for runs scored by row order whose drug-only rows score higher matched in character
+    order of subject number (scores.csv `overall_charorder`, written by score_all.py). Picking the higher of the two
+    orders uses the reference, so this is an upper bound, labelled post hoc, never the primary rule (§29)."""
     out = {}
     for r in rows:
-        ref = nca_ref(r["task"]) if r["task"] in score_all.NCA_TASKS else None
-        run_dir = os.path.join(RES, "raw", r["arm"], r["task"], r["runid"])
-        if (r.get("note") or "") == score_all.ROW_ORDER and ref is not None and os.path.isdir(run_dir):
-            alt = score_all.score_nca_dir(run_dir, ref, character_order=True)["overall"]
-            if alt > float(r["overall"]):
-                out[r["runid"]] = alt
+        try:
+            alt, now = float(r.get("overall_charorder") or "nan"), float(r["overall"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if alt > now:
+            out[r["runid"]] = alt
     return out
 
 

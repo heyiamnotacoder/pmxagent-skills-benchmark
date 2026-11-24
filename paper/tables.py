@@ -23,6 +23,8 @@ from collections import Counter, defaultdict
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "harness"))
 import count_infra   # noqa: E402  (owns the infra.csv schema and its summary)
+sys.path.insert(0, os.path.join(ROOT, "scoring"))
+import score_all     # noqa: E402  (owns the scores.csv notes)
 RES = os.path.join(ROOT, "results")
 OUT = os.path.join(ROOT, "paper", "tables")
 ARMS = ["A0", "A1", "A1b", "A2", "A3", "A4"]
@@ -204,7 +206,7 @@ def main():
 
 def row_order_runs(rows):
     """Runs scored on a drug-only file by row-order matching (scores.csv note; logs/deviations.md §29)."""
-    return sum((r.get("note") or "") == "subjects matched by row order" for r in rows)
+    return sum((r.get("note") or "") == score_all.ROW_ORDER for r in rows)
 
 
 def snapshot_macros(arm_rows, pair_rows, suffix):

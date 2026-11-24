@@ -19,29 +19,21 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 BENCH = os.path.join(HERE, "..", "psp470325-sup-0001-appendixs1", "benchmark")
 REF = os.path.join(BENCH, "Single Run Analysis", "nca_results_PKanalix_individual.csv")
 
-# Parameter names, matched through `canonical` (case and `. _ / -` / spaces ignored). Sources: the paper's and
-# PKanalix's names, CDISC PPTESTCD codes, PKNCA's codes (`PKNCA::get.interval.cols()`, observed not predicted), and
-# spellings logged in logs/deviations.md §5. Matching by rule rather than by adding names seen in runs: §29.
-ALIASES = {
-    "cmax": "Cmax", "tmax": "Tmax", "auclast": "AUClast",
-    "aucinf_obs": "AUCINF_obs", "aucinf": "AUCINF_obs",
-    "hl_lambda_z": "HL", "half.life": "HL", "thalf": "HL",
-    "cl_obs": "CL", "clf_obs": "CL", "cl": "CL", "clf": "CL",
-    "vz_obs": "Vz", "vzf_obs": "Vz", "vz": "Vz", "vzf": "Vz",
-    "rsq_adjusted": "R2ADJ", "adj.r.squared": "R2ADJ",
-    "no_points_lambda_z": "NPTS", "lambda.z.n.points": "NPTS",
-    # CDISC PPTESTCD codes (PMxAgent raw output, our skills' output)
-    "auclst": "AUClast", "aucifobs": "AUCINF_obs", "lamzhl": "HL",
-    "clobs": "CL", "clfobs": "CL", "vzobs": "Vz", "vzfobs": "Vz",
-    "r2adj": "R2ADJ", "lamznpt": "NPTS",
-    # other spellings seen in agent outputs (naming is not scored; values are)
-    "aucifo": "AUCINF_obs", "clo": "CL", "clfo": "CL", "vzo": "Vz", "vzfo": "Vz",
-    "cl_f_obs": "CL", "vz_f_obs": "Vz", "lamzr2a": "R2ADJ", "adj_r2": "R2ADJ", "adjr2": "R2ADJ",
-    "n_lambda_z": "NPTS", "n_terminal": "NPTS",
-    "cl/f_obs": "CL", "vz/f_obs": "Vz", "cl/f": "CL", "vz/f": "Vz", "adj_r_squared": "R2ADJ",
-    # PKNCA codes (observed values; `.pred`, `.dn`, `r.squared` and `clast.*` are deliberately absent)
-    "cmax": "Cmax", "tmax": "Tmax", "auclast": "AUClast", "aucinf.obs": "AUCINF_obs", "half.life": "HL",
-    "cl.obs": "CL", "vz.obs": "Vz", "adj.r.squared": "R2ADJ", "lambda.z.n.points": "NPTS",
+# Parameter names per scored quantity, matched through `canonical`: case, `. _ / -` and spaces are ignored, so one
+# entry covers every punctuation variant (`cl_obs` = `cl.obs` = `CLobs`). Sources: the paper's and PKanalix's names,
+# CDISC PPTESTCD codes, PKNCA's codes (`PKNCA::get.interval.cols()`, observed values only: no `.pred`, `.dn`,
+# `r.squared`, `clast.*`) and spellings logged in logs/deviations.md §5. Matched by rule, not by adding names seen
+# in runs (§29).
+NAMES = {
+    "Cmax": ["cmax"],
+    "Tmax": ["tmax"],
+    "AUClast": ["auclast", "auclst"],
+    "AUCINF_obs": ["aucinf_obs", "aucinf", "aucifobs", "aucifo"],
+    "HL": ["half_life", "hl_lambda_z", "thalf", "lamzhl"],
+    "CL": ["cl_obs", "clf_obs", "cl", "clf", "clo", "clfo"],
+    "Vz": ["vz_obs", "vzf_obs", "vz", "vzf", "vzo", "vzfo"],
+    "R2ADJ": ["adj_r_squared", "rsq_adjusted", "r2adj", "lamzr2a", "adj_r2"],
+    "NPTS": ["lambda_z_n_points", "no_points_lambda_z", "lamznpt", "n_lambda_z", "n_terminal"],
 }
 ALL_SUBJ = ["Cmax", "Tmax", "AUClast"]
 LZ_DEP = ["AUCINF_obs", "HL", "CL", "Vz"]
@@ -57,30 +49,39 @@ def _norm(name):
     return re.sub(r"[._/\-\s]", "", str(name or "").strip().lower())
 
 
-_CANON = {_norm(k): v for k, v in ALIASES.items()}
+_CANON = {_norm(n): p for p, names in NAMES.items() for n in names}
 
 
 def canonical(name):
     """The scored parameter (or R2ADJ / NPTS) a column or PPTESTCD name stands for, or None."""
-    return _CANON.get(_norm(name)) if _norm(name) else None
+    return _CANON.get(_norm(name))
+
+
+SUBJECT_COLS = ("usubjid", "subjid", "subject", "id")   # a subject column next to DRUG, first match wins
 
 
 def read_rows(path):
-    """Long-format rows (DRUG, PPTESTCD, PPSTRESN[, USUBJID]) as (id, parameter, value) in file order; id is
-    `drug_subject` when a USUBJID column is filled, else DRUG as written (a subject key, or a drug name only)."""
+    """Long-format rows (DRUG, PPTESTCD, PPSTRESN[, subject column]) as (id, parameter, value) in file order; id is
+    `drug_subject` when a subject column (SUBJECT_COLS) is filled, else DRUG as written (a subject key, or a drug name
+    only, which `to_table` may match by row order)."""
     rows = []
     with open(path, newline="", encoding="utf-8-sig") as f:
-        for row in csv.DictReader(f):
-            p = canonical(row["PPTESTCD"])
+        rd = csv.DictReader(f)
+        low = {c.strip().lower(): c for c in rd.fieldnames or []}
+        cols = {k: low[k] for k in ("drug", "pptestcd", "ppstresn") if k in low}
+        sc = next((low[c] for c in SUBJECT_COLS if c in low), None)
+        for row in rd:
+            p = canonical(row[cols["pptestcd"]])
             if p is None:
                 continue
             try:
-                v = float(row["PPSTRESN"])
+                v = float(row[cols["ppstresn"]])
             except (TypeError, ValueError):
                 v = math.nan
-            subj = row["DRUG"].strip()
-            if row.get("USUBJID"):  # long CDISC format: DRUG + USUBJID -> drug_subject
-                subj = f"{subj}_{row['USUBJID'].strip()}"
+            subj = row[cols["drug"]].strip()
+            sid = (row.get(sc) or "").strip() if sc else ""
+            if sid and not subj.endswith("_" + sid):   # DRUG + subject -> drug_subject
+                subj = f"{subj}_{sid}"
             rows.append((subj, p, v))
     return rows
 

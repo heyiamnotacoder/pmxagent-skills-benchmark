@@ -59,6 +59,12 @@ class CharacterOrderSensitivity(unittest.TestCase):
         self.assertEqual([r["comparison"] for r in pairs], ["A3 - A1b"])
         self.assertAlmostEqual(pairs[0]["diff"], 0.6)
 
+    def test_upper_bound_keeps_only_higher_character_order_scores(self):
+        rows = [{"runid": "a", "overall": "16.5", "overall_charorder": "98.3"},
+                {"runid": "b", "overall": "98.3", "overall_charorder": "15.7"},
+                {"runid": "c", "overall": "98.6", "overall_charorder": ""}]
+        self.assertEqual(stats.favourable_order_scores(rows), {"a": 98.3})
+
     def test_no_replacement_gives_nothing(self):
         rows = [{"runid": "a", "task": "T1_nca", "arm": "A1", "overall": "98"}]
         self.assertEqual(stats.with_replacements(rows, {}, [("A2", "A1")], b=200, seed=1), ([], []))

@@ -212,6 +212,18 @@ class CanonicalNames(unittest.TestCase):
             self.assertEqual(c(n), "Vz", n)
         self.assertEqual(c("No.Points.Lambda.z"), "NPTS")
 
+    def test_no_two_names_collide_after_normalising(self):
+        normed = [score_all.sn._norm(n) for names in score_all.sn.NAMES.values() for n in names]
+        self.assertEqual(len(normed), len(set(normed)))
+
+    def test_long_file_with_a_subject_column_other_than_usubjid_is_not_drug_only(self):
+        for col in ("ID", "SUBJID", "Subject"):
+            rows = [{"DRUG": "abatacept", col: s, "PPTESTCD": CODE[p], "PPSTRESN": v}
+                    for s, v in (("2", 20.0), ("1", 10.0)) for p in score_all.sn.PARAMS]   # IDs, not row order
+            with tempfile.TemporaryDirectory() as d:
+                r = score_all.score_nca_dir(run_with(d, {"x.csv": rows}), two_subject_ref())
+            self.assertEqual((r["overall"], r.get("note", "")), (100.0, ""), col)
+
     def test_predicted_and_unadjusted_values_are_not_scored(self):
         c = score_all.sn.canonical
         for n in ("aucinf.pred", "cl.pred", "vz.pred", "r.squared", "clast.obs", "cmax.dn", "", "foo"):
@@ -280,15 +292,23 @@ class CharacterOrderSensitivity(unittest.TestCase):
         self.assertEqual(score_all.sn.subject_order(ref, character=True)["abatacept"],
                          ["abatacept_1", "abatacept_10", "abatacept_2"])
 
-    def test_rescoring_a_run_in_character_order(self):
-        rows = [{"DRUG": "abatacept", "PPTESTCD": CODE[p], "PPSTRESN": v}
-                for p in score_all.sn.PARAMS for v in (20.0, 10.0)]   # the file lists subject 2 first
-        ref = two_subject_ref()
-        ref = {(k[0].replace("_1", "_x").replace("_2", "_1").replace("_x", "_2"), k[1]): v for k, v in ref.items()}
-        with tempfile.TemporaryDirectory() as d:   # reference order: abatacept_2, abatacept_1
-            run = run_with(d, {"deliverable.csv": rows})
-            self.assertEqual(score_all.score_nca_dir(run, ref)["overall"], 0.0)
-            self.assertEqual(score_all.score_nca_dir(run, ref, character_order=True)["overall"], 100.0)
+    def test_run_matched_by_row_order_also_gets_its_character_order_score(self):
+        ref = {}
+        for i in (1, 2, 10):   # reference (= input) order 1, 2, 10
+            ref.update({(f"abatacept_{i}", p): float(i) for p in score_all.sn.PARAMS})
+            ref[(f"abatacept_{i}", "R2ADJ")] = 0.99
+        rows = [{"DRUG": "abatacept", "PPTESTCD": CODE[p], "PPSTRESN": float(i)}
+                for p in score_all.sn.PARAMS for i in (1, 10, 2)]   # the file lists 1, 10, 2
+        with tempfile.TemporaryDirectory() as d:
+            r = score_all.score_nca_dir(run_with(d, {"deliverable.csv": rows}), ref)
+        self.assertAlmostEqual(r["overall"], 100 / 3, places=4)    # primary rule: only subject 1 lines up
+        self.assertEqual(r["overall_charorder"], 100.0)
+
+    def test_run_with_subject_ids_has_no_character_order_score(self):
+        rows = [{"DRUG": s, "PPTESTCD": CODE[p], "PPSTRESN": v}
+                for s, v in (("abatacept_1", 10.0), ("abatacept_2", 20.0)) for p in score_all.sn.PARAMS]
+        with tempfile.TemporaryDirectory() as d:
+            self.assertNotIn("overall_charorder", score_all.score_nca_dir(run_with(d, {"x.csv": rows}), two_subject_ref()))
 
 
 class StoredPrecision(unittest.TestCase):

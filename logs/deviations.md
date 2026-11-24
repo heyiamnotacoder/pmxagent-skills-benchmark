@@ -522,13 +522,16 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   and task: within a drug and parameter the k-th row is the drug's k-th subject in the reference file's order (checked
   equal to the input order in all five NCA tasks, including T3a's workbook); a group is matched only when its row
   count equals the drug's subject count, otherwise it is missing. At equal coverage a file with subject IDs is scored
-  rather than a matched one. Runs scored this way carry the note `subjects matched by row order`
+  rather than a matched one. A long-format file whose subject column is named `ID`, `SUBJID` or `SUBJECT` (not only
+  `USUBJID`) is read as subject-level, as wide files already were (no current run is affected). Drug names are
+  compared as written (case-sensitive). Runs scored by row order carry the note `subjects matched by row order`
   (A1 T1 `r07`, `r11`; A1b T1 `r04`, `r10`, `r11`).
 - **Character order.** A1b `r04` and `r10` listed each drug's subjects in character order of the number (1, 10, 2, …).
   Under the rule they are matched wrongly and score 16.54; matched in character order they would score 98.29. No
   accuracy-blind way exists to tell which order a file without IDs used, and choosing the order by score is not
-  allowed, so the rule stays; a post hoc **upper bound** (each matched run scored in both orders, the higher kept) is
-  reported (`results/stats_charorder*.csv`, `results/stats.md`).
+  allowed, so the rule stays. `scores.csv` also carries `overall_charorder` for every row-order run, and a post hoc
+  **upper bound** keeps the higher of the two orders per run (`results/stats_charorder*.csv`, `results/stats.md`).
+  Here it replaces exactly A1b `r04` and `r10`; A1 `r07`, `r11` and A1b `r11` score higher in input order.
 - **2. Parameter names by rule.** Names are compared after lower-casing and removing `. _ / -` and spaces, against
   CDISC PPTESTCD codes, PKNCA codes (observed values only: `aucinf.obs`, `cl.obs`, `vz.obs`, `half.life`,
   `adj.r.squared`, `lambda.z.n.points`; never `.pred`, `.dn`, `r.squared`) and the names logged in §5. The old exact
@@ -558,8 +561,14 @@ Decided with the user before any T2 score was computed and before A1 T1 runs 4�
   | T3b A2 − A1 | +4.44 (+1.07 to +10.74) | +1.24 (+0.94 to +1.55) |
   | T1 distinct value sets A0 / A1 / A2 | 7 / 6 / 9 | 4 / 3 / 3 |
 
-  Other arms' means are unchanged (to 0.01). The post hoc analysis without unscorable runs (§17) is now empty.
+  Other arms' means move by at most 0.01, from storing run scores unrounded (change 4; e.g. T3e A1 98.24 → 98.25,
+  A2 98.68 → 98.69). Distinct value sets fall wherever agent-written code had differed only in unscored columns or
+  empty cells, in T3a–T3e too (`results/stats_arms.csv` against `results/scorer_v1/stats_arms.csv`). The post hoc
+  analysis without unscorable runs (§17) is now empty.
 - **Tests first.** `scoring/tests/test_scoring.py` (`CanonicalNames`, `RowOrderMatching`, `CharacterOrderSensitivity`,
   `StoredPrecision`), `test_stats.py` (`ValueSetHash`, `CharacterOrderSensitivity`) and `test_tables.py`
-  (`ScorerV1Snapshot`, `RowOrderRuns`) were written and seen failing before the code changed. The manuscript text is
-  updated separately.
+  (`ScorerV1Snapshot`, `RowOrderRuns`) were written and seen failing before the code changed (in the working tree;
+  the PR is squashed, so git does not show the order). After code review: the name table holds one entry per
+  normalised name (tested), the character-order score is written by `score_all.py` so `stats.py` only reads
+  `scores.csv`, and the post hoc analyses share one helper. Results unchanged by the review fixes. The manuscript
+  text is updated separately.

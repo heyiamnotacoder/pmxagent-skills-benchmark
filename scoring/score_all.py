@@ -102,11 +102,21 @@ def score_nca_run(run_dir, task):
     return score_nca_dir(run_dir, sn.load(os.path.join(ROOT, "tasks", task, "reference", "pkanalix_individual.csv")))
 
 
-def score_nca_dir(run_dir, ref, character_order=False):
+def score_nca_dir(run_dir, ref):
     """Score the run's best-covering individual file. With none (nothing maps to a subject, even by row order), score
     an empty table with the same metric: every parameter and `overall` are 0, since a completed run counts whatever
-    its score (paper/SPEC.md; logs/deviations.md §17). `character_order`: post hoc sensitivity of §29 only."""
-    order = sn.subject_order(ref, character=character_order)
+    its score (paper/SPEC.md; logs/deviations.md §17). A run scored by row order (§29) also gets
+    `overall_charorder`: the same file matched in character order of subject number (1, 10, 2, ...), for the post hoc
+    upper bound in stats.py only."""
+    row, by_order = _score_nca(run_dir, ref, sn.subject_order(ref))
+    if by_order:
+        row["note"] = ROW_ORDER
+        row["overall_charorder"] = _score_nca(run_dir, ref, sn.subject_order(ref, character=True))[0]["overall"]
+    return row
+
+
+def _score_nca(run_dir, ref, order):
+    """(scores.csv fields, scored by row order?) for one run with drug-only rows matched in `order`."""
     f, cov, by_order = pick_individual(run_dir, ref, order)
     r = sn.score(load_any(f, order) if f else {}, ref)
     row = {"scored_file": os.path.relpath(f, run_dir) if f else "", "coverage_pct": round(100 * cov, 2),
@@ -114,9 +124,7 @@ def score_nca_dir(run_dir, ref, character_order=False):
     row.update({f"{p}_pct": round(r[p]["correct_pct"], DIGITS) for p in sn.PARAMS})
     if not f:
         row["note"] = UNSCORABLE
-    elif by_order:
-        row["note"] = ROW_ORDER
-    return row
+    return row, by_order
 
 
 def pmxagent_call_counts(run_dir):
