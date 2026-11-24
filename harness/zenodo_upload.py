@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deposit the evidence archive on Zenodo and reserve its DOI. Does NOT publish (publishing is permanent).
+"""Deposit the evidence archive on Zenodo and reserve its DOI, or edit a published record's creators. Does NOT publish (publishing is permanent).
 
 Token: $ZENODO_TOKEN or ~/.zenodo_token (scopes deposit:write, deposit:actions).
 Usage: zenodo_upload.py --new-version RECORD_ID [--sandbox]
@@ -7,6 +7,9 @@ Usage: zenodo_upload.py --new-version RECORD_ID [--sandbox]
                                          (creators, licence, links), replaces its files with the current archive,
                                          MANIFEST.sha256 and provenance.json, updates title/description/version;
                                          prints the new version's reserved DOI, the concept DOI and the edit URL
+       zenodo_upload.py --drop-creator ID "Family, Given" [--sandbox]
+                                      -> opens published deposition ID for a metadata edit and removes that creator;
+                                         files and DOI are unchanged; the edit stays unpublished until --publish ID
        zenodo_upload.py --publish ID [--sandbox]
                                       -> publishes that deposition (irreversible)
 The T1 archive is record 23019418 (concept 10.5281/zenodo.23019417); issue #14 deposits T1-T3 as its next version.
@@ -82,6 +85,24 @@ def new_version(call, api, record_id, files, changes):
     return summary(call("PUT", draft["links"]["self"], json.dumps({"metadata": meta}).encode()), files)
 
 
+def drop_creator(call, api, dep_id, name):
+    """Stage a metadata edit of published deposition `dep_id` that removes creator `name`; leaves it unpublished.
+    Refuses (before changing anything) if `name` is not a creator or is the only one."""
+    url = f"{api}/deposit/depositions/{dep_id}"
+    creators = call("GET", url)["metadata"]["creators"]
+    kept = [c for c in creators if c["name"] != name]
+    if len(kept) == len(creators):
+        sys.exit(f"{name!r} is not a creator of {dep_id}: {[c['name'] for c in creators]}")
+    if not kept:
+        sys.exit(f"{name!r} is the only creator of {dep_id}; a record needs at least one")
+    call("POST", f"{url}/actions/edit")
+    meta = call("GET", url)["metadata"]
+    meta["creators"] = [c for c in meta["creators"] if c["name"] != name]
+    dep = call("PUT", url, json.dumps({"metadata": meta}).encode())
+    return {"deposition_id": dep["id"], "doi": dep["metadata"].get("doi"), "edit_url": dep["links"]["html"],
+            "creators": [c["name"] for c in dep["metadata"]["creators"]], "published": False}
+
+
 def evidence_files():
     """The archive named in provenance.json (refused unless its SHA-256 matches), the manifest and provenance."""
     prov = json.load(open(os.path.join(EV, "provenance.json")))
@@ -101,6 +122,9 @@ def main(argv):
     if "--publish" in argv:
         r = http("POST", f"{api}/deposit/depositions/{arg('--publish')}/actions/publish")
         print("published:", r.get("doi"), r.get("links", {}).get("html"))
+    elif "--drop-creator" in argv:
+        i = argv.index("--drop-creator")
+        print(json.dumps(drop_creator(http, api, argv[i + 1], argv[i + 2]), indent=1))
     elif "--new-version" in argv:
         print(json.dumps(new_version(http, api, arg("--new-version"), evidence_files(), V2), indent=1))
     else:
